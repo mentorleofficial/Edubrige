@@ -1,10 +1,25 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { BrandingProvider } from "@/contexts/BrandingContext";
+import RoleGuard from "@/components/RoleGuard";
+import Login from "@/pages/Login";
+import Dashboard from "@/pages/Dashboard";
+import AdminUsers from "@/pages/AdminUsers";
+import AdminSettings from "@/pages/AdminSettings";
+import AdminAuditLogs from "@/pages/AdminAuditLogs";
+import MentorDirectory from "@/pages/MentorDirectory";
+import MentorProfile from "@/pages/MentorProfile";
+import MentorAvailability from "@/pages/MentorAvailability";
+import MentorSessions from "@/pages/MentorSessions";
+import MenteeProfile from "@/pages/MenteeProfile";
+import MenteeSessions from "@/pages/MenteeSessions";
+import BookSession from "@/pages/BookSession";
+import SessionFeedback from "@/pages/SessionFeedback";
+import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -14,11 +29,27 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <BrandingProvider>
+          <AuthProvider>
+            <Routes>
+              <Route path="/" element={<Navigate to="/login" replace />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/dashboard" element={<RoleGuard allowedRoles={["admin", "mentor", "mentee"]}><Dashboard /></RoleGuard>} />
+              <Route path="/admin/users" element={<RoleGuard allowedRoles={["admin"]}><AdminUsers /></RoleGuard>} />
+              <Route path="/admin/settings" element={<RoleGuard allowedRoles={["admin"]}><AdminSettings /></RoleGuard>} />
+              <Route path="/admin/audit-logs" element={<RoleGuard allowedRoles={["admin"]}><AdminAuditLogs /></RoleGuard>} />
+              <Route path="/mentors" element={<RoleGuard allowedRoles={["mentee", "admin"]}><MentorDirectory /></RoleGuard>} />
+              <Route path="/mentor/profile" element={<RoleGuard allowedRoles={["mentor"]}><MentorProfile /></RoleGuard>} />
+              <Route path="/mentor/availability" element={<RoleGuard allowedRoles={["mentor"]}><MentorAvailability /></RoleGuard>} />
+              <Route path="/mentor/sessions" element={<RoleGuard allowedRoles={["mentor"]}><MentorSessions /></RoleGuard>} />
+              <Route path="/mentee/profile" element={<RoleGuard allowedRoles={["mentee"]}><MenteeProfile /></RoleGuard>} />
+              <Route path="/mentee/sessions" element={<RoleGuard allowedRoles={["mentee"]}><MenteeSessions /></RoleGuard>} />
+              <Route path="/book/:mentorId" element={<RoleGuard allowedRoles={["mentee"]}><BookSession /></RoleGuard>} />
+              <Route path="/session/:id/feedback" element={<RoleGuard allowedRoles={["mentee"]}><SessionFeedback /></RoleGuard>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </BrandingProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
