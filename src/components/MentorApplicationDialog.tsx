@@ -280,10 +280,10 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
             </div>
 
             <div className="flex justify-center">
-              <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+              <InputOTP maxLength={8} value={otp} onChange={setOtp}>
                 <InputOTPGroup>
-                  {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <InputOTPSlot key={i} index={i} className="h-12 w-12 text-lg" />
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+                    <InputOTPSlot key={i} index={i} className="h-11 w-11 text-lg" />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
