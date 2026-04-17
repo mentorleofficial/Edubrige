@@ -280,9 +280,9 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
             </div>
 
             <div className="flex justify-center">
-              <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+              <InputOTP maxLength={8} value={otp} onChange={setOtp}>
                 <InputOTPGroup>
-                  {[0, 1, 2, 3, 4, 5].map((i) => (
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
                     <InputOTPSlot key={i} index={i} className="h-11 w-11 text-lg" />
                   ))}
                 </InputOTPGroup>
@@ -290,7 +290,7 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
             </div>
 
             <div className="space-y-2">
-              <Button onClick={verifyOtp} disabled={otp.length !== 6 || verifying} className="w-full" size="lg">
+              <Button onClick={verifyOtp} disabled={otp.length !== 8 || verifying} className="w-full" size="lg">
                 {verifying ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying…</> : "Verify & continue"}
               </Button>
               <div className="text-center text-sm text-muted-foreground">
