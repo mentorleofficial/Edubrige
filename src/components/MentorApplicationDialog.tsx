@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,13 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, X, Upload, Loader2 } from "lucide-react";
+import { CheckCircle2, X, Upload, Loader2, Mail } from "lucide-react";
 
 const urlOrEmpty = z.string().trim().url("Must be a valid URL").or(z.literal(""));
 
 const schema = z.object({
   full_name: z.string().trim().min(2, "Required").max(100),
   email: z.string().trim().email("Invalid email").max(255),
+  password: z.string().min(8, "Password must be at least 8 characters").max(72),
   phone: z.string().trim().max(30).optional().or(z.literal("")),
   linkedin_url: urlOrEmpty.refine((v) => !v || v.includes("linkedin"), "Must be a LinkedIn URL"),
   portfolio_url: urlOrEmpty,
@@ -35,16 +37,18 @@ interface Props {
 
 const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [expertise, setExpertise] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState("");
   const [resume, setResume] = useState<File | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      full_name: "", email: "", phone: "",
+      full_name: "", email: "", password: "", phone: "",
       linkedin_url: "", portfolio_url: "", twitter_url: "", github_url: "",
       bio: "", years_experience: 0,
     },
@@ -79,6 +83,7 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
 
     setSubmitting(true);
     try {
+      // 1) Upload resume first
       const ext = resume.name.split(".").pop();
       const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const { error: upErr } = await supabase.storage.from("mentor-resumes").upload(path, resume, {
@@ -86,6 +91,32 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
       });
       if (upErr) throw upErr;
 
+      // 2) Create auth user (triggers verification email)
+      const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: { full_name: values.full_name, role: "mentor" },
+          emailRedirectTo: `${window.location.origin}/login`,
+        },
+      });
+
+      if (signUpErr) {
+        const msg = signUpErr.message?.toLowerCase() ?? "";
+        if (msg.includes("already") || msg.includes("registered") || msg.includes("exists")) {
+          toast({
+            variant: "destructive",
+            title: "Email already registered",
+            description: "An account with this email exists. Please log in instead.",
+          });
+          return;
+        }
+        throw signUpErr;
+      }
+
+      const userId = signUpData.user?.id ?? null;
+
+      // 3) Insert mentor_application
       const { error: insErr } = await supabase.from("mentor_applications").insert({
         full_name: values.full_name,
         email: values.email,
@@ -101,7 +132,25 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
         years_experience: values.years_experience,
         resume_url: path,
       });
-      if (insErr) throw insErr;
+      if (insErr) console.error("application insert failed", insErr);
+
+      // 4) Insert mentor_profile (inactive)
+      if (userId) {
+        const { error: profErr } = await supabase.from("mentor_profiles").upsert(
+          {
+            user_id: userId,
+            bio: values.bio,
+            expertise,
+            years_experience: values.years_experience,
+            linkedin_url: values.linkedin_url || "",
+            is_active: false,
+          },
+          { onConflict: "user_id" }
+        );
+        if (profErr) console.error("mentor_profile insert failed", profErr);
+      }
+
+      setSubmittedEmail(values.email);
       setSubmitted(true);
     } catch (err: any) {
       toast({ variant: "destructive", title: "Submission failed", description: err.message });
@@ -125,23 +174,35 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         {submitted ? (
           <div className="py-8 text-center space-y-4">
-            <CheckCircle2 className="mx-auto h-16 w-16 text-primary" />
-            <DialogTitle className="text-2xl">Application Submitted</DialogTitle>
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <Mail className="h-8 w-8 text-primary" />
+            </div>
+            <DialogTitle className="text-2xl">Check your email</DialogTitle>
             <DialogDescription className="text-base">
-              Thanks for applying! Our team will review your application and reach out via email.
+              We sent a verification link to <span className="font-medium text-foreground">{submittedEmail}</span>.
+              Click it to confirm your email, then sign in to access your dashboard.
             </DialogDescription>
-            <Button onClick={() => handleClose(false)}>Close</Button>
+            <div className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+              <CheckCircle2 className="inline h-4 w-4 text-primary mr-1" />
+              Your account is created. Admin will review your application to fully activate mentor features.
+            </div>
+            <div className="flex justify-center gap-2">
+              <Button variant="outline" onClick={() => handleClose(false)}>Close</Button>
+              <Button onClick={() => { handleClose(false); navigate("/login"); }}>Go to Sign in</Button>
+            </div>
           </div>
         ) : (
           <>
             <DialogHeader>
               <DialogTitle>Apply to become a Mentor</DialogTitle>
-              <DialogDescription>Share your background. Your application will be reviewed by our team.</DialogDescription>
+              <DialogDescription>
+                Create your account and submit your application. You'll get instant dashboard access while admin reviews.
+              </DialogDescription>
             </DialogHeader>
 
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-2">
               <section className="space-y-3">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Personal</h3>
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Account</h3>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <Label>Full name *</Label>
@@ -153,11 +214,19 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
                     <Input type="email" {...form.register("email")} />
                     {form.formState.errors.email && <p className="text-xs text-destructive">{form.formState.errors.email.message}</p>}
                   </div>
-                  <div className="space-y-1.5 sm:col-span-2">
+                  <div className="space-y-1.5">
+                    <Label>Password * <span className="text-xs font-normal text-muted-foreground">(min 8 chars)</span></Label>
+                    <Input type="password" {...form.register("password")} />
+                    {form.formState.errors.password && <p className="text-xs text-destructive">{form.formState.errors.password.message}</p>}
+                  </div>
+                  <div className="space-y-1.5">
                     <Label>Phone</Label>
                     <Input {...form.register("phone")} />
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Already have an account? <Link to="/login" className="text-primary underline">Sign in</Link>
+                </p>
               </section>
 
               <section className="space-y-3">
@@ -235,7 +304,7 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
               </section>
 
               <Button type="submit" size="lg" className="w-full" disabled={submitting}>
-                {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Submitting…</> : "Submit Application"}
+                {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Creating account…</> : "Create Account & Submit"}
               </Button>
             </form>
           </>
