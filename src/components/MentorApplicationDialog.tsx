@@ -173,7 +173,7 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
       setPending({ values, resumePath });
       setStep("otp");
       setResendIn(60);
-      toast({ title: "Check your email", description: `We sent a 6-digit code to ${values.email}` });
+      toast({ title: "Check your email", description: `We sent a verification code to ${values.email}` });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Submission failed", description: err.message });
     } finally {
@@ -274,23 +274,23 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
               </div>
               <DialogTitle className="text-2xl">Verify your email</DialogTitle>
               <DialogDescription>
-                Enter the 6-digit code we sent to{" "}
+                Enter the verification code we sent to{" "}
                 <span className="font-medium text-foreground">{pending?.values.email}</span>
               </DialogDescription>
             </div>
 
             <div className="flex justify-center">
-              <InputOTP maxLength={6} value={otp} onChange={setOtp}>
+              <InputOTP maxLength={8} value={otp} onChange={setOtp}>
                 <InputOTPGroup>
-                  {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <InputOTPSlot key={i} index={i} className="h-12 w-12 text-lg" />
+                  {[0, 1, 2, 3, 4, 5, 6, 7].map((i) => (
+                    <InputOTPSlot key={i} index={i} className="h-11 w-11 text-lg" />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
             </div>
 
             <div className="space-y-2">
-              <Button onClick={verifyOtp} disabled={otp.length !== 6 || verifying} className="w-full" size="lg">
+              <Button onClick={verifyOtp} disabled={(otp.length !== 6 && otp.length !== 8) || verifying} className="w-full" size="lg">
                 {verifying ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Verifying…</> : "Verify & continue"}
               </Button>
               <div className="text-center text-sm text-muted-foreground">
@@ -311,7 +311,7 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
             <DialogHeader>
               <DialogTitle>Apply to become a Mentor</DialogTitle>
               <DialogDescription>
-                Create your account and submit your application. We'll send a 6-digit code to verify your email.
+                Create your account and submit your application. We'll send a verification code to your email.
               </DialogDescription>
             </DialogHeader>
 
