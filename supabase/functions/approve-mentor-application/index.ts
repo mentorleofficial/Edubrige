@@ -66,36 +66,29 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Invite the mentor by email (creates auth user)
-    const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(app.email, {
-      data: { full_name: app.full_name, role: "mentor" },
-    });
+    // Look up the existing user (created during apply via signUp)
+    const { data: existing } = await admin
+      .from("users")
+      .select("id")
+      .eq("email", app.email)
+      .maybeSingle();
 
-    let mentorUserId: string | null = invited?.user?.id ?? null;
-
-    if (inviteErr || !mentorUserId) {
-      // If user already exists, fetch from public.users
-      const { data: existing } = await admin
-        .from("users")
-        .select("id")
-        .eq("email", app.email)
-        .maybeSingle();
-      if (existing?.id) {
-        mentorUserId = existing.id;
-        // Ensure mentor role
-        await admin.from("user_roles").upsert(
-          { user_id: mentorUserId, role: "mentor" },
-          { onConflict: "user_id,role" }
-        );
-        await admin.from("users").update({ role: "mentor" }).eq("id", mentorUserId);
-      } else {
-        return new Response(JSON.stringify({ error: inviteErr?.message ?? "Failed to create user" }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    if (!existing?.id) {
+      return new Response(
+        JSON.stringify({ error: "No user account found for this email. Applicant may not have completed signup." }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // Upsert mentor profile (inactive by default)
+    const mentorUserId = existing.id;
+
+    // Ensure mentor role + activate profile
+    await admin.from("user_roles").upsert(
+      { user_id: mentorUserId, role: "mentor" },
+      { onConflict: "user_id,role" }
+    );
+    await admin.from("users").update({ role: "mentor" }).eq("id", mentorUserId);
+
     await admin.from("mentor_profiles").upsert(
       {
         user_id: mentorUserId,
@@ -103,12 +96,11 @@ Deno.serve(async (req) => {
         expertise: app.expertise,
         years_experience: app.years_experience,
         linkedin_url: app.linkedin_url ?? "",
-        is_active: false,
+        is_active: true,
       },
       { onConflict: "user_id" }
     );
 
-    // Update application
     await admin
       .from("mentor_applications")
       .update({
