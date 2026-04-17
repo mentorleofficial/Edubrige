@@ -1,76 +1,68 @@
 
 
-# Mentor Application Flow (Updated)
+# Updated Mentor Application Flow
 
-## Database Changes
+## New behavior
 
-**New enum:** `application_status` (pending/approved/rejected)
+When a mentor submits the application form on `/become-a-mentor`:
+1. Create the auth user immediately with email + auto-generated password (or let them set one in the form)
+2. Send email verification OTP to confirm the email address
+3. Insert mentor_application row (status=pending) AND mentor_profile row (is_active=false), both linked to the new user
+4. Sign the user in automatically after submission
+5. Redirect them to their dashboard — which shows the "Pending Activation" banner since `mentor_profiles.is_active=false`
 
-**New table: `mentor_applications`**
-- id, full_name, email, phone
-- linkedin_url, portfolio_url, social_links (jsonb)
-- bio, expertise (text[]), years_experience
-- resume_url, status, admin_notes
-- reviewed_by, reviewed_at, created_at, updated_at
+So the mentor instantly has account access (limited dashboard + profile) while admin still reviews the application to flip `is_active=true`.
 
-**Update `mentor_profiles`:** add `is_active boolean default false` column. Approved mentors get a profile row with `is_active=true`. Self-registered mentors (if any path remains) default to `false`.
+## Form changes (`MentorApplicationDialog`)
 
-**Update `users`:** add `is_active boolean default true` column. Newly approved mentor accounts start with `is_active=false` until admin activates them OR set `true` on approval but keep `mentor_profiles.is_active=false` as the gating flag — we'll use `mentor_profiles.is_active` as the source of truth for mentor activation.
+Add a **password field** (required, min 8 chars) so the mentor can log in immediately. Email verification happens via OTP sent by Supabase auth.
 
-**Decision:** Use `mentor_profiles.is_active` only (avoids dual-flag confusion). Default `false`. Admin "approve application" creates the account + profile with `is_active=false`. Admin can flip to active from a separate action or it auto-activates on first login confirmation.
+## Submission logic changes
 
-**RLS for mentor_applications:**
-- INSERT: anon + authenticated (public form)
-- SELECT/UPDATE/DELETE: admins only
+Replace the current "insert into mentor_applications + upload resume" flow with:
 
-**Storage bucket: `mentor-resumes`** (private)
-- INSERT: anyone
-- SELECT: admins only
+1. Upload resume to `mentor-resumes` bucket (unchanged)
+2. `supabase.auth.signUp({ email, password, options: { data: { full_name, role: 'mentor' }, emailRedirectTo: window.location.origin + '/login' } })` — this triggers Supabase to send the verification email automatically
+3. The existing `handle_new_user` DB trigger creates the `users` row + `user_roles` row with role=mentor
+4. Insert mentor_application (status=pending, link via email)
+5. Insert mentor_profile with `is_active=false`, bio/expertise/linkedin from form
+6. Show success screen: "Account created! Check your email to verify, then log in to access your dashboard. Admin will review your application for full mentor activation."
 
-## Inactive Mentor Behavior
+## Auth email verification (OTP / confirmation link)
 
-- Mentor can log in normally
-- AuthContext loads `mentor_profiles.is_active`
-- If role=mentor and `is_active=false`:
-  - Sidebar shows limited items (Dashboard + Profile only)
-  - Dashboard shows "Account Pending Activation" banner explaining limited access
-  - `/mentor/availability` and `/mentor/sessions` redirect to dashboard with toast
-  - Mentee directory query filters out mentors where `is_active=false`
-  - Booking page blocks attempts on inactive mentors
-- Admin gets a toggle in `/admin/users` and `/admin/applications` detail to activate/deactivate
+Supabase already sends a default confirmation email out of the box when `signUp` is called — no extra setup required for basic functionality. The email contains a verification link the mentor clicks to confirm their address before they can log in.
 
-## Pages & Routes
+If the user wants this email **branded** with the platform's look & feel (logo, colors, custom copy), we'd scaffold custom auth email templates. For now I'll rely on the default Supabase confirmation email so the flow works immediately. We can brand it as a follow-up.
 
-1. **`/become-a-mentor`** (public) — hero, benefits, how-it-works, Apply Now button, FAQ
-2. **MentorApplicationDialog** — multi-section zod form + resume upload to `mentor-resumes`
-3. **`/admin/applications`** — tabs (Pending/Approved/Rejected/All), table, detail dialog with approve/reject + notes + resume link
-4. Login page footer: "Want to mentor? Apply here"
+> Note: in Supabase Auth settings, "Confirm email" must remain enabled (it is by default) for the verification email to be sent.
 
-## Edge Function
+## Admin approval flow changes
 
-**`approve-mentor-application`** (verify_jwt=true)
-- Verify caller is admin
-- Service role: `admin.inviteUserByEmail` with metadata `{ role: 'mentor', full_name }`
-- Insert `mentor_profiles` row with bio/expertise/linkedin/years_experience and `is_active=false`
-- Update application: status=approved, reviewed_by, reviewed_at
+The `approve-mentor-application` edge function no longer needs to invite the user — the account already exists. Simplify it to:
+1. Verify caller is admin
+2. Look up the user by email from the application
+3. Update `mentor_profiles.is_active = true`
+4. Update application status = approved + reviewed_by/at
+5. Log audit event
 
-Reject is a direct DB update from client (admin RLS allows it).
+Reject flow unchanged (just status update + notes).
 
-## Navigation
+## RLS / DB
 
-- Public link from `/login` footer → `/become-a-mentor`
-- Admin sidebar: add "Applications" item with pending count badge
-- Mentor sidebar: conditional rendering based on `is_active`
+No schema changes needed. Existing tables and policies already support this:
+- `mentor_applications` INSERT allowed for anon+authenticated ✓
+- `mentor_profiles` — mentor manages own ✓, admin full access ✓
+- `handle_new_user` trigger already creates users/user_roles from signUp metadata ✓
 
-## Components
+## Files to edit
 
-- `MentorLanding.tsx`, `MentorApplicationDialog.tsx`
-- `AdminApplications.tsx`, `ApplicationDetailDialog.tsx`
-- `InactiveMentorBanner.tsx` — shown on mentor dashboard when not active
-- Update `AuthContext` to expose `mentorActive: boolean`
-- Update `AppSidebar` and `RoleGuard` (new optional `requireActiveMentor` prop)
+- `src/components/MentorApplicationDialog.tsx` — add password field, replace submit logic with signUp + dual insert + auto sign-in
+- `supabase/functions/approve-mentor-application/index.ts` — simplify to "activate existing user" instead of invite
+- `src/pages/MentorLanding.tsx` — minor success-state copy update if needed
 
-## Validation
+## Edge cases
 
-Zod: email format, URL validation, bio ≥50 chars, expertise ≥1 tag, resume required (PDF/DOC ≤5MB).
+- **Email already in use**: signUp returns an error → show "An account with this email already exists. Please log in." with link to /login
+- **Resume upload fails**: abort before signUp so we don't create an orphan account
+- **mentor_profile insert fails after signUp**: log error, surface message; user can complete profile from their dashboard later
 
