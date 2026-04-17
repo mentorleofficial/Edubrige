@@ -198,6 +198,66 @@ export type Database = {
           },
         ]
       }
+      mentor_applications: {
+        Row: {
+          admin_notes: string | null
+          bio: string
+          created_at: string
+          email: string
+          expertise: string[]
+          full_name: string
+          id: string
+          linkedin_url: string | null
+          phone: string | null
+          portfolio_url: string | null
+          resume_url: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          social_links: Json
+          status: Database["public"]["Enums"]["application_status"]
+          updated_at: string
+          years_experience: number
+        }
+        Insert: {
+          admin_notes?: string | null
+          bio: string
+          created_at?: string
+          email: string
+          expertise?: string[]
+          full_name: string
+          id?: string
+          linkedin_url?: string | null
+          phone?: string | null
+          portfolio_url?: string | null
+          resume_url?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          social_links?: Json
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+          years_experience?: number
+        }
+        Update: {
+          admin_notes?: string | null
+          bio?: string
+          created_at?: string
+          email?: string
+          expertise?: string[]
+          full_name?: string
+          id?: string
+          linkedin_url?: string | null
+          phone?: string | null
+          portfolio_url?: string | null
+          resume_url?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          social_links?: Json
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+          years_experience?: number
+        }
+        Relationships: []
+      }
       mentor_availability: {
         Row: {
           created_at: string
@@ -242,6 +302,7 @@ export type Database = {
           created_at: string
           expertise: string[] | null
           id: string
+          is_active: boolean
           linkedin_url: string | null
           updated_at: string
           user_id: string
@@ -252,6 +313,7 @@ export type Database = {
           created_at?: string
           expertise?: string[] | null
           id?: string
+          is_active?: boolean
           linkedin_url?: string | null
           updated_at?: string
           user_id: string
@@ -262,6 +324,7 @@ export type Database = {
           created_at?: string
           expertise?: string[] | null
           id?: string
+          is_active?: boolean
           linkedin_url?: string | null
           updated_at?: string
           user_id?: string
@@ -391,6 +454,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "mentor" | "mentee"
+      application_status: "pending" | "approved" | "rejected"
       session_status: "booked" | "completed" | "cancelled" | "no_show"
     }
     CompositeTypes: {
@@ -520,6 +584,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "mentor", "mentee"],
+      application_status: ["pending", "approved", "rejected"],
       session_status: ["booked", "completed", "cancelled", "no_show"],
     },
   },
