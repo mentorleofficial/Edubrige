@@ -1,5 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
@@ -7,10 +9,24 @@ type AppRole = Database["public"]["Enums"]["app_role"];
 interface RoleGuardProps {
   children: React.ReactNode;
   allowedRoles: AppRole[];
+  requireActiveMentor?: boolean;
 }
 
-const RoleGuard = ({ children, allowedRoles }: RoleGuardProps) => {
-  const { profile, loading } = useAuth();
+const RoleGuard = ({ children, allowedRoles, requireActiveMentor }: RoleGuardProps) => {
+  const { profile, loading, mentorActive } = useAuth();
+  const { toast } = useToast();
+
+  const blockedInactive = !!profile && profile.role === "mentor" && requireActiveMentor && !mentorActive;
+
+  useEffect(() => {
+    if (blockedInactive) {
+      toast({
+        variant: "destructive",
+        title: "Account inactive",
+        description: "This area unlocks once your mentor account is activated.",
+      });
+    }
+  }, [blockedInactive, toast]);
 
   if (loading) {
     return (
@@ -25,6 +41,10 @@ const RoleGuard = ({ children, allowedRoles }: RoleGuardProps) => {
   }
 
   if (!allowedRoles.includes(profile.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  if (blockedInactive) {
     return <Navigate to="/dashboard" replace />;
   }
 

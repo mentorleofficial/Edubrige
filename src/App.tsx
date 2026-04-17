@@ -44,8 +44,8 @@ const App = () => (
               <Route path="/admin/audit-logs" element={<RoleGuard allowedRoles={["admin"]}><AdminAuditLogs /></RoleGuard>} />
               <Route path="/mentors" element={<RoleGuard allowedRoles={["mentee", "admin"]}><MentorDirectory /></RoleGuard>} />
               <Route path="/mentor/profile" element={<RoleGuard allowedRoles={["mentor"]}><MentorProfile /></RoleGuard>} />
-              <Route path="/mentor/availability" element={<RoleGuard allowedRoles={["mentor"]}><MentorAvailability /></RoleGuard>} />
-              <Route path="/mentor/sessions" element={<RoleGuard allowedRoles={["mentor"]}><MentorSessions /></RoleGuard>} />
+              <Route path="/mentor/availability" element={<RoleGuard allowedRoles={["mentor"]} requireActiveMentor><MentorAvailability /></RoleGuard>} />
+              <Route path="/mentor/sessions" element={<RoleGuard allowedRoles={["mentor"]} requireActiveMentor><MentorSessions /></RoleGuard>} />
               <Route path="/mentee/profile" element={<RoleGuard allowedRoles={["mentee"]}><MenteeProfile /></RoleGuard>} />
               <Route path="/mentee/sessions" element={<RoleGuard allowedRoles={["mentee"]}><MenteeSessions /></RoleGuard>} />
               <Route path="/book/:mentorId" element={<RoleGuard allowedRoles={["mentee"]}><BookSession /></RoleGuard>} />

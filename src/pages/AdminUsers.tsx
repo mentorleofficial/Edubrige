@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,7 +15,7 @@ import { Search, UserPlus } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
-type UserRow = Database["public"]["Tables"]["users"]["Row"];
+type UserRow = Database["public"]["Tables"]["users"]["Row"] & { mentor_profiles?: { is_active: boolean }[] };
 
 const AdminUsers = () => {
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -29,8 +30,11 @@ const AdminUsers = () => {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const { data } = await supabase.from("users").select("*").order("created_at", { ascending: false });
-    setUsers(data || []);
+    const { data } = await supabase
+      .from("users")
+      .select("*, mentor_profiles(is_active)")
+      .order("created_at", { ascending: false });
+    setUsers((data as any) || []);
     setLoading(false);
   };
 
@@ -116,23 +120,51 @@ const AdminUsers = () => {
                   <TableHead>Name</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead>Mentor Active</TableHead>
                   <TableHead>Joined</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={4} className="text-center py-8 text-muted-foreground">No users found</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No users found</TableCell></TableRow>
                 ) : (
-                  filtered.map((u) => (
+                  filtered.map((u) => {
+                    const mp = u.mentor_profiles?.[0];
+                    return (
                     <TableRow key={u.id}>
                       <TableCell className="font-medium">{u.full_name}</TableCell>
                       <TableCell>{u.email}</TableCell>
                       <TableCell><Badge variant={roleBadgeVariant(u.role)}>{u.role}</Badge></TableCell>
+                      <TableCell>
+                        {u.role === "mentor" ? (
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={!!mp?.is_active}
+                              onCheckedChange={async (checked) => {
+                                const { error } = await supabase
+                                  .from("mentor_profiles")
+                                  .update({ is_active: checked })
+                                  .eq("user_id", u.id);
+                                if (error) {
+                                  toast({ variant: "destructive", title: "Update failed", description: error.message });
+                                } else {
+                                  toast({ title: checked ? "Mentor activated" : "Mentor deactivated" });
+                                  fetchUsers();
+                                }
+                              }}
+                            />
+                            <span className="text-xs text-muted-foreground">{mp?.is_active ? "Active" : "Inactive"}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
                       <TableCell className="text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
