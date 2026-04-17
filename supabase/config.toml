@@ -1,1 +1,4 @@
 project_id = "uibbavdzxmictgqdcuny"
+
+[functions.approve-mentor-application]
+verify_jwt = true
