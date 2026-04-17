@@ -173,7 +173,7 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
       setPending({ values, resumePath });
       setStep("otp");
       setResendIn(60);
-      toast({ title: "Check your email", description: `We sent a 6-digit code to ${values.email}` });
+      toast({ title: "Check your email", description: `We sent a verification code to ${values.email}` });
     } catch (err: any) {
       toast({ variant: "destructive", title: "Submission failed", description: err.message });
     } finally {
@@ -274,7 +274,7 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
               </div>
               <DialogTitle className="text-2xl">Verify your email</DialogTitle>
               <DialogDescription>
-                Enter the 6-digit code we sent to{" "}
+                Enter the verification code we sent to{" "}
                 <span className="font-medium text-foreground">{pending?.values.email}</span>
               </DialogDescription>
             </div>
