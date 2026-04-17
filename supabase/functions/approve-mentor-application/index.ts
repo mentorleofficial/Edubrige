@@ -1,0 +1,138 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing authorization" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData.user) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    const { data: isAdmin } = await admin.rpc("has_role", {
+      _user_id: userData.user.id,
+      _role: "admin",
+    });
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const body = await req.json();
+    const { application_id, admin_notes } = body || {};
+    if (!application_id) {
+      return new Response(JSON.stringify({ error: "application_id required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: app, error: appErr } = await admin
+      .from("mentor_applications")
+      .select("*")
+      .eq("id", application_id)
+      .single();
+    if (appErr || !app) {
+      return new Response(JSON.stringify({ error: "Application not found" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (app.status !== "pending") {
+      return new Response(JSON.stringify({ error: "Application already reviewed" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Invite the mentor by email (creates auth user)
+    const { data: invited, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(app.email, {
+      data: { full_name: app.full_name, role: "mentor" },
+    });
+
+    let mentorUserId: string | null = invited?.user?.id ?? null;
+
+    if (inviteErr || !mentorUserId) {
+      // If user already exists, fetch from public.users
+      const { data: existing } = await admin
+        .from("users")
+        .select("id")
+        .eq("email", app.email)
+        .maybeSingle();
+      if (existing?.id) {
+        mentorUserId = existing.id;
+        // Ensure mentor role
+        await admin.from("user_roles").upsert(
+          { user_id: mentorUserId, role: "mentor" },
+          { onConflict: "user_id,role" }
+        );
+        await admin.from("users").update({ role: "mentor" }).eq("id", mentorUserId);
+      } else {
+        return new Response(JSON.stringify({ error: inviteErr?.message ?? "Failed to create user" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Upsert mentor profile (inactive by default)
+    await admin.from("mentor_profiles").upsert(
+      {
+        user_id: mentorUserId,
+        bio: app.bio,
+        expertise: app.expertise,
+        years_experience: app.years_experience,
+        linkedin_url: app.linkedin_url ?? "",
+        is_active: false,
+      },
+      { onConflict: "user_id" }
+    );
+
+    // Update application
+    await admin
+      .from("mentor_applications")
+      .update({
+        status: "approved",
+        admin_notes: admin_notes ?? null,
+        reviewed_by: userData.user.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", application_id);
+
+    await admin.from("audit_logs").insert({
+      user_id: userData.user.id,
+      action: "approve_mentor_application",
+      entity_type: "mentor_applications",
+      entity_id: application_id,
+      details: { mentor_user_id: mentorUserId, email: app.email },
+    });
+
+    return new Response(JSON.stringify({ success: true, mentor_user_id: mentorUserId }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    return new Response(JSON.stringify({ error: (err as Error).message }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
