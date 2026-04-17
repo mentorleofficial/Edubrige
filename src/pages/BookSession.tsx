@@ -36,11 +36,17 @@ const BookSession = () => {
     Promise.all([
       supabase.from("users").select("id, full_name, avatar_url").eq("id", mentorId).single(),
       supabase.from("mentor_availability").select("*").eq("mentor_id", mentorId).order("day_of_week"),
-    ]).then(([mentorRes, slotsRes]) => {
+      supabase.from("mentor_profiles").select("is_active").eq("user_id", mentorId).maybeSingle(),
+    ]).then(([mentorRes, slotsRes, mpRes]) => {
+      if (!mpRes.data?.is_active) {
+        toast({ variant: "destructive", title: "Mentor unavailable", description: "This mentor is not currently accepting bookings." });
+        navigate("/mentors");
+        return;
+      }
       setMentor(mentorRes.data);
       setSlots(slotsRes.data || []);
     });
-  }, [mentorId]);
+  }, [mentorId, navigate, toast]);
 
   const getNextDateForDay = (dayOfWeek: number) => {
     const now = new Date();

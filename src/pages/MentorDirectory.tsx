@@ -31,8 +31,9 @@ const MentorDirectory = () => {
     const fetchMentors = async () => {
       const { data } = await supabase
         .from("users")
-        .select("id, full_name, email, avatar_url, mentor_profiles(bio, expertise, years_experience)")
-        .eq("role", "mentor");
+        .select("id, full_name, email, avatar_url, mentor_profiles!inner(bio, expertise, years_experience, is_active)")
+        .eq("role", "mentor")
+        .eq("mentor_profiles.is_active", true);
       setMentors((data as any) || []);
       setLoading(false);
     };

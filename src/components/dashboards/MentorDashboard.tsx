@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BookOpen, Clock, Star } from "lucide-react";
+import InactiveMentorBanner from "@/components/InactiveMentorBanner";
 
 const MentorDashboard = () => {
-  const { user } = useAuth();
+  const { user, mentorActive } = useAuth();
   const [upcoming, setUpcoming] = useState(0);
   const [completed, setCompleted] = useState(0);
   const [avgRating, setAvgRating] = useState<number | null>(null);
@@ -33,7 +34,9 @@ const MentorDashboard = () => {
   }, [user]);
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="space-y-4">
+      {!mentorActive && <InactiveMentorBanner />}
+      <div className="grid gap-4 md:grid-cols-3">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-2">
           <CardTitle className="text-sm font-medium text-muted-foreground">Upcoming Sessions</CardTitle>
@@ -55,6 +58,7 @@ const MentorDashboard = () => {
         </CardHeader>
         <CardContent><div className="text-3xl font-bold">{avgRating ? avgRating.toFixed(1) : "—"}</div></CardContent>
       </Card>
+      </div>
     </div>
   );
 };
