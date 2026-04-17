@@ -182,7 +182,7 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
   };
 
   const verifyOtp = async () => {
-    if (!pending || otp.length !== 6) return;
+    if (!pending || otp.length !== 8) return;
     setVerifying(true);
     try {
       const { data, error } = await supabase.auth.verifyOtp({
