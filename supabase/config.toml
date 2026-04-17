@@ -1,4 +1,7 @@
 project_id = "uibbavdzxmictgqdcuny"
 
+[auth.email]
+otp_length = 6
+
 [functions.approve-mentor-application]
 verify_jwt = true
