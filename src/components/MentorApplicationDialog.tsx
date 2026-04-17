@@ -311,7 +311,7 @@ const MentorApplicationDialog = ({ open, onOpenChange }: Props) => {
             <DialogHeader>
               <DialogTitle>Apply to become a Mentor</DialogTitle>
               <DialogDescription>
-                Create your account and submit your application. We'll send a 6-digit code to verify your email.
+                Create your account and submit your application. We'll send a verification code to your email.
               </DialogDescription>
             </DialogHeader>
 
