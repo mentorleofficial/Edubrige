@@ -1,68 +1,61 @@
 
 
-# Updated Mentor Application Flow
+# Bug fixes + OTP verification
 
-## New behavior
+## Bug 1 — Wrong full_name stored
 
-When a mentor submits the application form on `/become-a-mentor`:
-1. Create the auth user immediately with email + auto-generated password (or let them set one in the form)
-2. Send email verification OTP to confirm the email address
-3. Insert mentor_application row (status=pending) AND mentor_profile row (is_active=false), both linked to the new user
-4. Sign the user in automatically after submission
-5. Redirect them to their dashboard — which shows the "Pending Activation" banner since `mentor_profiles.is_active=false`
+**Root cause:** `handle_new_user` trigger reads `raw_user_meta_data->>'full_name'`, but somewhere the role string ("mentor"/"admin") is being passed as full_name. Looking at `MentorApplicationDialog.tsx` line ~96, the signUp call DOES pass `full_name: values.full_name` correctly. So the bug is likely in the older Login/seed admin path, or `users.full_name` is being overwritten with role elsewhere.
 
-So the mentor instantly has account access (limited dashboard + profile) while admin still reviews the application to flip `is_active=true`.
+**Fix:** 
+- Audit `Login.tsx`, AdminUsers admin-create path, and the admin seed flow to ensure `full_name` is the actual person name, not the role.
+- Update `handle_new_user` to fall back to email-prefix instead of empty string when full_name missing, never the role.
+- One-time data fix migration: for existing rows where `users.full_name` IN ('mentor','admin','mentee'), update from auth metadata if available, else from email prefix.
 
-## Form changes (`MentorApplicationDialog`)
+## Bug 2 — Application form UX + data types
 
-Add a **password field** (required, min 8 chars) so the mentor can log in immediately. Email verification happens via OTP sent by Supabase auth.
+Issues to fix in `MentorApplicationDialog.tsx`:
+- **Phone:** currently free-text. Change to `type="tel"` with regex validation (digits, +, spaces, dashes, 7–20 chars). Add country-code-friendly placeholder.
+- **Years experience:** `z.coerce.number()` works but the input shows 0 by default — make placeholder empty and require explicit value; clamp 0–60.
+- **Expertise tags:** Enter to add is hidden — add an explicit "Add" button next to input. Show helper count "X/10". Prevent duplicates case-insensitively.
+- **Resume upload:** show file size, allow remove (X button), display selected filename more prominently, drag-and-drop hint.
+- **Password:** add show/hide toggle, strength hint.
+- **LinkedIn:** loosen validator (accept linkedin.com/in/... or linkedin.com/pub/...) and trim trailing slash.
+- **Form layout:** sticky submit footer on mobile, better section spacing, clearer required-field asterisks, inline validation on blur (not just on submit).
+- **Disable submit** while resume uploading; show progress.
+- **Reset state** properly when dialog closes mid-flow.
 
-## Submission logic changes
+## Bug 3 — Replace confirmation link with OTP
 
-Replace the current "insert into mentor_applications + upload resume" flow with:
+Switch from email-link confirmation to 6-digit OTP verification:
 
-1. Upload resume to `mentor-resumes` bucket (unchanged)
-2. `supabase.auth.signUp({ email, password, options: { data: { full_name, role: 'mentor' }, emailRedirectTo: window.location.origin + '/login' } })` — this triggers Supabase to send the verification email automatically
-3. The existing `handle_new_user` DB trigger creates the `users` row + `user_roles` row with role=mentor
-4. Insert mentor_application (status=pending, link via email)
-5. Insert mentor_profile with `is_active=false`, bio/expertise/linkedin from form
-6. Show success screen: "Account created! Check your email to verify, then log in to access your dashboard. Admin will review your application for full mentor activation."
+**Flow:**
+1. User fills form → submit
+2. Upload resume → call `supabase.auth.signUp({ email, password, options: { data: {...} } })` — Supabase sends OTP token (when "Confirm email" is enabled and template uses `{{ .Token }}`)
+3. Show OTP entry step inside the dialog (6-digit input using existing `input-otp` component)
+4. User enters OTP → `supabase.auth.verifyOtp({ email, token, type: 'signup' })` 
+5. On success: insert mentor_application + mentor_profile (deferred until verified, so we don't create orphan rows for unverified emails), then auto sign-in, redirect to `/dashboard`
+6. Resend OTP button with 60s cooldown
 
-## Auth email verification (OTP / confirmation link)
+**Email template work:**
+Scaffold Lovable auth email templates so the signup email contains the OTP code (`{{ .Token }}`) instead of a confirmation link. Apply project branding (DM Sans, primary colors from `index.css`). This requires:
+- Email domain setup (if not already configured) — show setup dialog
+- `scaffold_auth_email_templates` → customizes `signup.tsx` to display the 6-digit token prominently
+- Deploy `auth-email-hook`
 
-Supabase already sends a default confirmation email out of the box when `signUp` is called — no extra setup required for basic functionality. The email contains a verification link the mentor clicks to confirm their address before they can log in.
-
-If the user wants this email **branded** with the platform's look & feel (logo, colors, custom copy), we'd scaffold custom auth email templates. For now I'll rely on the default Supabase confirmation email so the flow works immediately. We can brand it as a follow-up.
-
-> Note: in Supabase Auth settings, "Confirm email" must remain enabled (it is by default) for the verification email to be sent.
-
-## Admin approval flow changes
-
-The `approve-mentor-application` edge function no longer needs to invite the user — the account already exists. Simplify it to:
-1. Verify caller is admin
-2. Look up the user by email from the application
-3. Update `mentor_profiles.is_active = true`
-4. Update application status = approved + reviewed_by/at
-5. Log audit event
-
-Reject flow unchanged (just status update + notes).
-
-## RLS / DB
-
-No schema changes needed. Existing tables and policies already support this:
-- `mentor_applications` INSERT allowed for anon+authenticated ✓
-- `mentor_profiles` — mentor manages own ✓, admin full access ✓
-- `handle_new_user` trigger already creates users/user_roles from signUp metadata ✓
+If email domain is not configured, the OTP will still be sent via the default Supabase email (which includes the token), but it won't be branded.
 
 ## Files to edit
 
-- `src/components/MentorApplicationDialog.tsx` — add password field, replace submit logic with signUp + dual insert + auto sign-in
-- `supabase/functions/approve-mentor-application/index.ts` — simplify to "activate existing user" instead of invite
-- `src/pages/MentorLanding.tsx` — minor success-state copy update if needed
+- `supabase/migrations/...` — fix `handle_new_user` fallback + one-time data repair
+- `src/components/MentorApplicationDialog.tsx` — full UX pass + OTP step
+- `src/pages/Login.tsx` — verify name handling on admin/mentor login paths
+- `src/pages/AdminUsers.tsx` — verify create-user paths use real name
+- Auth email templates (scaffold + brand) — signup template shows OTP
 
-## Edge cases
+## Order of operations
 
-- **Email already in use**: signUp returns an error → show "An account with this email already exists. Please log in." with link to /login
-- **Resume upload fails**: abort before signUp so we don't create an orphan account
-- **mentor_profile insert fails after signUp**: log error, surface message; user can complete profile from their dashboard later
+1. DB migration: fix trigger + repair existing bad names
+2. Update application dialog: add OTP step, defer profile inserts until verified
+3. Set up branded auth email templates with OTP token
+4. Verify end-to-end
 
