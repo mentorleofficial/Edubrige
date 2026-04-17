@@ -1,71 +1,76 @@
 
 
-# Mentorship Platform — Implementation Plan
+# Mentor Application Flow (Updated)
 
-## Database Schema (Supabase Migrations)
+## Database Changes
 
-### Tables:
-1. **users** — id (uuid, FK auth.users), email, full_name, role (enum: admin/mentor/mentee), external_id (nullable, for EduBridge), avatar_url, created_at, updated_at
-2. **user_roles** — id, user_id (FK auth.users), role (app_role enum) — for RLS security-definer checks
-3. **branding** — id, app_name, logo_url, primary_color, secondary_color, accent_color, login_bg_url, updated_at (single-row config)
-4. **jwt_config** — id, issuer, audience, public_key, algorithm, enabled, updated_at (single-row config)
-5. **mentor_profiles** — id, user_id (FK users), bio, expertise (text[]), years_experience, linkedin_url
-6. **mentor_availability** — id, mentor_id (FK users), day_of_week (int), start_time (time), end_time (time), is_recurring (bool)
-7. **mentee_profiles** — id, user_id (FK users), goals, interests (text[]), organization_unit
-8. **sessions** — id, mentor_id, mentee_id, scheduled_at (timestamptz), duration_minutes, status (enum: booked/completed/cancelled/no_show), notes, created_at
-9. **feedback** — id, session_id (FK sessions), submitted_by, rating (1-5), comment, created_at
-10. **audit_logs** — id, user_id, action, entity_type, entity_id, details (jsonb), ip_address, created_at
+**New enum:** `application_status` (pending/approved/rejected)
 
-### RLS Policies:
-- Admins: full access to all tables
-- Mentors: read/write own profile & availability, read assigned sessions, read feedback on own sessions
-- Mentees: read mentor profiles & availability, book sessions, submit feedback
-- Branding/JWT config: admin-only write, public read for branding
-- Security-definer `has_role()` function to prevent RLS recursion
+**New table: `mentor_applications`**
+- id, full_name, email, phone
+- linkedin_url, portfolio_url, social_links (jsonb)
+- bio, expertise (text[]), years_experience
+- resume_url, status, admin_notes
+- reviewed_by, reviewed_at, created_at, updated_at
 
-## Edge Functions
+**Update `mentor_profiles`:** add `is_active boolean default false` column. Approved mentors get a profile row with `is_active=true`. Self-registered mentors (if any path remains) default to `false`.
 
-1. **edubridge-auth** — Receives redirect callback from EduBridge:
-   - Validates JWT (issuer, audience, signature using stored public key from jwt_config)
-   - Extracts user details (name, email, external_id)
-   - Auto-provisions mentee user if not exists
-   - Creates Supabase session, redirects to platform with auth cookie
+**Update `users`:** add `is_active boolean default true` column. Newly approved mentor accounts start with `is_active=false` until admin activates them OR set `true` on approval but keep `mentor_profiles.is_active=false` as the gating flag — we'll use `mentor_profiles.is_active` as the source of truth for mentor activation.
 
-## Frontend Architecture
+**Decision:** Use `mentor_profiles.is_active` only (avoids dual-flag confusion). Default `false`. Admin "approve application" creates the account + profile with `is_active=false`. Admin can flip to active from a separate action or it auto-activates on first login confirmation.
 
-### Pages & Routes:
-- `/login` — Admin/Mentor email+password login (dynamically branded)
-- `/auth/edubridge/callback` — EduBridge redirect landing, calls edge function
-- `/dashboard` — Role-based dashboard (Admin/Mentor/Mentee see different views)
-- `/admin/users` — User management CRUD
-- `/admin/settings` — Branding config + JWT config
-- `/admin/audit-logs` — Searchable/filterable audit log viewer
-- `/mentors` — Mentor directory with profiles (mentee view)
-- `/mentor/profile` — Mentor's own profile editor
-- `/mentor/availability` — Calendar availability manager
-- `/mentor/sessions` — Mentor's session list
-- `/mentee/profile` — Mentee profile editor
-- `/mentee/sessions` — Mentee's booked sessions
-- `/book/:mentorId` — Session booking flow (pick from available slots)
-- `/session/:id/feedback` — Post-session feedback form
+**RLS for mentor_applications:**
+- INSERT: anon + authenticated (public form)
+- SELECT/UPDATE/DELETE: admins only
 
-### Key Components:
-- **BrandingProvider** — Context that loads branding from DB & applies CSS variables dynamically
-- **AuthProvider** — Handles login state, role-based redirects, EduBridge JWT flow
-- **RoleGuard** — Route protection component based on user role
-- **MentorCard** — Displays mentor info, expertise, availability summary
-- **AvailabilityCalendar** — Weekly calendar for mentors to set time slots
-- **BookingModal** — Slot selection + confirmation for mentees
-- **FeedbackForm** — Star rating + text comment
-- **AuditLogTable** — Paginated, filterable table with action details
+**Storage bucket: `mentor-resumes`** (private)
+- INSERT: anyone
+- SELECT: admins only
 
-### Branding System:
-- Admin uploads logo to Supabase Storage, sets colors and app name
-- BrandingProvider fetches config and sets CSS custom properties on `:root`
-- Login page uses configurable background image
-- All UI components use CSS variables for theming
+## Inactive Mentor Behavior
 
-### Audit Logging:
-- Database trigger or edge function middleware logs key actions (user creation, session booking, settings changes, login events)
-- Stored with user_id, action type, entity reference, and details
+- Mentor can log in normally
+- AuthContext loads `mentor_profiles.is_active`
+- If role=mentor and `is_active=false`:
+  - Sidebar shows limited items (Dashboard + Profile only)
+  - Dashboard shows "Account Pending Activation" banner explaining limited access
+  - `/mentor/availability` and `/mentor/sessions` redirect to dashboard with toast
+  - Mentee directory query filters out mentors where `is_active=false`
+  - Booking page blocks attempts on inactive mentors
+- Admin gets a toggle in `/admin/users` and `/admin/applications` detail to activate/deactivate
+
+## Pages & Routes
+
+1. **`/become-a-mentor`** (public) — hero, benefits, how-it-works, Apply Now button, FAQ
+2. **MentorApplicationDialog** — multi-section zod form + resume upload to `mentor-resumes`
+3. **`/admin/applications`** — tabs (Pending/Approved/Rejected/All), table, detail dialog with approve/reject + notes + resume link
+4. Login page footer: "Want to mentor? Apply here"
+
+## Edge Function
+
+**`approve-mentor-application`** (verify_jwt=true)
+- Verify caller is admin
+- Service role: `admin.inviteUserByEmail` with metadata `{ role: 'mentor', full_name }`
+- Insert `mentor_profiles` row with bio/expertise/linkedin/years_experience and `is_active=false`
+- Update application: status=approved, reviewed_by, reviewed_at
+
+Reject is a direct DB update from client (admin RLS allows it).
+
+## Navigation
+
+- Public link from `/login` footer → `/become-a-mentor`
+- Admin sidebar: add "Applications" item with pending count badge
+- Mentor sidebar: conditional rendering based on `is_active`
+
+## Components
+
+- `MentorLanding.tsx`, `MentorApplicationDialog.tsx`
+- `AdminApplications.tsx`, `ApplicationDetailDialog.tsx`
+- `InactiveMentorBanner.tsx` — shown on mentor dashboard when not active
+- Update `AuthContext` to expose `mentorActive: boolean`
+- Update `AppSidebar` and `RoleGuard` (new optional `requireActiveMentor` prop)
+
+## Validation
+
+Zod: email format, URL validation, bio ≥50 chars, expertise ≥1 tag, resume required (PDF/DOC ≤5MB).
 
