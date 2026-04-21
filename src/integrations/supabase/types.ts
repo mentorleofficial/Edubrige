@@ -133,29 +133,62 @@ export type Database = {
       jwt_config: {
         Row: {
           algorithm: string
+          allowed_clock_skew_seconds: number | null
           audience: string
+          auto_provision: boolean | null
+          claim_email: string | null
+          claim_full_name: string | null
+          claim_role: string | null
+          claim_user_id: string | null
+          default_role: Database["public"]["Enums"]["app_role"] | null
           enabled: boolean
           id: string
           issuer: string
+          jwks_url: string | null
+          login_redirect_url: string | null
+          logout_redirect_url: string | null
           public_key: string
+          token_param_name: string | null
           updated_at: string
         }
         Insert: {
           algorithm?: string
+          allowed_clock_skew_seconds?: number | null
           audience?: string
+          auto_provision?: boolean | null
+          claim_email?: string | null
+          claim_full_name?: string | null
+          claim_role?: string | null
+          claim_user_id?: string | null
+          default_role?: Database["public"]["Enums"]["app_role"] | null
           enabled?: boolean
           id?: string
           issuer?: string
+          jwks_url?: string | null
+          login_redirect_url?: string | null
+          logout_redirect_url?: string | null
           public_key?: string
+          token_param_name?: string | null
           updated_at?: string
         }
         Update: {
           algorithm?: string
+          allowed_clock_skew_seconds?: number | null
           audience?: string
+          auto_provision?: boolean | null
+          claim_email?: string | null
+          claim_full_name?: string | null
+          claim_role?: string | null
+          claim_user_id?: string | null
+          default_role?: Database["public"]["Enums"]["app_role"] | null
           enabled?: boolean
           id?: string
           issuer?: string
+          jwks_url?: string | null
+          login_redirect_url?: string | null
+          logout_redirect_url?: string | null
           public_key?: string
+          token_param_name?: string | null
           updated_at?: string
         }
         Relationships: []
