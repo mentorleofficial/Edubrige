@@ -1,49 +1,28 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Calendar } from "lucide-react";
-
-interface MentorWithProfile {
-  id: string;
-  full_name: string;
-  email: string;
-  avatar_url: string | null;
-  mentor_profiles: {
-    bio: string | null;
-    expertise: string[] | null;
-    years_experience: number | null;
-  }[];
-}
+import { useMentors } from "@/features/mentors";
 
 const MentorDirectory = () => {
-  const [mentors, setMentors] = useState<MentorWithProfile[]>([]);
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { data: mentors = [], isLoading } = useMentors();
 
-  useEffect(() => {
-    const fetchMentors = async () => {
-      const { data } = await supabase
-        .from("users")
-        .select("id, full_name, email, avatar_url, mentor_profiles!inner(bio, expertise, years_experience, is_active)")
-        .eq("role", "mentor")
-        .eq("mentor_profiles.is_active", true);
-      setMentors((data as any) || []);
-      setLoading(false);
-    };
-    fetchMentors();
-  }, []);
-
-  const filtered = mentors.filter((m) =>
-    m.full_name.toLowerCase().includes(search.toLowerCase()) ||
-    m.mentor_profiles?.[0]?.expertise?.some((e) => e.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return mentors.filter(
+      (m) =>
+        m.full_name.toLowerCase().includes(q) ||
+        m.mentor_profiles?.[0]?.expertise?.some((e) => e.toLowerCase().includes(q))
+    );
+  }, [mentors, search]);
 
   return (
     <AppLayout>
@@ -55,11 +34,20 @@ const MentorDirectory = () => {
 
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input className="pl-9" placeholder="Search by name or expertise…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input
+            className="pl-9"
+            placeholder="Search by name or expertise…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
 
-        {loading ? (
-          <p className="text-muted-foreground">Loading mentors…</p>
+        {isLoading ? (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-48 w-full" />
+            ))}
+          </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {filtered.map((m) => {
