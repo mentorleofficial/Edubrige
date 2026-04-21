@@ -26,13 +26,29 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: (id) => {
           if (!id.includes("node_modules")) return;
-          if (id.includes("react-dom") || id.includes("react-router") || id.includes("/react/")) return "vendor-react";
-          if (id.includes("@radix-ui")) return "vendor-radix";
+          // Keep React + everything that depends on React's context (Radix, Router,
+          // Query, Tooltip primitives, etc.) in ONE chunk so React is defined
+          // before any consumer module evaluates. Splitting them caused
+          // "Cannot read properties of undefined (reading 'createContext')".
+          if (
+            id.includes("/react/") ||
+            id.includes("/react-dom/") ||
+            id.includes("scheduler") ||
+            id.includes("react-router") ||
+            id.includes("@radix-ui") ||
+            id.includes("@tanstack") ||
+            id.includes("react-hook-form") ||
+            id.includes("react-day-picker") ||
+            id.includes("lucide-react") ||
+            id.includes("sonner") ||
+            id.includes("cmdk") ||
+            id.includes("vaul")
+          ) {
+            return "vendor-react";
+          }
           if (id.includes("@supabase")) return "vendor-supabase";
-          if (id.includes("@tanstack")) return "vendor-query";
           if (id.includes("recharts") || id.includes("d3-")) return "vendor-charts";
-          if (id.includes("lucide-react")) return "vendor-icons";
-          if (id.includes("date-fns") || id.includes("react-day-picker")) return "vendor-date";
+          if (id.includes("date-fns")) return "vendor-date";
           return "vendor";
         },
       },
