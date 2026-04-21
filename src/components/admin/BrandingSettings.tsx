@@ -1,0 +1,408 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { hexToHsl, hslToHex, isValidHsl } from "@/lib/color";
+import { Upload, X, RotateCcw, Image as ImageIcon } from "lucide-react";
+
+interface BrandingRow {
+  id: string;
+  app_name: string;
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+  logo_url: string | null;
+  login_bg_url: string | null;
+}
+
+const DEFAULTS = {
+  primary: "199 89% 32%",
+  secondary: "40 33% 94%",
+  accent: "31 95% 55%",
+};
+
+const PRESETS = [
+  { name: "Default", primary: "199 89% 32%", secondary: "40 33% 94%", accent: "31 95% 55%" },
+  { name: "Ocean", primary: "210 90% 45%", secondary: "200 30% 95%", accent: "180 75% 50%" },
+  { name: "Forest", primary: "142 60% 30%", secondary: "60 20% 95%", accent: "30 80% 55%" },
+  { name: "Sunset", primary: "340 80% 50%", secondary: "20 30% 96%", accent: "40 95% 60%" },
+];
+
+const ColorTile = ({
+  label,
+  value,
+  defaultValue,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  defaultValue: string;
+  onChange: (next: string) => void;
+}) => {
+  const [advanced, setAdvanced] = useState(false);
+  const hex = useMemo(() => (isValidHsl(value) ? hslToHex(value) : "#000000"), [value]);
+  return (
+    <div className="space-y-2 rounded-lg border border-border bg-card p-4">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm font-medium">{label}</Label>
+        <button
+          type="button"
+          onClick={() => onChange(defaultValue)}
+          className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+          title="Reset to default"
+        >
+          <RotateCcw className="h-3 w-3" /> Reset
+        </button>
+      </div>
+      <div className="flex items-center gap-3">
+        <label
+          className="relative h-12 w-12 cursor-pointer rounded-md border border-border overflow-hidden shadow-sm"
+          style={{ backgroundColor: hex }}
+        >
+          <input
+            type="color"
+            value={hex}
+            onChange={(e) => onChange(hexToHsl(e.target.value))}
+            className="absolute inset-0 opacity-0 cursor-pointer"
+          />
+        </label>
+        <div className="flex-1">
+          <div className="font-mono text-sm uppercase">{hex}</div>
+          <button
+            type="button"
+            onClick={() => setAdvanced((v) => !v)}
+            className="text-[11px] text-muted-foreground hover:text-foreground"
+          >
+            {advanced ? "Hide" : "Advanced"} (HSL)
+          </button>
+        </div>
+      </div>
+      {advanced && (
+        <Input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="199 89% 32%"
+          className="font-mono text-xs"
+        />
+      )}
+    </div>
+  );
+};
+
+const BrandingSettings = () => {
+  const { toast } = useToast();
+  const [original, setOriginal] = useState<BrandingRow | null>(null);
+  const [draft, setDraft] = useState<BrandingRow | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingBg, setUploadingBg] = useState(false);
+  const logoInput = useRef<HTMLInputElement>(null);
+  const bgInput = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("branding").select("*").limit(1).single();
+      if (data) {
+        const row = data as BrandingRow;
+        setOriginal(row);
+        setDraft(row);
+      }
+    })();
+  }, []);
+
+  const dirty = useMemo(() => {
+    if (!original || !draft) return false;
+    return JSON.stringify(original) !== JSON.stringify(draft);
+  }, [original, draft]);
+
+  const update = (patch: Partial<BrandingRow>) =>
+    setDraft((d) => (d ? { ...d, ...patch } : d));
+
+  const uploadAsset = async (file: File, kind: "logo" | "bg") => {
+    const ext = file.name.split(".").pop() || "png";
+    const path = `${kind}/${Date.now()}.${ext}`;
+    const setBusy = kind === "logo" ? setUploadingLogo : setUploadingBg;
+    setBusy(true);
+    const { error } = await supabase.storage.from("branding-assets").upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+    });
+    setBusy(false);
+    if (error) {
+      toast({ variant: "destructive", title: "Upload failed", description: error.message });
+      return;
+    }
+    const { data } = supabase.storage.from("branding-assets").getPublicUrl(path);
+    if (kind === "logo") update({ logo_url: data.publicUrl });
+    else update({ login_bg_url: data.publicUrl });
+  };
+
+  const save = async () => {
+    if (!draft) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from("branding")
+      .update({
+        app_name: draft.app_name,
+        primary_color: draft.primary_color,
+        secondary_color: draft.secondary_color,
+        accent_color: draft.accent_color,
+        logo_url: draft.logo_url,
+        login_bg_url: draft.login_bg_url,
+      })
+      .eq("id", draft.id);
+    setSaving(false);
+    if (error) {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+      return;
+    }
+    toast({ title: "Saved", description: "Branding updated successfully." });
+    const root = document.documentElement;
+    root.style.setProperty("--primary", draft.primary_color);
+    root.style.setProperty("--secondary", draft.secondary_color);
+    root.style.setProperty("--accent", draft.accent_color);
+    setOriginal(draft);
+  };
+
+  if (!draft) {
+    return <div className="text-muted-foreground text-sm">Loading branding…</div>;
+  }
+
+  const primaryHex = isValidHsl(draft.primary_color) ? hslToHex(draft.primary_color) : "#000";
+  const secondaryHex = isValidHsl(draft.secondary_color) ? hslToHex(draft.secondary_color) : "#000";
+  const accentHex = isValidHsl(draft.accent_color) ? hslToHex(draft.accent_color) : "#000";
+
+  return (
+    <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
+      {/* LEFT: controls */}
+      <div className="space-y-6">
+        {/* Identity */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Identity</CardTitle>
+            <CardDescription>Your platform name and logo.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>App name</Label>
+              <Input value={draft.app_name} onChange={(e) => update({ app_name: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Logo</Label>
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-md border border-border bg-muted flex items-center justify-center overflow-hidden">
+                  {draft.logo_url ? (
+                    <img src={draft.logo_url} alt="logo" className="h-full w-full object-contain" />
+                  ) : (
+                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    ref={logoInput}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadAsset(f, "logo");
+                      e.target.value = "";
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => logoInput.current?.click()}
+                    disabled={uploadingLogo}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    {uploadingLogo ? "Uploading…" : draft.logo_url ? "Replace" : "Upload"}
+                  </Button>
+                  {draft.logo_url && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => update({ logo_url: null })}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Colors */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Colors</CardTitle>
+            <CardDescription>Pick brand colors. Use a preset to apply them all at once.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map((p) => (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() =>
+                    update({
+                      primary_color: p.primary,
+                      secondary_color: p.secondary,
+                      accent_color: p.accent,
+                    })
+                  }
+                  className="group flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs hover:bg-muted transition"
+                >
+                  <span className="flex">
+                    <span className="h-4 w-4 rounded-full border border-background" style={{ backgroundColor: hslToHex(p.primary) }} />
+                    <span className="h-4 w-4 -ml-1 rounded-full border border-background" style={{ backgroundColor: hslToHex(p.secondary) }} />
+                    <span className="h-4 w-4 -ml-1 rounded-full border border-background" style={{ backgroundColor: hslToHex(p.accent) }} />
+                  </span>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <ColorTile
+                label="Primary"
+                value={draft.primary_color}
+                defaultValue={DEFAULTS.primary}
+                onChange={(v) => update({ primary_color: v })}
+              />
+              <ColorTile
+                label="Secondary"
+                value={draft.secondary_color}
+                defaultValue={DEFAULTS.secondary}
+                onChange={(v) => update({ secondary_color: v })}
+              />
+              <ColorTile
+                label="Accent"
+                value={draft.accent_color}
+                defaultValue={DEFAULTS.accent}
+                onChange={(v) => update({ accent_color: v })}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Login background */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Login background</CardTitle>
+            <CardDescription>Optional image shown on the sign-in page.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="aspect-video w-full rounded-md border border-border overflow-hidden bg-muted flex items-center justify-center">
+              {draft.login_bg_url ? (
+                <img src={draft.login_bg_url} alt="background" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-xs text-muted-foreground">No background image</span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <input
+                ref={bgInput}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) uploadAsset(f, "bg");
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => bgInput.current?.click()}
+                disabled={uploadingBg}
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                {uploadingBg ? "Uploading…" : draft.login_bg_url ? "Replace" : "Upload"}
+              </Button>
+              {draft.login_bg_url && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => update({ login_bg_url: null })}>
+                  <X className="h-4 w-4 mr-2" /> Remove
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Save bar */}
+        <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 rounded-lg border border-border bg-card/95 backdrop-blur p-3 shadow-sm">
+          <span className="mr-auto text-xs text-muted-foreground">
+            {dirty ? "Unsaved changes" : "All changes saved"}
+          </span>
+          <Button variant="ghost" disabled={!dirty || saving} onClick={() => setDraft(original)}>
+            Discard
+          </Button>
+          <Button onClick={save} disabled={!dirty || saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </Button>
+        </div>
+      </div>
+
+      {/* RIGHT: live preview */}
+      <div className="md:sticky md:top-6 self-start">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Live preview</CardTitle>
+            <CardDescription>How your brand will look</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div
+                className="flex items-center gap-2 px-4 py-3 border-b border-border"
+                style={{ backgroundColor: secondaryHex }}
+              >
+                <div
+                  className="h-7 w-7 rounded bg-background flex items-center justify-center overflow-hidden border border-border"
+                >
+                  {draft.logo_url ? (
+                    <img src={draft.logo_url} alt="" className="h-full w-full object-contain" />
+                  ) : (
+                    <span className="text-[10px] font-bold" style={{ color: primaryHex }}>
+                      {(draft.app_name || "A").slice(0, 1)}
+                    </span>
+                  )}
+                </div>
+                <span className="font-semibold text-sm" style={{ color: primaryHex }}>
+                  {draft.app_name || "App name"}
+                </span>
+              </div>
+              <div className="p-4 space-y-3 bg-card">
+                <h3 className="font-serif text-lg leading-tight" style={{ color: primaryHex }}>
+                  Welcome back
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Your brand colors will appear consistently across the app.
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    className="rounded-md px-3 py-1.5 text-xs font-medium text-white shadow-sm"
+                    style={{ backgroundColor: primaryHex }}
+                  >
+                    Primary action
+                  </button>
+                  <button
+                    className="rounded-md px-3 py-1.5 text-xs font-medium border"
+                    style={{ borderColor: primaryHex, color: primaryHex }}
+                  >
+                    Secondary
+                  </button>
+                  <Badge style={{ backgroundColor: accentHex, color: "#fff" }}>Accent</Badge>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default BrandingSettings;
