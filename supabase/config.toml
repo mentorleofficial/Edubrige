@@ -4,4 +4,6 @@ project_id = "uibbavdzxmictgqdcuny"
 otp_length = 8
 
 [functions.approve-mentor-application]
-verify_jwt = true
+# Manual JWT verification inside the function (admin role check requires service-role lookups).
+# Gateway-level verify_jwt was returning 401 when the admin's access token was momentarily stale.
+verify_jwt = false
