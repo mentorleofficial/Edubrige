@@ -48,10 +48,21 @@ export async function fetchAdminUsers({
   const { data, error, count } = await query;
   if (error) throw error;
 
-  return {
-    rows: (data ?? []) as AdminUserRow[],
-    total: count ?? 0,
-  };
+  // Supabase may return mentor_profiles as a single object (unique FK) or array.
+  const rows: AdminUserRow[] = (data ?? []).map((u: any) => ({
+    id: u.id,
+    full_name: u.full_name,
+    email: u.email,
+    role: u.role,
+    created_at: u.created_at,
+    mentor_profiles: Array.isArray(u.mentor_profiles)
+      ? u.mentor_profiles
+      : u.mentor_profiles
+        ? [u.mentor_profiles]
+        : [],
+  }));
+
+  return { rows, total: count ?? 0 };
 }
 
 export async function toggleMentorActive(userId: string, isActive: boolean) {
