@@ -1,74 +1,64 @@
 
 
-# Keep users signed in — local sessions + external JWT SSO
+# Fix `admin/users` active toggle + speed up the page
 
-Two related problems to fix:
+## Root cause of the broken toggle
 
-1. **Local (admin/mentor) sessions** persist via `localStorage` already, but a brief loading flicker on every refresh re-runs profile fetches and can bounce users to `/login` if the guard renders before `getSession()` resolves. We'll harden this.
-2. **External JWT (mentee SSO)** has admin config + a test panel, but **no actual callback handler exists**. Mentees coming from EduBridge with a token in the URL have nothing to receive it, so they re-authenticate every visit. We'll build the callback + a real Supabase session so they stay logged in like any other user.
+`AdminUsers.tsx` runs:
+```
+supabase.from("mentor_profiles").update({ is_active }).eq("user_id", u.id)
+```
+If the mentor has **no `mentor_profiles` row yet** (common for accounts created via "Add User" with role=mentor, or older imports), `UPDATE` matches 0 rows. Supabase returns no error, the toast shows "activated", but the DB state is unchanged — so the switch snaps back on next refetch and looks broken.
 
----
+Fix: use **`upsert` on `mentor_profiles`** keyed by `user_id` so the row is created if missing, updated otherwise. Add a `unique` constraint on `mentor_profiles.user_id` to make upsert deterministic (today there is no unique constraint, only a non-unique reference).
 
-## 1. Harden local session persistence
+## Fixes
 
-**`src/integrations/supabase/client.ts`**
-- Already correct: `storage: localStorage`, `persistSession: true`, `autoRefreshToken: true`. Add `detectSessionInUrl: true` (needed for the JWT callback below) and `flowType: 'pkce'` for safer refresh.
+### 1. DB migration
+- Add `UNIQUE (user_id)` on `public.mentor_profiles` (one profile per mentor — already the intent).
+- No data change; a quick dedup query in the migration drops accidental duplicates first (keep newest).
 
-**`src/contexts/AuthContext.tsx`**
-- Cache the last known `profile` in `localStorage` under `app:lastProfile` so the first paint after refresh is instant (no flicker, no guard bounce). Replace it on every successful `fetchProfile`.
-- Initialize `loading` based on whether a session exists in storage (`supabase.auth.getSession()` is sync-readable from storage); only show the spinner if there is genuinely no cached session.
-- Keep the existing `onAuthStateChange` + `getSession()` pattern (the order is already correct).
+### 2. `AdminUsers.tsx` — toggle logic
+Replace the `update` with:
+```
+supabase.from("mentor_profiles")
+  .upsert({ user_id, is_active }, { onConflict: "user_id" })
+```
+Show real error toast on failure. Apply **optimistic UI**: flip the switch immediately via React Query `setQueryData`, rollback on error.
 
-**`src/components/RoleGuard.tsx`**
-- While `loading` is true but a cached profile exists, render children optimistically instead of the spinner. Prevents the "logged in but kicked to /login on refresh" feel.
+### 3. Convert page to React Query + microservice pattern
+Create `src/features/admin/api/users.ts` and `src/features/admin/hooks/useAdminUsers.ts`:
+- `useAdminUsers()` — `useQuery` with `staleTime: 30s`, paginated (default 25/page).
+- `useToggleMentorActive()` — `useMutation` with optimistic update + rollback.
+- `useCreateUser()` — `useMutation` invalidating users list on success.
 
----
+Page becomes a thin view that consumes the hooks. No more raw `useEffect + supabase.from` in the component.
 
-## 2. External JWT — real callback + persistent session
+### 4. UX improvements on `AdminUsers`
+- **Search debounced** (200ms) and applied client-side over the current page.
+- **Server-side role filter** dropdown (All / Admin / Mentor / Mentee) — sent as a `.eq("role", …)` to keep payload small.
+- **Pagination controls** (Prev/Next, "Page X of Y", page size 25). Today the page fetches every user with no limit (Supabase caps at 1000 silently — a real bug at scale).
+- **Skeleton rows** instead of "Loading…" text for perceived speed.
+- **Disabled switch + spinner** while a toggle mutation is in flight; success/error toasts via `handleError` helper.
+- **Self-deactivation guard**: don't allow an admin to deactivate their own admin role accidentally (out of scope here — only mentor active toggle exists, but we'll prevent toggling for the currently signed-in user as a small safety).
+- Empty state when no results match.
+- Show a small badge `(no profile)` next to mentors who never finished onboarding, so admins understand what activation will create.
 
-Today the admin sees a "Callback URL" (`<origin>/auth/jwt/callback`) but the route doesn't exist. We'll:
+### 5. Performance
+- React Query caching means tab switches don't refetch.
+- `select` only the columns we render (`id, full_name, email, role, created_at, mentor_profiles(is_active)`) — already the case but keep.
+- Pagination cuts payload from "all users" → 25 rows.
+- Add an index on `users(role)` and `users(created_at desc)` to keep the paginated list fast.
+- Memoize the filtered array with `useMemo`.
 
-### a. New route `/auth/jwt/callback` → `src/pages/JwtCallback.tsx`
-- Reads the JWT from the URL using the configured `token_param_name` (query OR hash).
-- Calls a new edge function `jwt-exchange` to validate the external token and return a Supabase session for the mapped user.
-- Calls `supabase.auth.setSession({ access_token, refresh_token })` so the session is stored in `localStorage` exactly like a normal login → autoRefreshToken keeps it alive indefinitely.
-- Redirects to the originally requested page (`?next=` param) or `/dashboard`.
-- Shows a clean "Signing you in…" state with branded logo.
+## Files
 
-### b. New edge function `supabase/functions/jwt-exchange/index.ts`
-Public endpoint (no caller auth — the external JWT IS the auth).
-- Loads `jwt_config`; rejects if `enabled = false`.
-- Verifies the external JWT signature (JWKS URL or static PEM), `iss`, `aud`, `exp` with `allowed_clock_skew_seconds`.
-- Maps claims → `email`, `full_name`, `external_id`, `role` per `claim_*` config.
-- Looks up user by `external_id` (and email fallback). If not found and `auto_provision = true`, creates the auth user + `public.users` row + `user_roles` row with `default_role` (or claimed role).
-- Issues a Supabase session for that user using the service role admin API (`admin.generateLink` of type `magiclink` then exchange, OR `admin.createUser` + sign-in token — pick the standard pattern: `admin.generateLink({ type: 'magiclink' })` and parse the action_link's hash tokens).
-- Returns `{ access_token, refresh_token, expires_at, user_id }`.
-- Logs to `audit_logs` (`jwt_login_success` / `jwt_login_failure`).
-
-### c. Schema
-Add a column to `public.users`:
-- `external_id text unique` — for lookups when SSO user comes back.
-Migration also adds an index on it.
-
-### d. Skip re-auth on subsequent visits
-Because `setSession()` writes to `localStorage` and `autoRefreshToken` is on, **the user stays signed in across page reloads, tabs, and days** until the refresh token expires (Supabase default: 30 days, sliding). No re-prompt to EduBridge needed.
-
-### e. Auto-redirect when session is fresh
-On `/login` and `/become-a-mentor`, if `useAuth().session` already exists, redirect to `/dashboard` immediately — prevents the "I'm already logged in why am I seeing the login page" issue.
-
-### f. Logout
-`signOut()` already clears localStorage. After signOut, if `jwt_config.logout_redirect_url` is set, redirect there so the IdP session is also ended.
-
----
-
-## 3. Files
-
-- **Modified**: `src/integrations/supabase/client.ts`, `src/contexts/AuthContext.tsx`, `src/components/RoleGuard.tsx`, `src/App.tsx` (add `/auth/jwt/callback` route), `src/pages/Login.tsx` (auto-redirect if session), `src/pages/MentorLanding.tsx` (auto-redirect if session)
-- **New**: `src/pages/JwtCallback.tsx`, `supabase/functions/jwt-exchange/index.ts`
-- **Migration**: add `external_id` column + index on `public.users`
+- **Migration** (new): unique constraint on `mentor_profiles.user_id`, indexes on `users(role)` and `users(created_at desc)`.
+- **New**: `src/features/admin/api/users.ts`, `src/features/admin/hooks/useAdminUsers.ts`, `src/features/admin/index.ts`.
+- **Modified**: `src/pages/AdminUsers.tsx` — rewritten to use the hooks, add pagination, skeleton, optimistic toggle, debounced search, role filter.
 
 ## Out of scope
-- Changing Supabase refresh-token lifetime (default 30 days is fine; tweak in Supabase Auth dashboard if longer needed).
-- Sentry / observability (covered by earlier checklist).
-- Wiring claim-mapping changes into local email logins (only relevant to JWT SSO).
+- Editing existing user roles inline (only creation + mentor activation are covered).
+- Bulk actions.
+- Server-side full-text search (debounced client filter on a paginated page is enough at current scale).
 
