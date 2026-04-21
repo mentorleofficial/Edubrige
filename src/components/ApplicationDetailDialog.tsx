@@ -40,8 +40,10 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
     if (!application) return;
     setBusy("approve");
     try {
+      const { data: { session } } = await supabase.auth.getSession();
       const { data, error } = await supabase.functions.invoke("approve-mentor-application", {
         body: { application_id: application.id, admin_notes: notes || null },
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
