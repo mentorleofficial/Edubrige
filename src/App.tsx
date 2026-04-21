@@ -27,6 +27,7 @@ const MenteeSessions = lazy(() => import("@/pages/MenteeSessions"));
 const BookSession = lazy(() => import("@/pages/BookSession"));
 const SessionFeedback = lazy(() => import("@/pages/SessionFeedback"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+const JwtCallback = lazy(() => import("@/pages/JwtCallback"));
 
 const App = () => (
   <ErrorBoundary>
@@ -42,6 +43,7 @@ const App = () => (
                   <Route path="/" element={<Navigate to="/login" replace />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/become-a-mentor" element={<MentorLanding />} />
+                  <Route path="/auth/jwt/callback" element={<JwtCallback />} />
                   <Route path="/admin/applications" element={<RoleGuard allowedRoles={["admin"]}><AdminApplications /></RoleGuard>} />
                   <Route path="/dashboard" element={<RoleGuard allowedRoles={["admin", "mentor", "mentee"]}><Dashboard /></RoleGuard>} />
                   <Route path="/admin/users" element={<RoleGuard allowedRoles={["admin"]}><AdminUsers /></RoleGuard>} />

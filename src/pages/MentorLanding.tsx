@@ -1,10 +1,17 @@
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useBranding } from "@/contexts/BrandingContext";
+import { useAuth } from "@/contexts/AuthContext";
 import MentorApplicationForm from "@/components/MentorApplicationForm";
 
 const MentorLanding = () => {
   const branding = useBranding();
+  const { session, loading } = useAuth();
+
+  // Already signed in? Send them to the dashboard.
+  if (!loading && session) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

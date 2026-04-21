@@ -28,12 +28,34 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const PROFILE_CACHE_KEY = "app:lastProfile";
+
+const readCachedProfile = (): UserProfile | null => {
+  try {
+    const raw = localStorage.getItem(PROFILE_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as UserProfile) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedProfile = (profile: UserProfile | null) => {
+  try {
+    if (profile) localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+    else localStorage.removeItem(PROFILE_CACHE_KEY);
+  } catch {
+    /* noop */
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [mentorActive, setMentorActive] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(() => readCachedProfile());
+  const [mentorActive, setMentorActive] = useState(true);
+  // Only show loading spinner if we have no cached profile AND no cached session.
+  // This prevents the refresh "flicker" that bounces logged-in users to /login.
+  const [loading, setLoading] = useState(() => !readCachedProfile());
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
@@ -42,6 +64,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .eq("id", userId)
       .single();
     setProfile(data);
+    writeCachedProfile(data);
     if (data?.role === "mentor") {
       const { data: mp } = await supabase
         .from("mentor_profiles")
@@ -64,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           setProfile(null);
           setMentorActive(false);
+          writeCachedProfile(null);
         }
         setLoading(false);
       }
@@ -74,6 +98,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user ?? null);
       if (session?.user) {
         fetchProfile(session.user.id);
+      } else {
+        // No session at all → make sure we don't keep stale cached profile around
+        writeCachedProfile(null);
+        setProfile(null);
       }
       setLoading(false);
     });
@@ -99,9 +127,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
+    // Optionally redirect to IdP logout afterwards
+    let logoutUrl: string | null = null;
+    try {
+      const { data: cfg } = await supabase
+        .from("jwt_config")
+        .select("enabled, logout_redirect_url")
+        .limit(1)
+        .maybeSingle();
+      if (cfg?.enabled && cfg.logout_redirect_url) logoutUrl = cfg.logout_redirect_url;
+    } catch {
+      /* noop — non-fatal */
+    }
+
     await supabase.auth.signOut();
     setProfile(null);
     setMentorActive(false);
+    writeCachedProfile(null);
+
+    if (logoutUrl) {
+      window.location.href = logoutUrl;
+    }
   };
 
   const refreshProfile = async () => {
