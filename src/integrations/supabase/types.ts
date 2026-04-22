@@ -333,10 +333,18 @@ export type Database = {
         Row: {
           bio: string | null
           created_at: string
+          current_organization: string | null
+          current_role: string | null
+          experiences: Json
           expertise: string[] | null
+          headline: string | null
           id: string
           is_active: boolean
           linkedin_url: string | null
+          phone: string | null
+          portfolio_url: string | null
+          qualifications: Json
+          resume_url: string | null
           updated_at: string
           user_id: string
           years_experience: number | null
@@ -344,10 +352,18 @@ export type Database = {
         Insert: {
           bio?: string | null
           created_at?: string
+          current_organization?: string | null
+          current_role?: string | null
+          experiences?: Json
           expertise?: string[] | null
+          headline?: string | null
           id?: string
           is_active?: boolean
           linkedin_url?: string | null
+          phone?: string | null
+          portfolio_url?: string | null
+          qualifications?: Json
+          resume_url?: string | null
           updated_at?: string
           user_id: string
           years_experience?: number | null
@@ -355,10 +371,18 @@ export type Database = {
         Update: {
           bio?: string | null
           created_at?: string
+          current_organization?: string | null
+          current_role?: string | null
+          experiences?: Json
           expertise?: string[] | null
+          headline?: string | null
           id?: string
           is_active?: boolean
           linkedin_url?: string | null
+          phone?: string | null
+          portfolio_url?: string | null
+          qualifications?: Json
+          resume_url?: string | null
           updated_at?: string
           user_id?: string
           years_experience?: number | null
