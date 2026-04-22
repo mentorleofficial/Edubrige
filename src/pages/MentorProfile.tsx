@@ -1,100 +1,513 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useMemo, useState } from "react";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { X } from "lucide-react";
+import {
+  User,
+  Sparkles,
+  Briefcase,
+  GraduationCap,
+  Link2,
+  CheckCircle2,
+  Loader2,
+  Mail,
+  Phone,
+  Building2,
+  Linkedin,
+  Globe,
+} from "lucide-react";
+import {
+  mentorProfileSchema,
+  type MentorProfileFormValues,
+  useMentorProfile,
+  useUpdateMentorProfile,
+  uploadAvatar,
+  uploadResume,
+} from "@/features/mentor-profile";
+import ExpertiseInput from "@/features/mentor-profile/components/ExpertiseInput";
+import ExperienceList from "@/features/mentor-profile/components/ExperienceList";
+import QualificationsList from "@/features/mentor-profile/components/QualificationsList";
+import ResumeDropzone from "@/features/mentor-profile/components/ResumeDropzone";
+import AvatarUploader from "@/features/mentor-profile/components/AvatarUploader";
+
+const SECTIONS = [
+  { id: "about", label: "About", icon: User },
+  { id: "expertise", label: "Expertise", icon: Sparkles },
+  { id: "experience", label: "Experience", icon: Briefcase },
+  { id: "education", label: "Education", icon: GraduationCap },
+  { id: "links", label: "Links & Resume", icon: Link2 },
+] as const;
+
+const initialsOf = (name: string) =>
+  name
+    .split(" ")
+    .map((n) => n[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "M";
 
 const MentorProfile = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [bio, setBio] = useState("");
-  const [expertise, setExpertise] = useState<string[]>([]);
-  const [newExpertise, setNewExpertise] = useState("");
-  const [yearsExp, setYearsExp] = useState(0);
-  const [linkedinUrl, setLinkedinUrl] = useState("");
-  const [profileId, setProfileId] = useState<string | null>(null);
+  const userId = user?.id;
+  const { data, isLoading } = useMentorProfile(userId);
+  const update = useUpdateMentorProfile(userId ?? "");
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [pendingAvatar, setPendingAvatar] = useState<File | null>(null);
+  const [pendingResume, setPendingResume] = useState<File | null>(null);
+  const [resumePath, setResumePath] = useState<string>("");
+  const [activeSection, setActiveSection] = useState<string>("about");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const form = useForm<MentorProfileFormValues>({
+    resolver: zodResolver(mentorProfileSchema),
+    mode: "onBlur",
+    defaultValues: {
+      full_name: "",
+      phone: "",
+      headline: "",
+      bio: "",
+      current_organization: "",
+      current_role: "",
+      years_experience: 0,
+      linkedin_url: "",
+      portfolio_url: "",
+      expertise: [],
+      qualifications: [],
+      experiences: [],
+    },
+  });
+
+  // hydrate
   useEffect(() => {
-    if (!user) return;
-    supabase.from("mentor_profiles").select("*").eq("user_id", user.id).single().then(({ data }) => {
-      if (data) {
-        setProfileId(data.id);
-        setBio(data.bio || "");
-        setExpertise(data.expertise || []);
-        setYearsExp(data.years_experience || 0);
-        setLinkedinUrl(data.linkedin_url || "");
-      }
+    if (!data) return;
+    form.reset({
+      full_name: data.full_name,
+      phone: data.phone,
+      headline: data.headline,
+      bio: data.bio,
+      current_organization: data.current_organization,
+      current_role: data.current_role,
+      years_experience: data.years_experience,
+      linkedin_url: data.linkedin_url,
+      portfolio_url: data.portfolio_url,
+      expertise: data.expertise,
+      qualifications: data.qualifications,
+      experiences: data.experiences,
     });
-  }, [user]);
+    setAvatarUrl(data.avatar_url);
+    setResumePath(data.resume_url);
+  }, [data, form]);
 
-  const handleSave = async () => {
-    if (!profileId) return;
-    const { error } = await supabase.from("mentor_profiles").update({
-      bio, expertise, years_experience: yearsExp, linkedin_url: linkedinUrl,
-    }).eq("id", profileId);
-    if (error) toast({ variant: "destructive", title: "Error", description: error.message });
-    else toast({ title: "Profile saved" });
-  };
+  const watched = form.watch();
 
-  const addExpertise = () => {
-    if (newExpertise.trim() && !expertise.includes(newExpertise.trim())) {
-      setExpertise([...expertise, newExpertise.trim()]);
-      setNewExpertise("");
+  // Profile completeness
+  const completeness = useMemo(() => {
+    const checks = [
+      !!watched.full_name && watched.full_name.length >= 2,
+      !!data?.email,
+      !!watched.phone,
+      !!watched.headline,
+      (watched.bio?.length ?? 0) >= 50,
+      !!watched.current_organization,
+      !!watched.current_role,
+      watched.years_experience > 0,
+      !!watched.linkedin_url,
+      (watched.expertise?.length ?? 0) > 0,
+      (watched.qualifications?.length ?? 0) > 0,
+      (watched.experiences?.length ?? 0) > 0,
+      !!resumePath || !!pendingResume,
+      !!avatarUrl || !!pendingAvatar,
+    ];
+    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  }, [watched, data?.email, resumePath, pendingResume, avatarUrl, pendingAvatar]);
+
+  // Section scroll spy
+  useEffect(() => {
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) setActiveSection(e.target.id);
+        });
+      },
+      { rootMargin: "-30% 0px -60% 0px" }
+    );
+    SECTIONS.forEach((s) => {
+      const el = document.getElementById(s.id);
+      if (el) obs.observe(el);
+    });
+    return () => obs.disconnect();
+  }, [isLoading]);
+
+  const onAvatarSelect = async (f: File) => {
+    if (!userId) return;
+    setPendingAvatar(f);
+    setUploadingAvatar(true);
+    try {
+      const url = await uploadAvatar(userId, f);
+      setAvatarUrl(url);
+      toast({ title: "Photo updated", description: "Save changes to confirm." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Upload failed", description: err.message });
+      setPendingAvatar(null);
+    } finally {
+      setUploadingAvatar(false);
     }
   };
 
+  const onSubmit = async (values: MentorProfileFormValues) => {
+    if (!userId) return;
+    try {
+      let newResumePath = resumePath;
+      if (pendingResume) {
+        newResumePath = await uploadResume(userId, pendingResume);
+      }
+      await update.mutateAsync({
+        ...values,
+        avatar_url: avatarUrl,
+        resume_url: newResumePath,
+      });
+      setResumePath(newResumePath);
+      setPendingResume(null);
+      setPendingAvatar(null);
+      toast({ title: "Profile saved", description: "Your changes are live." });
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Save failed", description: err.message });
+    }
+  };
+
+  const dirty = form.formState.isDirty || !!pendingResume || !!pendingAvatar;
+
+  if (isLoading || !data) {
+    return (
+      <AppLayout>
+        <div className="max-w-5xl mx-auto space-y-6">
+          <Skeleton className="h-48 w-full rounded-xl" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-2xl">
-        <h1 className="text-3xl font-bold">My Profile</h1>
-        <Card>
-          <CardHeader>
-            <CardTitle>Mentor Profile</CardTitle>
-            <CardDescription>This information is visible to mentees.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Bio</Label>
-              <Textarea rows={4} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Tell mentees about yourself…" />
-            </div>
-            <div className="space-y-2">
-              <Label>Expertise</Label>
-              <div className="flex gap-2">
-                <Input value={newExpertise} onChange={(e) => setNewExpertise(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addExpertise())}
-                  placeholder="Add a skill…" />
-                <Button type="button" variant="outline" onClick={addExpertise}>Add</Button>
-              </div>
-              <div className="flex flex-wrap gap-1 mt-2">
-                {expertise.map((e) => (
-                  <Badge key={e} variant="secondary" className="gap-1">
-                    {e}
-                    <button onClick={() => setExpertise(expertise.filter((x) => x !== e))}><X className="h-3 w-3" /></button>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-5xl mx-auto pb-32">
+        {/* Banner header */}
+        <div className="relative overflow-hidden rounded-xl border bg-card">
+          <div className="h-32 bg-gradient-to-br from-primary via-primary/80 to-primary/40" />
+          <div className="px-6 pb-6 -mt-12">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+              <AvatarUploader
+                url={avatarUrl}
+                fallback={initialsOf(watched.full_name || data.full_name)}
+                uploading={uploadingAvatar}
+                onSelect={onAvatarSelect}
+              />
+              <div className="flex-1 min-w-0 sm:pb-1">
+                <h1 className="text-2xl font-bold truncate">{watched.full_name || "Your name"}</h1>
+                <p className="text-sm text-muted-foreground truncate">
+                  {watched.headline || "Add a headline so mentees know what you do"}
+                </p>
+                <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
+                  {watched.current_role && watched.current_organization && (
+                    <span className="flex items-center gap-1">
+                      <Building2 className="h-3 w-3" /> {watched.current_role} at {watched.current_organization}
+                    </span>
+                  )}
+                  <Badge variant={data.is_active ? "default" : "secondary"} className="text-[10px]">
+                    {data.is_active ? "● Active mentor" : "Inactive"}
                   </Badge>
-                ))}
+                </div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Years of Experience</Label>
-                <Input type="number" value={yearsExp} onChange={(e) => setYearsExp(Number(e.target.value))} />
+            <div className="mt-5 space-y-1.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium">Profile completeness</span>
+                <span className="text-muted-foreground">{completeness}%</span>
               </div>
+              <Progress value={completeness} className="h-1.5" />
+            </div>
+          </div>
+        </div>
+
+        {/* Sticky section nav */}
+        <nav className="sticky top-0 z-10 -mx-6 px-6 py-3 bg-background/80 backdrop-blur border-b mt-6 mb-6">
+          <div className="flex gap-1 overflow-x-auto">
+            {SECTIONS.map((s) => {
+              const Icon = s.icon;
+              const active = activeSection === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors ${
+                    active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+
+        <div className="space-y-6">
+          {/* About */}
+          <Card id="about" className="scroll-mt-24">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" /> About you
+              </CardTitle>
+              <CardDescription>Basic contact info and how you describe yourself.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Full name *</Label>
+                  <Input {...form.register("full_name")} placeholder="Jane Doe" />
+                  {form.formState.errors.full_name && (
+                    <p className="text-xs text-destructive">{form.formState.errors.full_name.message}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5" /> Email
+                  </Label>
+                  <Input value={data.email} disabled className="bg-muted/40" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5" /> Contact number *
+                  </Label>
+                  <Input
+                    type="tel"
+                    placeholder="+1 555 123 4567"
+                    {...form.register("phone")}
+                    onInput={(e) => {
+                      const el = e.currentTarget;
+                      const cleaned = el.value.replace(/[^0-9+\-\s().]/g, "");
+                      if (cleaned !== el.value) el.value = cleaned;
+                    }}
+                  />
+                  {form.formState.errors.phone && (
+                    <p className="text-xs text-destructive">{form.formState.errors.phone.message}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Years of experience *</Label>
+                  <Input type="number" min={0} max={60} {...form.register("years_experience")} />
+                  {form.formState.errors.years_experience && (
+                    <p className="text-xs text-destructive">{form.formState.errors.years_experience.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Current organization *</Label>
+                  <Input {...form.register("current_organization")} placeholder="Acme Inc." />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Current role *</Label>
+                  <Input {...form.register("current_role")} placeholder="Senior Product Manager" />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Headline</Label>
+                <Input
+                  {...form.register("headline")}
+                  placeholder="e.g. Helping early-stage PMs ship their first product"
+                  maxLength={160}
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {watched.headline?.length ?? 0}/160
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Bio *</Label>
+                <Textarea
+                  rows={5}
+                  {...form.register("bio")}
+                  placeholder="Tell mentees about your background, what you can help with, and your approach…"
+                />
+                <div className="flex justify-between text-xs">
+                  <span className={form.formState.errors.bio ? "text-destructive" : "text-muted-foreground"}>
+                    {form.formState.errors.bio?.message ?? "Min 50 characters"}
+                  </span>
+                  <span className="text-muted-foreground">{watched.bio?.length ?? 0}/2000</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Expertise */}
+          <Card id="expertise" className="scroll-mt-24">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" /> Expertise areas *
+              </CardTitle>
+              <CardDescription>
+                Add the topics you mentor on. Press Tab, Enter, or comma after each.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Controller
+                control={form.control}
+                name="expertise"
+                render={({ field, fieldState }) => (
+                  <ExpertiseInput
+                    value={field.value}
+                    onChange={field.onChange}
+                    error={fieldState.error?.message}
+                  />
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Experience */}
+          <Card id="experience" className="scroll-mt-24">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="h-5 w-5 text-primary" /> Experience
+              </CardTitle>
+              <CardDescription>Your work history, most recent first.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Controller
+                control={form.control}
+                name="experiences"
+                render={({ field }) => <ExperienceList value={field.value} onChange={field.onChange} />}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Education */}
+          <Card id="education" className="scroll-mt-24">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-primary" /> Qualifications
+              </CardTitle>
+              <CardDescription>Education, degrees, and certifications.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Controller
+                control={form.control}
+                name="qualifications"
+                render={({ field }) => <QualificationsList value={field.value} onChange={field.onChange} />}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Links & Resume */}
+          <Card id="links" className="scroll-mt-24">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Link2 className="h-5 w-5 text-primary" /> Links & Resume
+              </CardTitle>
+              <CardDescription>Where mentees can learn more about you.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Linkedin className="h-3.5 w-3.5" /> LinkedIn profile *
+                  </Label>
+                  <Input
+                    type="url"
+                    placeholder="https://linkedin.com/in/…"
+                    {...form.register("linkedin_url")}
+                  />
+                  {form.formState.errors.linkedin_url && (
+                    <p className="text-xs text-destructive">{form.formState.errors.linkedin_url.message}</p>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Globe className="h-3.5 w-3.5" /> Portfolio / website
+                  </Label>
+                  <Input type="url" placeholder="https://…" {...form.register("portfolio_url")} />
+                  {form.formState.errors.portfolio_url && (
+                    <p className="text-xs text-destructive">{form.formState.errors.portfolio_url.message}</p>
+                  )}
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <Label>LinkedIn URL</Label>
-                <Input value={linkedinUrl} onChange={(e) => setLinkedinUrl(e.target.value)} placeholder="https://linkedin.com/in/…" />
+                <Label>Resume *</Label>
+                <ResumeDropzone
+                  currentPath={resumePath}
+                  pendingFile={pendingResume}
+                  onFileChange={setPendingResume}
+                  onRemoveCurrent={() => setResumePath("")}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Sticky save bar */}
+        {dirty && (
+          <div className="fixed bottom-0 left-0 right-0 z-20 border-t bg-background/95 backdrop-blur shadow-lg">
+            <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                You have unsaved changes
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => {
+                    if (data) {
+                      form.reset();
+                      setPendingResume(null);
+                      setPendingAvatar(null);
+                      setAvatarUrl(data.avatar_url);
+                      setResumePath(data.resume_url);
+                    }
+                  }}
+                  disabled={update.isPending}
+                >
+                  Discard
+                </Button>
+                <Button type="submit" disabled={update.isPending}>
+                  {update.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4 mr-2" /> Save changes
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
-            <Button onClick={handleSave}>Save Profile</Button>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        )}
+      </form>
     </AppLayout>
   );
 };
