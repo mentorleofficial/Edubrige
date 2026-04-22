@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/AppSidebar";
+import ApprovalCelebrationModal from "@/features/mentor-approval/ApprovalCelebrationModal";
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -13,6 +14,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           <div className="p-6">{children}</div>
         </main>
       </div>
+      <ApprovalCelebrationModal />
     </SidebarProvider>
   );
 };
