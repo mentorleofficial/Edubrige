@@ -234,6 +234,33 @@ const MentorProfile = () => {
                   </Badge>
                 </div>
               </div>
+              {data.is_active && userId && (
+                <div className="flex gap-2 sm:pb-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      const url = `${window.location.origin}/mentors/${userId}`;
+                      await navigator.clipboard.writeText(url);
+                      toast({ title: "Link copied", description: "Your public profile URL is on your clipboard." });
+                    }}
+                  >
+                    Copy public link
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => {
+                      const url = `${window.location.origin}/mentors/${userId}`;
+                      window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
+                    }}
+                    className="bg-[#0A66C2] hover:bg-[#0A66C2]/90 text-white"
+                  >
+                    Share on LinkedIn
+                  </Button>
+                </div>
+              )}
             </div>
             <div className="mt-5 space-y-1.5">
               <div className="flex items-center justify-between text-xs">

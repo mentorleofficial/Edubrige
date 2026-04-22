@@ -331,6 +331,7 @@ export type Database = {
       }
       mentor_profiles: {
         Row: {
+          approval_acknowledged_at: string | null
           bio: string | null
           created_at: string
           current_organization: string | null
@@ -345,11 +346,13 @@ export type Database = {
           portfolio_url: string | null
           qualifications: Json
           resume_url: string | null
+          slug: string | null
           updated_at: string
           user_id: string
           years_experience: number | null
         }
         Insert: {
+          approval_acknowledged_at?: string | null
           bio?: string | null
           created_at?: string
           current_organization?: string | null
@@ -364,11 +367,13 @@ export type Database = {
           portfolio_url?: string | null
           qualifications?: Json
           resume_url?: string | null
+          slug?: string | null
           updated_at?: string
           user_id: string
           years_experience?: number | null
         }
         Update: {
+          approval_acknowledged_at?: string | null
           bio?: string | null
           created_at?: string
           current_organization?: string | null
@@ -383,6 +388,7 @@ export type Database = {
           portfolio_url?: string | null
           qualifications?: Json
           resume_url?: string | null
+          slug?: string | null
           updated_at?: string
           user_id?: string
           years_experience?: number | null

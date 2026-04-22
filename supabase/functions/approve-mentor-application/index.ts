@@ -97,6 +97,7 @@ Deno.serve(async (req) => {
         years_experience: app.years_experience,
         linkedin_url: app.linkedin_url ?? "",
         is_active: true,
+        approval_acknowledged_at: null,
       },
       { onConflict: "user_id" }
     );
