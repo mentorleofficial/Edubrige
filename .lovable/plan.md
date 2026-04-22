@@ -1,64 +1,92 @@
 
 
-# Fix `admin/users` active toggle + speed up the page
+# Enhance Mentor Profile — Professional UI/UX + Rich Data Capture
 
-## Root cause of the broken toggle
+Transform `/mentor/profile` (`src/pages/MentorProfile.tsx`) from a basic 4‑field form into a polished, LinkedIn‑style profile editor that captures the full mentor identity.
 
-`AdminUsers.tsx` runs:
+## Fields captured
+
+**Account (from `users` table)**
+- Full name, email (read-only), avatar (upload to `branding-assets/avatars/`), contact number
+
+**Professional summary (from `mentor_profiles`)**
+- Headline (e.g. "Senior PM @ Acme")
+- Bio (rich textarea, char counter)
+- Years of experience, current organization, current role/title
+- LinkedIn URL, portfolio URL
+- Resume (PDF/DOCX upload to `mentor-resumes` bucket)
+
+**Expertise areas** — tag input. Type → press Tab/Enter/comma to add. Backspace on empty input removes last. Max 15. Drag-free chip removal with X.
+
+**Qualifications** (LinkedIn-style "Education") — repeatable list:
+- Institution, Degree, Field of study, Start year, End year (or "Present")
+
+**Experience** (LinkedIn-style) — repeatable list:
+- Company, Title, Location, Start (mo/yr), End (mo/yr or "Present"), Description
+
+## UI/UX design
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ [Cover gradient banner — uses brand primary]                │
+│   ┌──────┐                                                  │
+│   │Avatar│  Full Name              [ Save changes ] [↺]     │
+│   └──────┘  Headline · Org                                  │
+│             ● Active mentor   ⓘ profile completeness 72%   │
+└─────────────────────────────────────────────────────────────┘
+
+  Sticky sub-nav (anchor tabs):  About · Expertise · Experience · Education · Links
+
+  About               ┃  [card with bio + headline + years]
+  Expertise           ┃  [chip input + suggested tags]
+  Experience          ┃  [timeline cards with edit/delete + "Add experience"]
+  Education           ┃  [timeline cards + "Add qualification"]
+  Links & Resume      ┃  [LinkedIn / Portfolio / Resume dropzone]
 ```
-supabase.from("mentor_profiles").update({ is_active }).eq("user_id", u.id)
-```
-If the mentor has **no `mentor_profiles` row yet** (common for accounts created via "Add User" with role=mentor, or older imports), `UPDATE` matches 0 rows. Supabase returns no error, the toast shows "activated", but the DB state is unchanged — so the switch snaps back on next refetch and looks broken.
 
-Fix: use **`upsert` on `mentor_profiles`** keyed by `user_id` so the row is created if missing, updated otherwise. Add a `unique` constraint on `mentor_profiles.user_id` to make upsert deterministic (today there is no unique constraint, only a non-unique reference).
+- Two-column responsive layout on ≥lg, single column on mobile.
+- **Sticky save bar** appears at the bottom only when the form is dirty ("You have unsaved changes — Save / Discard").
+- **Profile completeness meter** in the header (counts filled mandatory fields).
+- **Skeleton loader** while fetching, **optimistic toast** on save.
+- React Hook Form + Zod validation, inline error messages, autosave-disabled to keep edits intentional.
+- Avatar uploader with crop-free preview, 2MB cap, JPG/PNG/WebP.
+- Resume dropzone reuses pattern from `MentorApplicationForm` (drag/drop, 5MB, PDF/DOC/DOCX), shows existing filename + replace/remove.
+- Empty states: "Add your first experience" CTA cards.
+- Visible only-to-mentor hint banner: "This is what mentees see" with a "Preview public profile" link.
 
-## Fixes
+## Technical changes
 
-### 1. DB migration
-- Add `UNIQUE (user_id)` on `public.mentor_profiles` (one profile per mentor — already the intent).
-- No data change; a quick dedup query in the migration drops accidental duplicates first (keep newest).
+**Database migration** (extend `mentor_profiles`)
+- Add columns: `headline text`, `phone text`, `current_organization text`, `current_role text`, `portfolio_url text`, `resume_url text`, `qualifications jsonb default '[]'::jsonb`, `experiences jsonb default '[]'::jsonb`.
+- Keep existing columns; all new fields nullable / default empty.
+- No RLS changes needed — existing "Mentors manage own profile" policy already covers them.
 
-### 2. `AdminUsers.tsx` — toggle logic
-Replace the `update` with:
-```
-supabase.from("mentor_profiles")
-  .upsert({ user_id, is_active }, { onConflict: "user_id" })
-```
-Show real error toast on failure. Apply **optimistic UI**: flip the switch immediately via React Query `setQueryData`, rollback on error.
+**Storage**
+- Reuse existing `mentor-resumes` bucket for resume re-uploads.
+- Reuse existing public `branding-assets` bucket under `avatars/<user_id>.<ext>` path for avatars; add an RLS policy on `storage.objects` allowing authenticated users to insert/update/delete files in `branding-assets/avatars/` only when the path starts with their own `auth.uid()`.
 
-### 3. Convert page to React Query + microservice pattern
-Create `src/features/admin/api/users.ts` and `src/features/admin/hooks/useAdminUsers.ts`:
-- `useAdminUsers()` — `useQuery` with `staleTime: 30s`, paginated (default 25/page).
-- `useToggleMentorActive()` — `useMutation` with optimistic update + rollback.
-- `useCreateUser()` — `useMutation` invalidating users list on success.
+**Code (no `lov-tool-use` style — actual edits when approved)**
+- New: `src/features/mentor-profile/api/mentorProfile.ts` — `fetchMentorProfile(userId)`, `updateMentorProfile(userId, payload)`, `uploadAvatar`, `uploadResume`.
+- New: `src/features/mentor-profile/hooks/useMentorProfile.ts` — React Query `useMentorProfile` + `useUpdateMentorProfile` (optimistic).
+- New: `src/features/mentor-profile/schema.ts` — Zod schemas for profile, qualification, experience.
+- New components under `src/features/mentor-profile/components/`:
+  - `ProfileHeader.tsx` (banner + avatar + completeness)
+  - `AboutSection.tsx`
+  - `ExpertiseInput.tsx` (Tab/Enter chip input, reusable)
+  - `ExperienceList.tsx` + `ExperienceFormRow.tsx`
+  - `QualificationsList.tsx` + `QualificationFormRow.tsx`
+  - `LinksAndResumeSection.tsx`
+  - `StickySaveBar.tsx`
+- Rewrite `src/pages/MentorProfile.tsx` to compose the above with `useForm` + sectioned anchors.
+- Update `src/integrations/supabase/types.ts` is auto-generated — not edited.
 
-Page becomes a thin view that consumes the hooks. No more raw `useEffect + supabase.from` in the component.
-
-### 4. UX improvements on `AdminUsers`
-- **Search debounced** (200ms) and applied client-side over the current page.
-- **Server-side role filter** dropdown (All / Admin / Mentor / Mentee) — sent as a `.eq("role", …)` to keep payload small.
-- **Pagination controls** (Prev/Next, "Page X of Y", page size 25). Today the page fetches every user with no limit (Supabase caps at 1000 silently — a real bug at scale).
-- **Skeleton rows** instead of "Loading…" text for perceived speed.
-- **Disabled switch + spinner** while a toggle mutation is in flight; success/error toasts via `handleError` helper.
-- **Self-deactivation guard**: don't allow an admin to deactivate their own admin role accidentally (out of scope here — only mentor active toggle exists, but we'll prevent toggling for the currently signed-in user as a small safety).
-- Empty state when no results match.
-- Show a small badge `(no profile)` next to mentors who never finished onboarding, so admins understand what activation will create.
-
-### 5. Performance
-- React Query caching means tab switches don't refetch.
-- `select` only the columns we render (`id, full_name, email, role, created_at, mentor_profiles(is_active)`) — already the case but keep.
-- Pagination cuts payload from "all users" → 25 rows.
-- Add an index on `users(role)` and `users(created_at desc)` to keep the paginated list fast.
-- Memoize the filtered array with `useMemo`.
-
-## Files
-
-- **Migration** (new): unique constraint on `mentor_profiles.user_id`, indexes on `users(role)` and `users(created_at desc)`.
-- **New**: `src/features/admin/api/users.ts`, `src/features/admin/hooks/useAdminUsers.ts`, `src/features/admin/index.ts`.
-- **Modified**: `src/pages/AdminUsers.tsx` — rewritten to use the hooks, add pagination, skeleton, optimistic toggle, debounced search, role filter.
+## Validation rules
+- Name 2–100, phone matches international regex (reuse pattern from application form), LinkedIn must contain `linkedin.com/in/` or `/pub/`, portfolio is any valid URL, bio 50–2000 chars, expertise 1–15 tags, years 0–60.
+- Qualification: institution + degree required; end year ≥ start year or "Present".
+- Experience: company + title + start required; end ≥ start or "Present".
 
 ## Out of scope
-- Editing existing user roles inline (only creation + mentor activation are covered).
-- Bulk actions.
-- Server-side full-text search (debounced client filter on a paginated page is enough at current scale).
+- Public mentor profile page redesign (mentee-facing) — this only touches the mentor's own editor.
+- Changing `mentor_applications` schema.
+- Skill endorsements, certifications, languages (can be added later if desired).
 
