@@ -39,6 +39,7 @@ type Experience = {
 
 type PublicMentor = {
   user_id: string;
+  slug: string | null;
   full_name: string;
   avatar_url: string | null;
   headline: string;
