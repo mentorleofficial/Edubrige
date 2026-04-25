@@ -252,10 +252,19 @@ const MentorProfile = () => {
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() => {
+                    onClick={async () => {
                       const handle = (data as any)?.slug || userId;
                       const url = `${window.location.origin}/mentors/${handle}`;
-                      window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
+                      const caption = `Excited to share my mentor profile on ${document.title.split(" ")[0] || "Mentorle"}! 🚀\n\nIf you'd like guidance, let's connect.\n\nCheck out my profile: ${url}`;
+                      try {
+                        await navigator.clipboard.writeText(caption);
+                        toast({ title: "Caption copied", description: "Paste it on LinkedIn if it doesn't appear automatically." });
+                      } catch { /* clipboard blocked */ }
+                      window.open(
+                        `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(caption)}`,
+                        "_blank",
+                        "noopener,noreferrer,width=720,height=720"
+                      );
                     }}
                     className="bg-[#0A66C2] hover:bg-[#0A66C2]/90 text-white"
                   >

@@ -1,38 +1,38 @@
-# Human-readable mentor profile URLs
+# Pre-fill the LinkedIn post with the mentor's caption
 
-Replace UUID-based public mentor URLs with name-based slugs:
+## The problem
+LinkedIn's `share-offsite` endpoint we're currently using is **URL-only by design** — it ignores any `text` / `summary` / `title` parameter and only shows the link itself. That's why the user sees just the Mentorle URL when LinkedIn opens.
 
-Before: `/mentors/0280484d-f38a-425e-8aa9-06ab9fb1c6da`
-After:  `/mentors/jane-doe` (with short hash suffix if name collides, e.g. `jane-doe-a8f2`)
+## The fix
+Switch to LinkedIn's **feed composer** endpoint, which does accept a `text` parameter:
 
-## Database
-The `mentor_profiles.slug` column already exists. We need to:
-- Backfill slugs for all existing active mentors based on their `users.full_name`
-- Add a unique index on `slug` to prevent duplicates
-- Create a Postgres function `generate_mentor_slug(full_name text, user_id uuid)` that produces a kebab-case slug, appending the first 4 chars of the user_id when the base slug already exists
-- Update `approve-mentor-application` edge function to set the slug at approval time if missing
+```
+https://www.linkedin.com/feed/?shareActive=true&text={encoded caption}
+```
 
-## Frontend changes
+The caption already contains the profile link inline, so the post will read:
 
-**Route** (`src/App.tsx`)
-- Keep `/mentors/:mentorId` so existing UUID links still work (back-compat)
+> Excited to share that I've joined Mentorle as a mentor! 🚀
+>
+> If you're looking for guidance in {expertise}, let's connect.
+>
+> Check out my profile: https://mentorle.lovable.app/mentors/jane-doe
 
-**`PublicMentorProfile.tsx`**
-- Param renamed conceptually to `:slugOrId`
-- Lookup logic: try `slug` match first; if not found and value looks like a UUID, fall back to `user_id` lookup
-- If found by UUID but a slug exists, redirect (replace) to the slug URL for cleaner sharing
+## Changes
 
-**Share URL builders** (3 places that construct `/mentors/${userId}`):
-- `src/pages/MentorProfile.tsx` (Copy link & LinkedIn share buttons)
-- `src/features/mentor-approval/useApprovalCelebration.ts`
-- Use the mentor's `slug` when available, else fall back to `user_id`. Both pages already query `mentor_profiles`, so we just include `slug` in the select.
+1. **`src/features/mentor-approval/ApprovalCelebrationModal.tsx`**
+   - Replace `share-offsite/?url=...` with `feed/?shareActive=true&text={encoded caption}`.
+   - Keep the clipboard copy as a safety net (so the user can paste manually if LinkedIn ever ignores the param), and update the toast: "Caption copied! Paste it on LinkedIn if it doesn't appear."
 
-## Result
-Shared link becomes:
-`https://mentorle.lovable.app/mentors/jane-doe`
+2. **`src/pages/MentorProfile.tsx`** (header "Share on LinkedIn" button)
+   - Currently shares only the bare URL with no message. Build the same default caption ("Check out my mentor profile on {appName}: {url}") and use the composer endpoint so the body is prefilled.
+   - Also copy the caption to clipboard as a fallback.
 
-Old UUID links continue to work and auto-redirect to the slug version.
+## Notes
+- LinkedIn caps prefilled text at ~700 chars; the default caption is well under that.
+- The composer requires the user to be logged into LinkedIn — same as the existing share flow.
+- If LinkedIn ever drops the `text` param, the clipboard fallback means the user can still paste with Cmd/Ctrl+V.
 
 ## Out of scope
-- Letting the mentor edit their own slug (can be added later)
-- Localized/non-ASCII slug handling beyond standard transliteration (we'll strip non-alphanumerics)
+- Posting via LinkedIn's API (would need OAuth + LinkedIn app review).
+- Image/preview customization beyond what OG meta tags already provide on the public profile page.
