@@ -150,8 +150,8 @@ const PublicMentorProfile = () => {
       navigate(`/login?redirect=/mentors/${mentorId}`);
       return;
     }
-    if (role === "mentee") navigate(`/book/${mentorId}`);
-    else navigate(`/mentors/${mentorId}`);
+    const targetId = mentor?.user_id ?? mentorId;
+    if (role === "mentee") navigate(`/book/${targetId}`);
   };
 
   if (loading) {
