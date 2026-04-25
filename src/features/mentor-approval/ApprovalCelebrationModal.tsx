@@ -53,12 +53,13 @@ const ApprovalCelebrationModal = () => {
   const shareOnLinkedIn = async () => {
     try {
       await navigator.clipboard.writeText(caption);
-      toast.success("Caption copied — paste it into your LinkedIn post!");
+      toast.success("Caption copied! Paste it on LinkedIn if it doesn't appear.");
     } catch {
       /* clipboard may be blocked */
     }
-    const url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(profileUrl)}`;
-    window.open(url, "_blank", "noopener,noreferrer,width=720,height=640");
+    // LinkedIn composer accepts a `text` param that prefills the post body
+    const url = `https://www.linkedin.com/feed/?shareActive=true&text=${encodeURIComponent(caption)}`;
+    window.open(url, "_blank", "noopener,noreferrer,width=720,height=720");
   };
 
   const viewProfile = () => {
