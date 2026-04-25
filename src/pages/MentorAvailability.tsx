@@ -1,116 +1,247 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Trash2 } from "lucide-react";
+import { Loader2, CheckCircle2, Globe } from "lucide-react";
+import {
+  fetchWeeklySlots,
+  fetchOverrides,
+  fetchTimezone,
+  updateTimezone,
+  addSlot,
+  updateSlot,
+  deleteSlot,
+  deleteSlotsForDay,
+  copySlotsToDays,
+  addOverride,
+  deleteOverride,
+  type WeeklySlot,
+  type DateOverride,
+} from "@/features/availability/api/availability";
+import { DAYS_FULL, TIMEZONES, normalizeHHMM } from "@/features/availability/timeUtils";
+import { DayRow } from "@/features/availability/components/DayRow";
+import { OverrideList } from "@/features/availability/components/OverrideList";
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const TIMES = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, "0")}:00`);
-
-interface Slot {
-  id: string;
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  is_recurring: boolean;
-}
+type SaveState = "idle" | "saving" | "saved";
 
 const MentorAvailability = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [day, setDay] = useState("1");
-  const [startTime, setStartTime] = useState("09:00");
-  const [endTime, setEndTime] = useState("10:00");
+  const [slots, setSlots] = useState<WeeklySlot[]>([]);
+  const [overrides, setOverrides] = useState<DateOverride[]>([]);
+  const [timezone, setTimezone] = useState<string>("UTC");
+  const [loading, setLoading] = useState(true);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
 
-  const fetchSlots = async () => {
-    if (!user) return;
-    const { data } = await supabase.from("mentor_availability")
-      .select("*").eq("mentor_id", user.id).order("day_of_week");
-    setSlots(data || []);
+  const flashSaved = () => {
+    setSaveState("saved");
+    setTimeout(() => setSaveState("idle"), 1200);
   };
 
-  useEffect(() => { fetchSlots(); }, [user]);
+  const handleError = (e: unknown) => {
+    const message = e instanceof Error ? e.message : "Something went wrong";
+    setSaveState("idle");
+    toast({ variant: "destructive", title: "Save failed", description: message });
+  };
 
-  const addSlot = async () => {
+  const refresh = async () => {
     if (!user) return;
-    const { error } = await supabase.from("mentor_availability").insert({
-      mentor_id: user.id,
-      day_of_week: Number(day),
-      start_time: startTime,
-      end_time: endTime,
+    const [w, o, tz] = await Promise.all([
+      fetchWeeklySlots(user.id),
+      fetchOverrides(user.id),
+      fetchTimezone(user.id),
+    ]);
+    setSlots(w);
+    setOverrides(o);
+    setTimezone(tz);
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    refresh().finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  const slotsByDay = useMemo(() => {
+    const m: Record<number, WeeklySlot[]> = {};
+    for (let i = 0; i < 7; i++) m[i] = [];
+    for (const s of slots) m[s.day_of_week].push(s);
+    for (const k of Object.keys(m)) {
+      m[Number(k)].sort((a, b) =>
+        normalizeHHMM(a.start_time).localeCompare(normalizeHHMM(b.start_time))
+      );
+    }
+    return m;
+  }, [slots]);
+
+  // ---- Mutations ----
+
+  const wrap = async (op: () => Promise<void>) => {
+    setSaveState("saving");
+    try {
+      await op();
+      await refresh();
+      flashSaved();
+    } catch (e) {
+      handleError(e);
+    }
+  };
+
+  const onAdd = (day: number, start: string, end: string) =>
+    wrap(async () => {
+      if (!user) return;
+      await addSlot({
+        mentor_id: user.id,
+        day_of_week: day,
+        start_time: start,
+        end_time: end,
+      });
     });
-    if (error) toast({ variant: "destructive", title: "Error", description: error.message });
-    else { toast({ title: "Slot added" }); fetchSlots(); }
-  };
 
-  const deleteSlot = async (id: string) => {
-    await supabase.from("mentor_availability").delete().eq("id", id);
-    fetchSlots();
-  };
+  const onUpdate = (id: string, patch: { start_time?: string; end_time?: string }) =>
+    wrap(() => updateSlot(id, patch));
+
+  const onRemove = (id: string) => wrap(() => deleteSlot(id));
+
+  const onToggleDay = (day: number, enabled: boolean) =>
+    wrap(async () => {
+      if (!user) return;
+      if (enabled) {
+        await addSlot({
+          mentor_id: user.id,
+          day_of_week: day,
+          start_time: "09:00",
+          end_time: "17:00",
+        });
+      } else {
+        await deleteSlotsForDay(user.id, day);
+      }
+    });
+
+  const onCopy = (sourceDay: number, targetDays: number[]) =>
+    wrap(async () => {
+      if (!user) return;
+      const source = slotsByDay[sourceDay].map((s) => ({
+        start_time: normalizeHHMM(s.start_time),
+        end_time: normalizeHHMM(s.end_time),
+      }));
+      if (source.length === 0) return;
+      await copySlotsToDays(user.id, source, targetDays);
+    });
+
+  const onTimezoneChange = (tz: string) =>
+    wrap(async () => {
+      if (!user) return;
+      await updateTimezone(user.id, tz);
+    });
+
+  const onAddOverride = (input: Omit<DateOverride, "id" | "mentor_id">) =>
+    wrap(async () => {
+      if (!user) return;
+      await addOverride({ ...input, mentor_id: user.id });
+    });
+
+  const onRemoveOverride = (id: string) => wrap(() => deleteOverride(id));
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-2xl">
-        <h1 className="text-3xl font-bold">Availability</h1>
+      <div className="space-y-6 max-w-3xl">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-bold">Availability</h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Set the hours mentees can book sessions with you, just like Calendly.
+            </p>
+          </div>
+          <div className="h-6 flex items-center text-xs text-muted-foreground">
+            {saveState === "saving" && (
+              <span className="flex items-center gap-1">
+                <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+              </span>
+            )}
+            {saveState === "saved" && (
+              <span className="flex items-center gap-1 text-primary">
+                <CheckCircle2 className="h-3 w-3" /> Saved
+              </span>
+            )}
+          </div>
+        </div>
+
         <Card>
-          <CardHeader><CardTitle>Add Time Slot</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>Day</Label>
-                <Select value={day} onValueChange={setDay}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {DAYS.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Start</Label>
-                <Select value={startTime} onValueChange={setStartTime}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{TIMES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>End</Label>
-                <Select value={endTime} onValueChange={setEndTime}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{TIMES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Globe className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Timezone</CardTitle>
             </div>
-            <Button onClick={addSlot}><Plus className="mr-2 h-4 w-4" />Add Slot</Button>
+            <CardDescription>
+              Times below are shown in this timezone. Mentees see your slots converted to theirs.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Label className="sr-only">Timezone</Label>
+            <Select value={timezone} onValueChange={onTimezoneChange}>
+              <SelectTrigger className="max-w-md">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {TIMEZONES.map((tz) => (
+                  <SelectItem key={tz} value={tz}>
+                    {tz}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Current Availability</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>Weekly hours</CardTitle>
+            <CardDescription>
+              Set when you're regularly available for sessions.
+            </CardDescription>
+          </CardHeader>
           <CardContent>
-            {slots.length === 0 ? (
-              <p className="text-muted-foreground text-sm">No availability set.</p>
+            {loading ? (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm py-6">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+              </div>
             ) : (
-              <div className="space-y-2">
-                {slots.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between rounded-lg border p-3">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="secondary">{DAYS[s.day_of_week]}</Badge>
-                      <span className="text-sm">{s.start_time.slice(0, 5)} – {s.end_time.slice(0, 5)}</span>
-                    </div>
-                    <Button variant="ghost" size="icon" onClick={() => deleteSlot(s.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
+              <div className="divide-y">
+                {DAYS_FULL.map((_, day) => (
+                  <DayRow
+                    key={day}
+                    dayOfWeek={day}
+                    slots={slotsByDay[day]}
+                    onAdd={(s, e) => onAdd(day, s, e)}
+                    onUpdate={onUpdate}
+                    onRemove={onRemove}
+                    onToggleDay={(enabled) => onToggleDay(day, enabled)}
+                    onCopy={(targets) => onCopy(day, targets)}
+                  />
                 ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Date overrides</CardTitle>
+            <CardDescription>
+              Add exceptions for specific dates — block a holiday or open custom hours.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OverrideList
+              overrides={overrides}
+              onAdd={onAddOverride}
+              onRemove={onRemoveOverride}
+            />
           </CardContent>
         </Card>
       </div>
