@@ -329,6 +329,36 @@ export type Database = {
           },
         ]
       }
+      mentor_availability_overrides: {
+        Row: {
+          created_at: string
+          date: string
+          end_time: string | null
+          id: string
+          is_unavailable: boolean
+          mentor_id: string
+          start_time: string | null
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          end_time?: string | null
+          id?: string
+          is_unavailable?: boolean
+          mentor_id: string
+          start_time?: string | null
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          end_time?: string | null
+          id?: string
+          is_unavailable?: boolean
+          mentor_id?: string
+          start_time?: string | null
+        }
+        Relationships: []
+      }
       mentor_profiles: {
         Row: {
           approval_acknowledged_at: string | null
@@ -347,6 +377,7 @@ export type Database = {
           qualifications: Json
           resume_url: string | null
           slug: string | null
+          timezone: string
           updated_at: string
           user_id: string
           years_experience: number | null
@@ -368,6 +399,7 @@ export type Database = {
           qualifications?: Json
           resume_url?: string | null
           slug?: string | null
+          timezone?: string
           updated_at?: string
           user_id: string
           years_experience?: number | null
@@ -389,6 +421,7 @@ export type Database = {
           qualifications?: Json
           resume_url?: string | null
           slug?: string | null
+          timezone?: string
           updated_at?: string
           user_id?: string
           years_experience?: number | null
