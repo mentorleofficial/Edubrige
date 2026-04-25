@@ -6,6 +6,7 @@ export interface MentorProfileData extends MentorProfileFormValues {
   avatar_url: string | null;
   resume_url: string;
   is_active: boolean;
+  slug: string | null;
 }
 
 export async function fetchMentorProfile(userId: string): Promise<MentorProfileData> {
@@ -33,6 +34,7 @@ export async function fetchMentorProfile(userId: string): Promise<MentorProfileD
     experiences: ((p?.experiences as any) ?? []) as MentorProfileFormValues["experiences"],
     resume_url: (p?.resume_url as string) ?? "",
     is_active: p?.is_active ?? false,
+    slug: ((p as any)?.slug as string | null) ?? null,
   };
 }
 
