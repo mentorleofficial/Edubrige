@@ -241,7 +241,8 @@ const MentorProfile = () => {
                     variant="outline"
                     size="sm"
                     onClick={async () => {
-                      const url = `${window.location.origin}/mentors/${userId}`;
+                      const handle = (data as any)?.slug || userId;
+                      const url = `${window.location.origin}/mentors/${handle}`;
                       await navigator.clipboard.writeText(url);
                       toast({ title: "Link copied", description: "Your public profile URL is on your clipboard." });
                     }}
@@ -252,7 +253,8 @@ const MentorProfile = () => {
                     type="button"
                     size="sm"
                     onClick={() => {
-                      const url = `${window.location.origin}/mentors/${userId}`;
+                      const handle = (data as any)?.slug || userId;
+                      const url = `${window.location.origin}/mentors/${handle}`;
                       window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, "_blank", "noopener,noreferrer");
                     }}
                     className="bg-[#0A66C2] hover:bg-[#0A66C2]/90 text-white"

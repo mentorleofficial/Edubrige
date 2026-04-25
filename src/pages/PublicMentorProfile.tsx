@@ -39,6 +39,7 @@ type Experience = {
 
 type PublicMentor = {
   user_id: string;
+  slug: string | null;
   full_name: string;
   avatar_url: string | null;
   headline: string;
@@ -80,14 +81,30 @@ const PublicMentorProfile = () => {
     const fetch = async () => {
       if (!mentorId) return;
       setLoading(true);
-      const { data: mp } = await supabase
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mentorId);
+
+      // Try slug first
+      let { data: mp } = await supabase
         .from("mentor_profiles")
         .select(
-          "user_id, headline, bio, expertise, years_experience, current_organization, current_role, linkedin_url, portfolio_url, qualifications, experiences, is_active"
+          "user_id, slug, headline, bio, expertise, years_experience, current_organization, current_role, linkedin_url, portfolio_url, qualifications, experiences, is_active"
         )
-        .eq("user_id", mentorId)
+        .eq("slug", mentorId)
         .eq("is_active", true)
         .maybeSingle();
+
+      // Fallback to uuid lookup
+      if (!mp && isUuid) {
+        const res = await supabase
+          .from("mentor_profiles")
+          .select(
+            "user_id, slug, headline, bio, expertise, years_experience, current_organization, current_role, linkedin_url, portfolio_url, qualifications, experiences, is_active"
+          )
+          .eq("user_id", mentorId)
+          .eq("is_active", true)
+          .maybeSingle();
+        mp = res.data;
+      }
 
       if (!mp) {
         setNotFound(true);
@@ -95,14 +112,21 @@ const PublicMentorProfile = () => {
         return;
       }
 
+      // If accessed via UUID but slug exists, redirect to pretty URL
+      if (isUuid && (mp as any).slug) {
+        navigate(`/mentors/${(mp as any).slug}`, { replace: true });
+        return;
+      }
+
       const { data: u } = await supabase
         .from("users")
         .select("full_name, avatar_url")
-        .eq("id", mentorId)
+        .eq("id", mp.user_id)
         .maybeSingle();
 
       setMentor({
         user_id: mp.user_id,
+        slug: (mp as any).slug ?? null,
         full_name: u?.full_name ?? "Mentor",
         avatar_url: u?.avatar_url ?? null,
         headline: mp.headline ?? "",
@@ -126,8 +150,8 @@ const PublicMentorProfile = () => {
       navigate(`/login?redirect=/mentors/${mentorId}`);
       return;
     }
-    if (role === "mentee") navigate(`/book/${mentorId}`);
-    else navigate(`/mentors/${mentorId}`);
+    const targetId = mentor?.user_id ?? mentorId;
+    if (role === "mentee") navigate(`/book/${targetId}`);
   };
 
   if (loading) {
