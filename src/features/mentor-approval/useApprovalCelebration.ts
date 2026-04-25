@@ -22,6 +22,7 @@ export function useApprovalCelebration(): ApprovalState {
   const { user, profile, role } = useAuth();
   const [show, setShow] = useState(false);
   const [expertise, setExpertise] = useState<string[]>([]);
+  const [slug, setSlug] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -29,13 +30,16 @@ export function useApprovalCelebration(): ApprovalState {
       if (!user || role !== "mentor") return;
       const { data } = await supabase
         .from("mentor_profiles")
-        .select("is_active, approval_acknowledged_at, expertise")
+        .select("is_active, approval_acknowledged_at, expertise, slug")
         .eq("user_id", user.id)
         .maybeSingle();
       if (cancelled) return;
-      if (data && data.is_active && !data.approval_acknowledged_at) {
-        setExpertise(data.expertise ?? []);
-        setShow(true);
+      if (data) {
+        setSlug((data as any).slug ?? null);
+        if (data.is_active && !data.approval_acknowledged_at) {
+          setExpertise(data.expertise ?? []);
+          setShow(true);
+        }
       }
     };
     check();
@@ -55,7 +59,7 @@ export function useApprovalCelebration(): ApprovalState {
 
   return {
     show,
-    profileUrl: user ? buildPublicUrl(user.id) : "",
+    profileUrl: user ? buildPublicUrl(slug || user.id) : "",
     expertise,
     fullName: profile?.full_name ?? "",
     acknowledge,
