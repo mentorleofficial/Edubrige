@@ -89,6 +89,13 @@ Deno.serve(async (req) => {
     );
     await admin.from("users").update({ role: "mentor" }).eq("id", mentorUserId);
 
+    // Generate slug from applicant's full name
+    const { data: slugData } = await admin.rpc("generate_mentor_slug", {
+      _full_name: app.full_name,
+      _user_id: mentorUserId,
+    });
+    const mentorSlug = (slugData as string | null) ?? null;
+
     await admin.from("mentor_profiles").upsert(
       {
         user_id: mentorUserId,
@@ -98,6 +105,7 @@ Deno.serve(async (req) => {
         linkedin_url: app.linkedin_url ?? "",
         is_active: true,
         approval_acknowledged_at: null,
+        slug: mentorSlug,
       },
       { onConflict: "user_id" }
     );
