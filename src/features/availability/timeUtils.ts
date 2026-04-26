@@ -76,3 +76,11 @@ export const TIMEZONES: string[] = (() => {
         "Australia/Sydney",
       ];
 })();
+
+// Ensure the browser-detected zone is selectable
+(() => {
+  const detected = detectTimezone();
+  if (detected && !TIMEZONES.includes(detected)) {
+    TIMEZONES.unshift(detected);
+  }
+})();
