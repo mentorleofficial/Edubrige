@@ -165,7 +165,7 @@ const MentorAvailability = () => {
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-3xl">
+      <div className="space-y-6 max-w-7xl">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold">Availability</h1>
