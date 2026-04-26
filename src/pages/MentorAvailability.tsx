@@ -198,18 +198,28 @@ const MentorAvailability = () => {
           </CardHeader>
           <CardContent>
             <Label className="sr-only">Timezone</Label>
-            <Select value={timezone} onValueChange={onTimezoneChange}>
-              <SelectTrigger className="max-w-md">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                {TIMEZONES.map((tz) => (
-                  <SelectItem key={tz} value={tz}>
-                    {tz}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 max-w-md">
+              <Select value={timezone} onValueChange={onTimezoneChange}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {TIMEZONES.map((tz) => (
+                    <SelectItem key={tz} value={tz}>
+                      {tz}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onTimezoneChange(detectTimezone())}
+              >
+                Detect
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
