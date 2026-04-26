@@ -7,6 +7,23 @@ export interface MenteeProfileData extends MenteeOnboardingValues {
   onboarded_at: string | null;
 }
 
+type MenteeProfileUpdate = {
+  user_id: string;
+  headline?: string;
+  bio?: string;
+  organization_unit?: string;
+  linkedin_url?: string;
+  goals?: string;
+  interests?: string[];
+  preferred_mentor_areas?: string[];
+  onboarded_at?: string;
+};
+
+type UserUpdate = {
+  full_name?: string;
+  avatar_url?: string | null;
+};
+
 export async function fetchMenteeProfile(userId: string): Promise<MenteeProfileData> {
   const [{ data: u }, { data: p }] = await Promise.all([
     supabase.from("users").select("full_name, email, avatar_url").eq("id", userId).maybeSingle(),
@@ -36,14 +53,14 @@ export async function upsertMenteeProfile(
   const { full_name, avatar_url, ...profile } = values;
 
   if (full_name !== undefined || avatar_url !== undefined) {
-    const update: Record<string, unknown> = {};
+    const update: UserUpdate = {};
     if (full_name !== undefined) update.full_name = full_name;
     if (avatar_url !== undefined) update.avatar_url = avatar_url;
     const { error: uErr } = await supabase.from("users").update(update).eq("id", userId);
     if (uErr) throw uErr;
   }
 
-  const payload: Record<string, unknown> = { user_id: userId };
+  const payload: MenteeProfileUpdate = { user_id: userId };
   if (profile.headline !== undefined) payload.headline = profile.headline;
   if (profile.bio !== undefined) payload.bio = profile.bio;
   if (profile.organization_unit !== undefined) payload.organization_unit = profile.organization_unit;
