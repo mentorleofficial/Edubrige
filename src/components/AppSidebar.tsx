@@ -14,6 +14,8 @@ import {
   BookOpen,
   LogOut,
   GraduationCap,
+  FolderKanban,
+  UsersRound,
 } from "lucide-react";
 import {
   Sidebar,
@@ -51,6 +53,7 @@ const AppSidebar = () => {
     { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
     { title: "Users", icon: Users, path: "/admin/users" },
     { title: "Applications", icon: ClipboardCheck, path: "/admin/applications", badge: pendingApps },
+    { title: "Programs", icon: FolderKanban, path: "/admin/programs" },
     { title: "Settings", icon: Settings, path: "/admin/settings" },
     { title: "Audit Logs", icon: ClipboardList, path: "/admin/audit-logs" },
   ];
@@ -59,6 +62,7 @@ const AppSidebar = () => {
     { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
     { title: "My Profile", icon: User, path: "/mentor/profile" },
     { title: "Availability", icon: Calendar, path: "/mentor/availability" },
+    { title: "My Mentees", icon: UsersRound, path: "/mentor/mentees" },
     { title: "Sessions", icon: BookOpen, path: "/mentor/sessions" },
   ];
   const mentorItemsInactive = [
