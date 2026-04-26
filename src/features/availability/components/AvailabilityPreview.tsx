@@ -107,29 +107,51 @@ export function AvailabilityPreview({ slots, overrides, timezone }: Props) {
           {matrix.flat().map((date, i) => {
             const inMonth = date.getMonth() === cursor.getMonth();
             const isPast = date < today;
+            const kind = getOverrideKind(date, overrides);
             const available = !isPast && hasAnyAvailability(date, slots, overrides);
             const isSelected = selected && isSameDay(date, selected);
             const isToday = isSameDay(date, today);
+            const isBlocked = kind === "blocked";
+            const isCustom = kind === "custom";
+            const clickable = available || isBlocked; // allow selecting blocked dates to see badge
 
             return (
               <button
                 key={i}
                 type="button"
-                disabled={!available}
-                onClick={() => available && setSelected(date)}
+                disabled={!clickable && !inMonth}
+                onClick={() => clickable && setSelected(date)}
                 className={cn(
-                  "aspect-square rounded-full text-xs flex items-center justify-center transition-colors",
+                  "relative aspect-square rounded-full text-xs flex items-center justify-center transition-colors",
                   !inMonth && "text-muted-foreground/40",
-                  inMonth && !available && "text-muted-foreground/60 cursor-not-allowed",
-                  available && !isSelected && "bg-primary/10 text-primary font-medium hover:bg-primary/20",
+                  inMonth && !available && !isBlocked && "text-muted-foreground/60 cursor-not-allowed",
+                  available && !isCustom && !isSelected && "bg-primary/10 text-primary font-medium hover:bg-primary/20",
+                  isCustom && !isSelected && "bg-amber-500/10 text-amber-700 dark:text-amber-400 font-medium ring-2 ring-amber-500/60 hover:bg-amber-500/20",
+                  isBlocked && !isSelected && "text-muted-foreground line-through",
                   isSelected && "bg-primary text-primary-foreground font-semibold",
                   isToday && !isSelected && "ring-1 ring-primary/40"
                 )}
               >
                 {date.getDate()}
+                {isBlocked && (
+                  <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-destructive" />
+                )}
               </button>
             );
           })}
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full bg-primary/40" /> Available
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full ring-2 ring-amber-500/60" /> Custom
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full bg-destructive" /> Blocked
+          </span>
         </div>
 
         {/* Slot list */}
@@ -139,31 +161,41 @@ export function AvailabilityPreview({ slots, overrides, timezone }: Props) {
               Select a highlighted date to see available times.
             </p>
           )}
-          {selected && slotList.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-4">
-              No availability on this day.
-            </p>
-          )}
-          {selected && slotList.length > 0 && (
-            <>
-              <div className="text-xs font-medium mb-2">
+          {selected && (
+            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+              <div className="text-xs font-medium">
                 {selected.toLocaleDateString(undefined, {
                   weekday: "long",
                   month: "short",
                   day: "numeric",
                 })}
               </div>
-              <div className="grid grid-cols-2 gap-1.5 max-h-64 overflow-y-auto pr-1">
-                {slotList.map((s) => (
-                  <div
-                    key={s}
-                    className="text-xs text-center py-1.5 rounded border border-primary/30 text-primary hover:bg-primary/10 transition-colors"
-                  >
-                    {formatSlotLabel(s)}
-                  </div>
-                ))}
-              </div>
-            </>
+              {selectedKind === "blocked" && (
+                <Badge variant="destructive" className="text-[10px]">Blocked</Badge>
+              )}
+              {selectedKind === "custom" && (
+                <Badge className="text-[10px] bg-amber-500 hover:bg-amber-500 text-white">Custom hours</Badge>
+              )}
+            </div>
+          )}
+          {selected && slotList.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              {selectedKind === "blocked"
+                ? "Marked unavailable on this date."
+                : "No availability on this day."}
+            </p>
+          )}
+          {selected && slotList.length > 0 && (
+            <div className="grid grid-cols-2 gap-1.5 max-h-64 overflow-y-auto pr-1">
+              {slotList.map((s) => (
+                <div
+                  key={s}
+                  className="text-xs text-center py-1.5 rounded border border-primary/30 text-primary hover:bg-primary/10 transition-colors"
+                >
+                  {formatSlotLabel(s)}
+                </div>
+              ))}
+            </div>
           )}
         </div>
       </CardContent>
