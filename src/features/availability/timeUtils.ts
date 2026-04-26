@@ -46,6 +46,14 @@ export function rangesOverlap(
   return false;
 }
 
+export function detectTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
 // Common timezone list
 export const TIMEZONES: string[] = (() => {
   // @ts-ignore - supportedValuesOf may not be typed in older TS lib
