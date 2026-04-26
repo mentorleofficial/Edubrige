@@ -40,6 +40,16 @@ export function getMonthMatrix(year: number, month: number): Date[][] {
   return weeks;
 }
 
+export type OverrideKind = "blocked" | "custom" | null;
+
+export function getOverrideKind(date: Date, overrides: OverrideLike[]): OverrideKind {
+  const key = ymd(date);
+  const day = overrides.filter((o) => o.date === key);
+  if (day.length === 0) return null;
+  if (day.some((o) => o.is_unavailable)) return "blocked";
+  return "custom";
+}
+
 export function getRangesForDate(
   date: Date,
   weekly: WeeklySlotLike[],
