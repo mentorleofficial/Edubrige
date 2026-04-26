@@ -195,29 +195,44 @@ export type Database = {
       }
       mentee_profiles: {
         Row: {
+          bio: string
           created_at: string
           goals: string | null
+          headline: string
           id: string
           interests: string[] | null
+          linkedin_url: string
+          onboarded_at: string | null
           organization_unit: string | null
+          preferred_mentor_areas: string[]
           updated_at: string
           user_id: string
         }
         Insert: {
+          bio?: string
           created_at?: string
           goals?: string | null
+          headline?: string
           id?: string
           interests?: string[] | null
+          linkedin_url?: string
+          onboarded_at?: string | null
           organization_unit?: string | null
+          preferred_mentor_areas?: string[]
           updated_at?: string
           user_id: string
         }
         Update: {
+          bio?: string
           created_at?: string
           goals?: string | null
+          headline?: string
           id?: string
           interests?: string[] | null
+          linkedin_url?: string
+          onboarded_at?: string | null
           organization_unit?: string | null
+          preferred_mentor_areas?: string[]
           updated_at?: string
           user_id?: string
         }
