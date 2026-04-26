@@ -25,6 +25,7 @@ import { DAYS_FULL, TIMEZONES, normalizeHHMM, detectTimezone } from "@/features/
 import { Button } from "@/components/ui/button";
 import { DayRow } from "@/features/availability/components/DayRow";
 import { OverrideList } from "@/features/availability/components/OverrideList";
+import { AvailabilityPreview } from "@/features/availability/components/AvailabilityPreview";
 
 type SaveState = "idle" | "saving" | "saved";
 
