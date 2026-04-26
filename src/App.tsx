@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { BrandingProvider } from "@/contexts/BrandingContext";
 import RoleGuard from "@/components/RoleGuard";
+import MenteeOnboardingGuard from "@/components/MenteeOnboardingGuard";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import RouteFallback from "@/components/RouteFallback";
 import { queryClient } from "@/lib/queryClient";
@@ -23,6 +24,7 @@ const MentorProfile = lazy(() => import("@/pages/MentorProfile"));
 const MentorAvailability = lazy(() => import("@/pages/MentorAvailability"));
 const MentorSessions = lazy(() => import("@/pages/MentorSessions"));
 const MenteeProfile = lazy(() => import("@/pages/MenteeProfile"));
+const MenteeOnboarding = lazy(() => import("@/pages/MenteeOnboarding"));
 const MenteeSessions = lazy(() => import("@/pages/MenteeSessions"));
 const BookSession = lazy(() => import("@/pages/BookSession"));
 const SessionFeedback = lazy(() => import("@/pages/SessionFeedback"));
@@ -51,14 +53,15 @@ const App = () => (
                   <Route path="/admin/users" element={<RoleGuard allowedRoles={["admin"]}><AdminUsers /></RoleGuard>} />
                   <Route path="/admin/settings" element={<RoleGuard allowedRoles={["admin"]}><AdminSettings /></RoleGuard>} />
                   <Route path="/admin/audit-logs" element={<RoleGuard allowedRoles={["admin"]}><AdminAuditLogs /></RoleGuard>} />
-                  <Route path="/mentors" element={<RoleGuard allowedRoles={["mentee", "admin"]}><MentorDirectory /></RoleGuard>} />
+                  <Route path="/mentors" element={<RoleGuard allowedRoles={["mentee", "admin"]}><MenteeOnboardingGuard><MentorDirectory /></MenteeOnboardingGuard></RoleGuard>} />
                   <Route path="/mentor/profile" element={<RoleGuard allowedRoles={["mentor"]}><MentorProfile /></RoleGuard>} />
                   <Route path="/mentor/availability" element={<RoleGuard allowedRoles={["mentor"]} requireActiveMentor><MentorAvailability /></RoleGuard>} />
                   <Route path="/mentor/sessions" element={<RoleGuard allowedRoles={["mentor"]} requireActiveMentor><MentorSessions /></RoleGuard>} />
+                  <Route path="/onboarding/mentee" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboarding /></RoleGuard>} />
                   <Route path="/mentee/profile" element={<RoleGuard allowedRoles={["mentee"]}><MenteeProfile /></RoleGuard>} />
-                  <Route path="/mentee/sessions" element={<RoleGuard allowedRoles={["mentee"]}><MenteeSessions /></RoleGuard>} />
-                  <Route path="/book/:mentorId" element={<RoleGuard allowedRoles={["mentee"]}><BookSession /></RoleGuard>} />
-                  <Route path="/session/:id/feedback" element={<RoleGuard allowedRoles={["mentee"]}><SessionFeedback /></RoleGuard>} />
+                  <Route path="/mentee/sessions" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><MenteeSessions /></MenteeOnboardingGuard></RoleGuard>} />
+                  <Route path="/book/:mentorId" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><BookSession /></MenteeOnboardingGuard></RoleGuard>} />
+                  <Route path="/session/:id/feedback" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><SessionFeedback /></MenteeOnboardingGuard></RoleGuard>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
