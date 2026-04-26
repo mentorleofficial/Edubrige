@@ -36,6 +36,7 @@ const MentorAvailability = () => {
   const [timezone, setTimezone] = useState<string>("UTC");
   const [loading, setLoading] = useState(true);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const autoDetectedRef = useRef(false);
 
   const flashSaved = () => {
     setSaveState("saved");
