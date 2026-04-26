@@ -37,6 +37,26 @@ export function AvailabilityPreview({ slots, overrides, timezone }: Props) {
   const [cursor, setCursor] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [selected, setSelected] = useState<Date | null>(null);
 
+  // Auto-jump to a newly added override so the change is visible without reloading.
+  const seenOverrideIds = useRef<Set<string>>(new Set());
+  const initializedOverrides = useRef(false);
+  useEffect(() => {
+    if (!initializedOverrides.current) {
+      initializedOverrides.current = true;
+      seenOverrideIds.current = new Set(overrides.map((o) => o.id));
+      return;
+    }
+    const newOnes = overrides.filter((o) => !seenOverrideIds.current.has(o.id));
+    if (newOnes.length > 0) {
+      const latest = newOnes[newOnes.length - 1];
+      const [y, m, d] = latest.date.split("-").map(Number);
+      const target = new Date(y, m - 1, d);
+      setCursor(new Date(y, m - 1, 1));
+      setSelected(target);
+    }
+    seenOverrideIds.current = new Set(overrides.map((o) => o.id));
+  }, [overrides]);
+
   const matrix = useMemo(
     () => getMonthMatrix(cursor.getFullYear(), cursor.getMonth()),
     [cursor]
@@ -44,6 +64,7 @@ export function AvailabilityPreview({ slots, overrides, timezone }: Props) {
 
   const ranges = selected ? getRangesForDate(selected, slots, overrides) : [];
   const slotList = sliceIntoSlots(ranges, 30);
+  const selectedKind = selected ? getOverrideKind(selected, overrides) : null;
 
   const goPrev = () => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1));
   const goNext = () => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1));
