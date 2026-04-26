@@ -46,6 +46,14 @@ export function rangesOverlap(
   return false;
 }
 
+export function detectTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
 // Common timezone list
 export const TIMEZONES: string[] = (() => {
   // @ts-ignore - supportedValuesOf may not be typed in older TS lib
@@ -67,4 +75,12 @@ export const TIMEZONES: string[] = (() => {
         "Asia/Tokyo",
         "Australia/Sydney",
       ];
+})();
+
+// Ensure the browser-detected zone is selectable
+(() => {
+  const detected = detectTimezone();
+  if (detected && !TIMEZONES.includes(detected)) {
+    TIMEZONES.unshift(detected);
+  }
 })();

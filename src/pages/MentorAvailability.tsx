@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -21,7 +21,8 @@ import {
   type WeeklySlot,
   type DateOverride,
 } from "@/features/availability/api/availability";
-import { DAYS_FULL, TIMEZONES, normalizeHHMM } from "@/features/availability/timeUtils";
+import { DAYS_FULL, TIMEZONES, normalizeHHMM, detectTimezone } from "@/features/availability/timeUtils";
+import { Button } from "@/components/ui/button";
 import { DayRow } from "@/features/availability/components/DayRow";
 import { OverrideList } from "@/features/availability/components/OverrideList";
 
@@ -35,6 +36,7 @@ const MentorAvailability = () => {
   const [timezone, setTimezone] = useState<string>("UTC");
   const [loading, setLoading] = useState(true);
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const autoDetectedRef = useRef(false);
 
   const flashSaved = () => {
     setSaveState("saved");
@@ -65,6 +67,19 @@ const MentorAvailability = () => {
     refresh().finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Auto-detect mentor's timezone on first load if it's still the default UTC.
+  useEffect(() => {
+    if (loading || !user || autoDetectedRef.current) return;
+    if (timezone === "UTC") {
+      const detected = detectTimezone();
+      if (detected && detected !== "UTC") {
+        autoDetectedRef.current = true;
+        onTimezoneChange(detected);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, timezone, user]);
 
   const slotsByDay = useMemo(() => {
     const m: Record<number, WeeklySlot[]> = {};
@@ -183,18 +198,28 @@ const MentorAvailability = () => {
           </CardHeader>
           <CardContent>
             <Label className="sr-only">Timezone</Label>
-            <Select value={timezone} onValueChange={onTimezoneChange}>
-              <SelectTrigger className="max-w-md">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                {TIMEZONES.map((tz) => (
-                  <SelectItem key={tz} value={tz}>
-                    {tz}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2 max-w-md">
+              <Select value={timezone} onValueChange={onTimezoneChange}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px]">
+                  {TIMEZONES.map((tz) => (
+                    <SelectItem key={tz} value={tz}>
+                      {tz}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onTimezoneChange(detectTimezone())}
+              >
+                Detect
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
