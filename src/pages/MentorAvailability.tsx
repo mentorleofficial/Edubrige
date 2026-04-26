@@ -68,6 +68,19 @@ const MentorAvailability = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // Auto-detect mentor's timezone on first load if it's still the default UTC.
+  useEffect(() => {
+    if (loading || !user || autoDetectedRef.current) return;
+    if (timezone === "UTC") {
+      const detected = detectTimezone();
+      if (detected && detected !== "UTC") {
+        autoDetectedRef.current = true;
+        onTimezoneChange(detected);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, timezone, user]);
+
   const slotsByDay = useMemo(() => {
     const m: Record<number, WeeklySlot[]> = {};
     for (let i = 0; i < 7; i++) m[i] = [];
