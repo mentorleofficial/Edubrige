@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useMenteeProfileStatus } from "@/features/mentee-onboarding/hooks/useMenteeProfileStatus";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, GraduationCap, Clock } from "lucide-react";
+import { BookOpen, GraduationCap, Clock, Sparkles } from "lucide-react";
 
 const MenteeDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { isComplete, loading } = useMenteeProfileStatus(user?.id);
   const [upcoming, setUpcoming] = useState(0);
   const [total, setTotal] = useState(0);
 
@@ -26,6 +28,27 @@ const MenteeDashboard = () => {
     };
     fetchData();
   }, [user]);
+
+  if (!loading && !isComplete) {
+    return (
+      <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-accent/5">
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <CardTitle>Finish setting up your profile</CardTitle>
+          </div>
+          <CardDescription>
+            We need a few details before mentors can match with you. It only takes 2 minutes.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button size="lg" onClick={() => navigate("/onboarding/mentee")}>
+            Complete my profile
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-6">
