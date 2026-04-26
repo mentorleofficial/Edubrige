@@ -1,84 +1,30 @@
-## Mentee Onboarding — "Complete Your Profile" Flow
+# Create dummy mentee user
 
-A LinkedIn-style multi-step wizard that runs the first time a mentee lands in the app (after JWT or email login). Until they finish it, they can't browse mentors or book sessions.
+Create a test mentee account you can log in with to test the mentee flow (onboarding wizard, mentor browsing, booking, etc.).
 
-### User flow
+## Credentials
+- **Email:** `mentee.test@mentorle.dev`
+- **Password:** `Mentee#Test123`
+- **Full name:** Test Mentee
+- **Role:** mentee
+- **Onboarding status:** Not onboarded (so you can test the hard-gate + wizard end-to-end)
 
-```text
-JWT Callback / Login
-        │
-        ▼
-   /dashboard ──► (mentee + profile incomplete?) ──► /onboarding/mentee
-                                                             │
-                       ┌─────────────────────────────────────┤
-                       ▼                                     │
-        Step 1  Welcome + Headshot (avatar upload, name confirm)
-        Step 2  About You (headline, short bio, organization unit / team)
-        Step 3  Goals (what do you want to achieve — required)
-        Step 4  Interests & Skills (chip input, min 3 — required)
-        Step 5  Preferred Mentor Areas + optional LinkedIn URL
-        Step 6  Review & Finish
-                       │
-                       ▼
-                Mark complete → /mentors
-```
+## How it will be created
 
-Each step has Back / Continue. Progress bar at top. Auto-saves draft to the row on every "Continue" so they can resume.
+Since the password-based mentee user must go through Supabase Auth (not just `public.users`), I'll run a one-shot script using the service role key that:
 
-### What's required vs optional
+1. Calls `supabase.auth.admin.createUser` with `email_confirm: true` so you can log in immediately without email verification.
+2. Lets the existing `handle_new_user` trigger insert the matching `public.users` and `public.user_roles` rows with role `mentee`.
+3. Verifies the rows were created and prints the credentials.
 
-- **Required to finish:** full name, goals, interests (≥3), preferred mentor areas (≥1)
-- **Optional but encouraged:** avatar, headline, short bio, organization unit, LinkedIn URL
+No `mentee_profiles` row will be inserted — that way `onboarded_at` is NULL and the `MenteeOnboardingGuard` will redirect you to `/onboarding/mentee` on first navigation, exactly like a real first-time user.
 
-### Hard gating rules
+## How to use it
+1. Go to `/login`
+2. Sign in with the credentials above
+3. You'll be hard-gated into the mentee onboarding wizard
+4. Complete (or skip through) the wizard to unlock `/mentors`, `/book/:mentorId`, `/mentee/sessions`
 
-- New `useMenteeProfileStatus` hook returns `{ loading, isComplete }`.
-- A `MenteeOnboardingGuard` wraps `/mentors`, `/book/:mentorId`, `/mentee/sessions` and redirects to `/onboarding/mentee` if incomplete.
-- Dashboard shows a "Finish setting up your profile" card for incomplete mentees instead of the "Find a Mentor" CTA.
-- Once complete, `/onboarding/mentee` redirects back to `/dashboard`.
-
-### Database changes
-
-Extend `mentee_profiles` to hold the LinkedIn-style fields and a completion flag:
-
-```sql
-alter table public.mentee_profiles
-  add column if not exists headline text default '',
-  add column if not exists bio text default '',
-  add column if not exists linkedin_url text default '',
-  add column if not exists preferred_mentor_areas text[] default '{}',
-  add column if not exists onboarded_at timestamptz;
-```
-
-`onboarded_at IS NOT NULL` = profile complete. Existing rows stay backward-compatible (avatar lives on `users.avatar_url`, already in place).
-
-Existing RLS ("Mentees manage own profile") already covers insert/update/select for these new columns — no policy changes needed.
-
-### New / changed files
-
-**New**
-- `src/features/mentee-onboarding/schema.ts` — Zod schema + types for the wizard
-- `src/features/mentee-onboarding/api.ts` — `fetchMenteeProfile`, `upsertMenteeProfile`, `markOnboarded`
-- `src/features/mentee-onboarding/hooks/useMenteeProfileStatus.ts` — completion check (cached via React Query)
-- `src/features/mentee-onboarding/components/OnboardingShell.tsx` — progress bar, step nav, layout
-- `src/features/mentee-onboarding/components/steps/` — `WelcomeStep`, `AboutStep`, `GoalsStep`, `InterestsStep`, `PreferencesStep`, `ReviewStep`
-- `src/components/MenteeOnboardingGuard.tsx` — route wrapper that redirects incomplete mentees
-- `src/pages/MenteeOnboarding.tsx` — the `/onboarding/mentee` route, hosts the wizard
-
-**Edited**
-- `src/App.tsx` — register `/onboarding/mentee`; wrap mentee browse/book/sessions routes with `MenteeOnboardingGuard`
-- `src/pages/MenteeProfile.tsx` — upgrade existing edit page to include the new fields (headline, bio, LinkedIn, preferred areas) so users can edit later. Make it work even when the profile row already exists.
-- `src/components/dashboards/MenteeDashboard.tsx` — show "Complete your profile" CTA when not onboarded
-- `src/pages/Dashboard.tsx` — (only if needed) trigger redirect for first-time mentees
-
-### UX details (LinkedIn-style)
-
-- Single-column, centered card (max-w-2xl), large step heading, subtitle, and a hint line.
-- Avatar uploader reuses `src/features/mentor-profile/components/AvatarUploader.tsx`.
-- Interests + Preferred Areas use chip input (Enter to add, X to remove), matching the mentor expertise UX.
-- "Save & exit" link in header to come back later (will still be gated until finished).
-- Toasts on save errors; final step button "Finish & explore mentors".
-
-### Out of scope (this round)
-
-- Email verification, password change, dark/light theming for onboarding, profile photo cropping. We can add those next.
+## Notes
+- If you'd like a second variant that's already onboarded (skipping the wizard), say the word and I'll seed that one too.
+- If you prefer different credentials (your real email, a different password), tell me and I'll use those instead.
