@@ -374,6 +374,44 @@ export type Database = {
         }
         Relationships: []
       }
+      mentor_mentee_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          mentee_id: string
+          mentor_id: string
+          notes: string
+          program_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          mentee_id: string
+          mentor_id: string
+          notes?: string
+          program_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          mentee_id?: string
+          mentor_id?: string
+          notes?: string
+          program_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentor_mentee_assignments_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mentor_profiles: {
         Row: {
           approval_acknowledged_at: string | null
@@ -450,6 +488,144 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      program_mentees: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          mentee_id: string
+          program_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          mentee_id: string
+          program_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          mentee_id?: string
+          program_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_mentees_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_mentors: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          id: string
+          mentor_id: string
+          program_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          mentor_id: string
+          program_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          id?: string
+          mentor_id?: string
+          program_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_mentors_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_tags: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          program_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          program_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          program_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_tags_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programs: {
+        Row: {
+          capacity: number | null
+          color: string
+          created_at: string
+          created_by: string | null
+          description: string
+          ends_on: string | null
+          id: string
+          name: string
+          slug: string
+          starts_on: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number | null
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          ends_on?: string | null
+          id?: string
+          name: string
+          slug: string
+          starts_on?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number | null
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          ends_on?: string | null
+          id?: string
+          name?: string
+          slug?: string
+          starts_on?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       sessions: {
         Row: {
@@ -558,6 +734,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_mentee_book_mentor: {
+        Args: { _mentee: string; _mentor: string }
+        Returns: boolean
+      }
       generate_mentor_slug: {
         Args: { _full_name: string; _user_id: string }
         Returns: string
@@ -567,6 +747,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_program_member: {
+        Args: { _program_id: string; _user_id: string }
         Returns: boolean
       }
     }
