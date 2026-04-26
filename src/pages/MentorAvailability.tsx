@@ -187,89 +187,97 @@ const MentorAvailability = () => {
           </div>
         </div>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center gap-2">
-              <Globe className="h-4 w-4 text-muted-foreground" />
-              <CardTitle className="text-base">Timezone</CardTitle>
-            </div>
-            <CardDescription>
-              Times below are shown in this timezone. Mentees see your slots converted to theirs.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Label className="sr-only">Timezone</Label>
-            <div className="flex items-center gap-2 max-w-md">
-              <Select value={timezone} onValueChange={onTimezoneChange}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {TIMEZONES.map((tz) => (
-                    <SelectItem key={tz} value={tz}>
-                      {tz}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => onTimezoneChange(detectTimezone())}
-              >
-                Detect
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="space-y-6 min-w-0">
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-base">Timezone</CardTitle>
+                </div>
+                <CardDescription>
+                  Times below are shown in this timezone. Mentees see your slots converted to theirs.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Label className="sr-only">Timezone</Label>
+                <div className="flex items-center gap-2 max-w-md">
+                  <Select value={timezone} onValueChange={onTimezoneChange}>
+                    <SelectTrigger className="flex-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      {TIMEZONES.map((tz) => (
+                        <SelectItem key={tz} value={tz}>
+                          {tz}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onTimezoneChange(detectTimezone())}
+                  >
+                    Detect
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Weekly hours</CardTitle>
-            <CardDescription>
-              Set when you're regularly available for sessions.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex items-center gap-2 text-muted-foreground text-sm py-6">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading…
-              </div>
-            ) : (
-              <div className="divide-y">
-                {DAYS_FULL.map((_, day) => (
-                  <DayRow
-                    key={day}
-                    dayOfWeek={day}
-                    slots={slotsByDay[day]}
-                    onAdd={(s, e) => onAdd(day, s, e)}
-                    onUpdate={onUpdate}
-                    onRemove={onRemove}
-                    onToggleDay={(enabled) => onToggleDay(day, enabled)}
-                    onCopy={(targets) => onCopy(day, targets)}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Weekly hours</CardTitle>
+                <CardDescription>
+                  Set when you're regularly available for sessions.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm py-6">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {DAYS_FULL.map((_, day) => (
+                      <DayRow
+                        key={day}
+                        dayOfWeek={day}
+                        slots={slotsByDay[day]}
+                        onAdd={(s, e) => onAdd(day, s, e)}
+                        onUpdate={onUpdate}
+                        onRemove={onRemove}
+                        onToggleDay={(enabled) => onToggleDay(day, enabled)}
+                        onCopy={(targets) => onCopy(day, targets)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Date overrides</CardTitle>
-            <CardDescription>
-              Add exceptions for specific dates — block a holiday or open custom hours.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <OverrideList
-              overrides={overrides}
-              onAdd={onAddOverride}
-              onRemove={onRemoveOverride}
-            />
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Date overrides</CardTitle>
+                <CardDescription>
+                  Add exceptions for specific dates — block a holiday or open custom hours.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <OverrideList
+                  overrides={overrides}
+                  onAdd={onAddOverride}
+                  onRemove={onRemoveOverride}
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          <div>
+            <AvailabilityPreview slots={slots} overrides={overrides} timezone={timezone} />
+          </div>
+        </div>
       </div>
     </AppLayout>
   );
