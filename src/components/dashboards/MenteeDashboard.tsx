@@ -5,7 +5,10 @@ import { useMenteeProfileStatus } from "@/features/mentee-onboarding/hooks/useMe
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, GraduationCap, Clock, Sparkles } from "lucide-react";
+import { BookOpen, GraduationCap, Clock, Sparkles, FolderKanban } from "lucide-react";
+import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
+import ProgramBadge from "@/components/programs/ProgramBadge";
+import { Link } from "react-router-dom";
 
 const MenteeDashboard = () => {
   const { user } = useAuth();
@@ -13,6 +16,8 @@ const MenteeDashboard = () => {
   const { isComplete, loading } = useMenteeProfileStatus(user?.id);
   const [upcoming, setUpcoming] = useState(0);
   const [total, setTotal] = useState(0);
+
+  const { data: programs = [] } = useMyPrograms();
 
   useEffect(() => {
     if (!user) return;
@@ -72,6 +77,23 @@ const MenteeDashboard = () => {
           <Button onClick={() => navigate("/mentors")}>Find a Mentor</Button>
         </Card>
       </div>
+
+      {programs.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FolderKanban className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">My Programs ({programs.length})</CardTitle>
+            </div>
+            <Button variant="ghost" size="sm" asChild><Link to="/mentee/programs">View all</Link></Button>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {programs.slice(0, 6).map((p) => (
+              <ProgramBadge key={p.id} name={p.name} color={p.color} to={`/mentee/programs/${p.slug}`} />
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
