@@ -15,14 +15,30 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, X, GripVertical, Tag, Check, CheckCircle2, Circle, UserPlus, Search, Info } from "lucide-react";
+import { ArrowLeft, Plus, X, GripVertical, Tag, Check, CheckCircle2, Circle, UserPlus, Search, Info, MoreHorizontal, Pencil, Archive, Trash2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type Program = Database["public"]["Tables"]["programs"]["Row"];
 type UserRow = { id: string; full_name: string; email: string };
 type Assignment = { id: string; mentor_id: string; mentee_id: string };
 type TagRow = Database["public"]["Tables"]["program_tags"]["Row"];
+type ProgramStatus = "draft" | "active" | "archived";
 
 const initialsOf = (name: string) =>
   name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
