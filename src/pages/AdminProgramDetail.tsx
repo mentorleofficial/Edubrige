@@ -407,6 +407,77 @@ const AdminProgramDetail = () => {
 
   const goTab = (t: typeof tab) => { setTabTouched(true); setTab(t); };
 
+  /* program edit / archive / delete */
+  const openEdit = () => {
+    if (!program) return;
+    setEditForm({
+      name: program.name,
+      description: program.description ?? "",
+      status: (program.status as ProgramStatus) ?? "draft",
+      starts_on: program.starts_on ?? "",
+      ends_on: program.ends_on ?? "",
+      capacity: program.capacity != null ? String(program.capacity) : "",
+    });
+    setEditOpen(true);
+  };
+
+  const saveProgram = async () => {
+    if (!program) return;
+    if (!editForm.name.trim()) return;
+    setSavingProgram(true);
+    const { error } = await supabase
+      .from("programs")
+      .update({
+        name: editForm.name.trim(),
+        description: editForm.description,
+        status: editForm.status,
+        starts_on: editForm.starts_on || null,
+        ends_on: editForm.ends_on || null,
+        capacity: editForm.capacity ? Number(editForm.capacity) : null,
+      })
+      .eq("id", program.id);
+    setSavingProgram(false);
+    if (error) {
+      toast({ variant: "destructive", title: "Save failed", description: error.message });
+      return;
+    }
+    toast({ title: "Program updated" });
+    setEditOpen(false);
+    load();
+  };
+
+  const setProgramStatus = async (status: ProgramStatus) => {
+    if (!program) return;
+    const { error } = await supabase.from("programs").update({ status }).eq("id", program.id);
+    if (error) {
+      toast({ variant: "destructive", title: "Failed", description: error.message });
+      return;
+    }
+    toast({ title: status === "archived" ? "Program archived" : "Program activated" });
+    setConfirmAction(null);
+    load();
+  };
+
+  const deleteProgram = async () => {
+    if (!program) return;
+    // Children are removed via cascading deletes triggered by removing program_mentors / program_mentees
+    // first; we explicitly delete dependent rows here for safety, then the program itself.
+    const { error: a1 } = await supabase.from("mentor_mentee_assignments").delete().eq("program_id", program.id);
+    if (a1) return toast({ variant: "destructive", title: "Delete failed", description: a1.message });
+    await supabase.from("program_mentors").delete().eq("program_id", program.id);
+    await supabase.from("program_mentees").delete().eq("program_id", program.id);
+    await supabase.from("program_tags").delete().eq("program_id", program.id);
+    const { error } = await supabase.from("programs").delete().eq("id", program.id);
+    if (error) {
+      toast({ variant: "destructive", title: "Delete failed", description: error.message });
+      return;
+    }
+    toast({ title: "Program deleted" });
+    setConfirmAction(null);
+    navigate("/admin/programs", { replace: true });
+  };
+
+
   if (!program) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
 
   const hasMentors = mentorsInProgram.length > 0;
