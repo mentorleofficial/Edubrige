@@ -493,8 +493,18 @@ const AdminProgramDetail = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-1 max-h-[500px] overflow-y-auto">
-                  {filteredMentors.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-2">No mentors match.</p>
+                  {directoryLoading ? (
+                    <p className="text-sm text-muted-foreground py-2">Loading mentors…</p>
+                  ) : allMentors.length === 0 ? (
+                    <div className="py-3 space-y-2">
+                      <p className="text-sm text-muted-foreground">No mentors exist on the platform yet.</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button asChild size="sm" variant="outline"><Link to="/admin/applications">Review applications</Link></Button>
+                        <Button asChild size="sm" variant="outline"><Link to="/admin/users">Manage users</Link></Button>
+                      </div>
+                    </div>
+                  ) : filteredMentors.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2">No mentors match “{mentorSearch}”.</p>
                   ) : filteredMentors.map((u) => (
                     <label key={u.id} className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50 cursor-pointer">
                       <Checkbox checked={programMentors.includes(u.id)} onCheckedChange={(v) => toggleMentor(u.id, !!v)} />
