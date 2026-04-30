@@ -62,6 +62,7 @@ const AppSidebar = () => {
     { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
     { title: "My Profile", icon: User, path: "/mentor/profile" },
     { title: "Availability", icon: Calendar, path: "/mentor/availability" },
+    { title: "Programs", icon: FolderKanban, path: "/mentor/programs" },
     { title: "My Mentees", icon: UsersRound, path: "/mentor/mentees" },
     { title: "Sessions", icon: BookOpen, path: "/mentor/sessions" },
   ];
@@ -73,6 +74,7 @@ const AppSidebar = () => {
   const menteeItems = [
     { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
     { title: "My Profile", icon: User, path: "/mentee/profile" },
+    { title: "Programs", icon: FolderKanban, path: "/mentee/programs" },
     { title: "Find Mentors", icon: GraduationCap, path: "/mentors" },
     { title: "My Sessions", icon: BookOpen, path: "/mentee/sessions" },
   ];
