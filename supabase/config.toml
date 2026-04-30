@@ -7,3 +7,6 @@ otp_length = 8
 # Manual JWT verification inside the function (admin role check requires service-role lookups).
 # Gateway-level verify_jwt was returning 401 when the admin's access token was momentarily stale.
 verify_jwt = false
+
+[functions.admin-manage-user]
+verify_jwt = false

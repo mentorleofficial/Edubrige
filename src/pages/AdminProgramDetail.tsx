@@ -15,14 +15,30 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Plus, X, GripVertical, Tag, Check, CheckCircle2, Circle, UserPlus, Search, Info } from "lucide-react";
+import { ArrowLeft, Plus, X, GripVertical, Tag, Check, CheckCircle2, Circle, UserPlus, Search, Info, MoreHorizontal, Pencil, Archive, Trash2 } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type Program = Database["public"]["Tables"]["programs"]["Row"];
 type UserRow = { id: string; full_name: string; email: string };
 type Assignment = { id: string; mentor_id: string; mentee_id: string };
 type TagRow = Database["public"]["Tables"]["program_tags"]["Row"];
+type ProgramStatus = "draft" | "active" | "archived";
 
 const initialsOf = (name: string) =>
   name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
@@ -187,6 +203,18 @@ const AdminProgramDetail = () => {
   const [mentorSearch, setMentorSearch] = useState("");
   const [menteeSearch, setMenteeSearch] = useState("");
   const [directoryLoading, setDirectoryLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<null | "archive" | "activate" | "delete">(null);
+  const [savingProgram, setSavingProgram] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+    status: "draft" as ProgramStatus,
+    starts_on: "",
+    ends_on: "",
+    capacity: "",
+  });
+
 
   const programId = program?.id;
 
@@ -379,6 +407,77 @@ const AdminProgramDetail = () => {
 
   const goTab = (t: typeof tab) => { setTabTouched(true); setTab(t); };
 
+  /* program edit / archive / delete */
+  const openEdit = () => {
+    if (!program) return;
+    setEditForm({
+      name: program.name,
+      description: program.description ?? "",
+      status: (program.status as ProgramStatus) ?? "draft",
+      starts_on: program.starts_on ?? "",
+      ends_on: program.ends_on ?? "",
+      capacity: program.capacity != null ? String(program.capacity) : "",
+    });
+    setEditOpen(true);
+  };
+
+  const saveProgram = async () => {
+    if (!program) return;
+    if (!editForm.name.trim()) return;
+    setSavingProgram(true);
+    const { error } = await supabase
+      .from("programs")
+      .update({
+        name: editForm.name.trim(),
+        description: editForm.description,
+        status: editForm.status,
+        starts_on: editForm.starts_on || null,
+        ends_on: editForm.ends_on || null,
+        capacity: editForm.capacity ? Number(editForm.capacity) : null,
+      })
+      .eq("id", program.id);
+    setSavingProgram(false);
+    if (error) {
+      toast({ variant: "destructive", title: "Save failed", description: error.message });
+      return;
+    }
+    toast({ title: "Program updated" });
+    setEditOpen(false);
+    load();
+  };
+
+  const setProgramStatus = async (status: ProgramStatus) => {
+    if (!program) return;
+    const { error } = await supabase.from("programs").update({ status }).eq("id", program.id);
+    if (error) {
+      toast({ variant: "destructive", title: "Failed", description: error.message });
+      return;
+    }
+    toast({ title: status === "archived" ? "Program archived" : "Program activated" });
+    setConfirmAction(null);
+    load();
+  };
+
+  const deleteProgram = async () => {
+    if (!program) return;
+    // Children are removed via cascading deletes triggered by removing program_mentors / program_mentees
+    // first; we explicitly delete dependent rows here for safety, then the program itself.
+    const { error: a1 } = await supabase.from("mentor_mentee_assignments").delete().eq("program_id", program.id);
+    if (a1) return toast({ variant: "destructive", title: "Delete failed", description: a1.message });
+    await supabase.from("program_mentors").delete().eq("program_id", program.id);
+    await supabase.from("program_mentees").delete().eq("program_id", program.id);
+    await supabase.from("program_tags").delete().eq("program_id", program.id);
+    const { error } = await supabase.from("programs").delete().eq("id", program.id);
+    if (error) {
+      toast({ variant: "destructive", title: "Delete failed", description: error.message });
+      return;
+    }
+    toast({ title: "Program deleted" });
+    setConfirmAction(null);
+    navigate("/admin/programs", { replace: true });
+  };
+
+
   if (!program) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
 
   const hasMentors = mentorsInProgram.length > 0;
@@ -400,6 +499,36 @@ const AdminProgramDetail = () => {
                 {tags.map((t) => <Badge key={t.id} variant="outline" className="text-xs"><Tag className="h-3 w-3 mr-1" />{t.label}</Badge>)}
               </div>
               {program.description && <p className="text-sm text-muted-foreground mt-2 max-w-2xl">{program.description}</p>}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={openEdit}>
+                <Pencil className="h-4 w-4 mr-1.5" />Edit
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {program.status !== "archived" ? (
+                    <DropdownMenuItem onClick={() => setConfirmAction("archive")}>
+                      <Archive className="h-4 w-4 mr-2" />Archive program
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => setConfirmAction("activate")}>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />Reactivate program
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setConfirmAction("delete")}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />Delete permanently
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
@@ -612,6 +741,108 @@ const AdminProgramDetail = () => {
           </Card>
         )}
       </div>
+
+      {/* Edit program dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit program</DialogTitle></DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div className="space-y-1.5">
+              <Label>Name</Label>
+              <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Description</Label>
+              <Textarea rows={3} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Starts on</Label>
+                <Input type="date" value={editForm.starts_on} onChange={(e) => setEditForm({ ...editForm, starts_on: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Ends on</Label>
+                <Input type="date" value={editForm.ends_on} onChange={(e) => setEditForm({ ...editForm, ends_on: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Capacity</Label>
+                <Input type="number" min={0} value={editForm.capacity} onChange={(e) => setEditForm({ ...editForm, capacity: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={editForm.status} onValueChange={(v: ProgramStatus) => setEditForm({ ...editForm, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={saveProgram} disabled={savingProgram || !editForm.name.trim()}>Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Archive / activate confirmation */}
+      <AlertDialog open={confirmAction === "archive" || confirmAction === "activate"} onOpenChange={(o) => !o && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction === "archive" ? "Archive this program?" : "Reactivate this program?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction === "archive"
+                ? "Mentees will no longer see this program in their list. All members and assignments are preserved and can be restored by reactivating."
+                : "The program will move back to active and become visible to its members again."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => setProgramStatus(confirmAction === "archive" ? "archived" : "active")}>
+              {confirmAction === "archive" ? "Archive" : "Reactivate"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete confirmation with cascade preview */}
+      <AlertDialog open={confirmAction === "delete"} onOpenChange={(o) => !o && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this program permanently?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>This action cannot be undone. The following will also be removed:</p>
+                <ul className="list-disc pl-5 text-sm">
+                  <li><strong>{programMentors.length}</strong> mentor membership{programMentors.length === 1 ? "" : "s"}</li>
+                  <li><strong>{programMentees.length}</strong> mentee enrollment{programMentees.length === 1 ? "" : "s"}</li>
+                  <li><strong>{assignments.length}</strong> mentor↔mentee assignment{assignments.length === 1 ? "" : "s"}</li>
+                  <li><strong>{tags.length}</strong> tag{tags.length === 1 ? "" : "s"}</li>
+                </ul>
+                <p className="text-xs text-muted-foreground pt-1">
+                  User accounts, sessions and feedback are <strong>not</strong> deleted — only this program's data.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteProgram}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };

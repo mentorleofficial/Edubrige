@@ -700,30 +700,39 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          disabled_at: string | null
+          disabled_by: string | null
           email: string
           external_id: string | null
           full_name: string
           id: string
+          is_disabled: boolean
           role: Database["public"]["Enums"]["app_role"]
           updated_at: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          disabled_at?: string | null
+          disabled_by?: string | null
           email: string
           external_id?: string | null
           full_name?: string
           id: string
+          is_disabled?: boolean
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
+          disabled_at?: string | null
+          disabled_by?: string | null
           email?: string
           external_id?: string | null
           full_name?: string
           id?: string
+          is_disabled?: boolean
           role?: Database["public"]["Enums"]["app_role"]
           updated_at?: string
         }

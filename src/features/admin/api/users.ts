@@ -9,15 +9,18 @@ export type AdminUserRow = {
   email: string;
   role: AppRole;
   created_at: string;
+  is_disabled: boolean;
   mentor_profiles: { is_active: boolean }[] | null;
 };
 
 export type RoleFilter = AppRole | "all";
+export type StatusFilter = "all" | "active" | "disabled";
 
 export type FetchUsersParams = {
   page: number;
   pageSize: number;
   role: RoleFilter;
+  status?: StatusFilter;
 };
 
 export type FetchUsersResult = {
@@ -29,32 +32,34 @@ export async function fetchAdminUsers({
   page,
   pageSize,
   role,
+  status = "active",
 }: FetchUsersParams): Promise<FetchUsersResult> {
   const from = page * pageSize;
   const to = from + pageSize - 1;
 
   let query = supabase
     .from("users")
-    .select("id, full_name, email, role, created_at, mentor_profiles(is_active)", {
-      count: "exact",
-    })
+    .select(
+      "id, full_name, email, role, created_at, is_disabled, mentor_profiles(is_active)",
+      { count: "exact" },
+    )
     .order("created_at", { ascending: false })
     .range(from, to);
 
-  if (role !== "all") {
-    query = query.eq("role", role);
-  }
+  if (role !== "all") query = query.eq("role", role);
+  if (status === "active") query = query.eq("is_disabled", false);
+  else if (status === "disabled") query = query.eq("is_disabled", true);
 
   const { data, error, count } = await query;
   if (error) throw error;
 
-  // Supabase may return mentor_profiles as a single object (unique FK) or array.
   const rows: AdminUserRow[] = (data ?? []).map((u: any) => ({
     id: u.id,
     full_name: u.full_name,
     email: u.email,
     role: u.role,
     created_at: u.created_at,
+    is_disabled: !!u.is_disabled,
     mentor_profiles: Array.isArray(u.mentor_profiles)
       ? u.mentor_profiles
       : u.mentor_profiles
@@ -74,16 +79,28 @@ export async function toggleMentorActive(userId: string, isActive: boolean) {
 
 export type CreateUserInput = {
   email: string;
-  password: string;
   full_name: string;
   role: AppRole;
+  mode: "invite" | "password";
+  password?: string;
 };
 
-export async function createUser(input: CreateUserInput) {
-  const { error } = await supabase.auth.signUp({
-    email: input.email,
-    password: input.password,
-    options: { data: { full_name: input.full_name, role: input.role } },
-  });
+async function invokeAdmin(body: Record<string, unknown>) {
+  const { data, error } = await supabase.functions.invoke("admin-manage-user", { body });
   if (error) throw error;
+  if (data && typeof data === "object" && "error" in data && data.error) {
+    throw new Error(String((data as { error: string }).error));
+  }
+  return data;
+}
+
+export async function createUser(input: CreateUserInput) {
+  return invokeAdmin({ action: "create", ...input });
+}
+
+export async function setUserDisabled(userId: string, disabled: boolean) {
+  return invokeAdmin({
+    action: disabled ? "disable" : "restore",
+    user_id: userId,
+  });
 }
