@@ -500,7 +500,38 @@ const AdminProgramDetail = () => {
               </div>
               {program.description && <p className="text-sm text-muted-foreground mt-2 max-w-2xl">{program.description}</p>}
             </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={openEdit}>
+                <Pencil className="h-4 w-4 mr-1.5" />Edit
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-9 w-9">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {program.status !== "archived" ? (
+                    <DropdownMenuItem onClick={() => setConfirmAction("archive")}>
+                      <Archive className="h-4 w-4 mr-2" />Archive program
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem onClick={() => setConfirmAction("activate")}>
+                      <CheckCircle2 className="h-4 w-4 mr-2" />Reactivate program
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setConfirmAction("delete")}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />Delete permanently
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
+        </div>
         </div>
 
         {/* Setup checklist */}
