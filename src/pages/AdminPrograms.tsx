@@ -182,7 +182,7 @@ const AdminPrograms = () => {
                     </span>
                   </div>
                   <Button asChild size="sm" variant="outline" className="w-full">
-                    <Link to={`/admin/programs/${p.id}`}>Open mapping board <ArrowRight className="h-4 w-4 ml-2" /></Link>
+                    <Link to={`/admin/programs/${p.slug}`}>Open mapping board <ArrowRight className="h-4 w-4 ml-2" /></Link>
                   </Button>
                 </CardContent>
               </Card>
