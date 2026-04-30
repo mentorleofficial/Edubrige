@@ -741,6 +741,108 @@ const AdminProgramDetail = () => {
           </Card>
         )}
       </div>
+
+      {/* Edit program dialog */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Edit program</DialogTitle></DialogHeader>
+          <div className="space-y-3 pt-2">
+            <div className="space-y-1.5">
+              <Label>Name</Label>
+              <Input value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Description</Label>
+              <Textarea rows={3} value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Starts on</Label>
+                <Input type="date" value={editForm.starts_on} onChange={(e) => setEditForm({ ...editForm, starts_on: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Ends on</Label>
+                <Input type="date" value={editForm.ends_on} onChange={(e) => setEditForm({ ...editForm, ends_on: e.target.value })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Capacity</Label>
+                <Input type="number" min={0} value={editForm.capacity} onChange={(e) => setEditForm({ ...editForm, capacity: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Status</Label>
+                <Select value={editForm.status} onValueChange={(v: ProgramStatus) => setEditForm({ ...editForm, status: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="archived">Archived</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancel</Button>
+            <Button onClick={saveProgram} disabled={savingProgram || !editForm.name.trim()}>Save changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Archive / activate confirmation */}
+      <AlertDialog open={confirmAction === "archive" || confirmAction === "activate"} onOpenChange={(o) => !o && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction === "archive" ? "Archive this program?" : "Reactivate this program?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction === "archive"
+                ? "Mentees will no longer see this program in their list. All members and assignments are preserved and can be restored by reactivating."
+                : "The program will move back to active and become visible to its members again."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => setProgramStatus(confirmAction === "archive" ? "archived" : "active")}>
+              {confirmAction === "archive" ? "Archive" : "Reactivate"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete confirmation with cascade preview */}
+      <AlertDialog open={confirmAction === "delete"} onOpenChange={(o) => !o && setConfirmAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this program permanently?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>This action cannot be undone. The following will also be removed:</p>
+                <ul className="list-disc pl-5 text-sm">
+                  <li><strong>{programMentors.length}</strong> mentor membership{programMentors.length === 1 ? "" : "s"}</li>
+                  <li><strong>{programMentees.length}</strong> mentee enrollment{programMentees.length === 1 ? "" : "s"}</li>
+                  <li><strong>{assignments.length}</strong> mentor↔mentee assignment{assignments.length === 1 ? "" : "s"}</li>
+                  <li><strong>{tags.length}</strong> tag{tags.length === 1 ? "" : "s"}</li>
+                </ul>
+                <p className="text-xs text-muted-foreground pt-1">
+                  User accounts, sessions and feedback are <strong>not</strong> deleted — only this program's data.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteProgram}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };
