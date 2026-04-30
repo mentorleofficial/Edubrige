@@ -8,6 +8,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MessageSquare } from "lucide-react";
+import ProgramBadge from "@/components/programs/ProgramBadge";
+import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import type { Database } from "@/integrations/supabase/types";
 
 type SessionStatus = Database["public"]["Enums"]["session_status"];
@@ -26,6 +28,29 @@ const MenteeSessions = () => {
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mentorPrograms, setMentorPrograms] = useState<Record<string, { name: string; color: string; slug: string }[]>>({});
+  const { data: myPrograms = [] } = useMyPrograms();
+
+  useEffect(() => {
+    if (myPrograms.length === 0 || sessions.length === 0) return;
+    (async () => {
+      const mentorIds = Array.from(new Set(sessions.map((s) => s.mentor_id)));
+      const programIds = myPrograms.map((p) => p.id);
+      const { data } = await supabase
+        .from("program_mentors")
+        .select("program_id, mentor_id")
+        .in("program_id", programIds)
+        .in("mentor_id", mentorIds);
+      const byMentor: Record<string, { name: string; color: string; slug: string }[]> = {};
+      const programMap = new Map(myPrograms.map((p) => [p.id, p]));
+      (data || []).forEach((row: any) => {
+        const p = programMap.get(row.program_id);
+        if (!p) return;
+        (byMentor[row.mentor_id] ||= []).push({ name: p.name, color: p.color, slug: p.slug });
+      });
+      setMentorPrograms(byMentor);
+    })();
+  }, [myPrograms, sessions]);
 
   useEffect(() => {
     if (!user) return;
@@ -53,6 +78,7 @@ const MenteeSessions = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead>Mentor</TableHead>
+                  <TableHead>Program</TableHead>
                   <TableHead>Date & Time</TableHead>
                   <TableHead>Duration</TableHead>
                   <TableHead>Status</TableHead>
