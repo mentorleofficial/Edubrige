@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   fetchProgramBySlug,
   fetchProgramMentors,
+  fetchProgramMentees,
   fetchProgramTags,
   fetchMyAssignedMentees,
   type Program,
