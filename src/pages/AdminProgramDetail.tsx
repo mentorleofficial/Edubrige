@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
   PointerSensor, useDraggable, useDroppable, useSensor, useSensors,
@@ -165,8 +165,11 @@ const ChecklistItem = ({
 );
 
 /* ---------- Page ---------- */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 const AdminProgramDetail = () => {
-  const { id: programId } = useParams<{ id: string }>();
+  const { slug } = useParams<{ slug: string }>();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -184,18 +187,34 @@ const AdminProgramDetail = () => {
   const [mentorSearch, setMentorSearch] = useState("");
   const [menteeSearch, setMenteeSearch] = useState("");
 
+  const programId = program?.id;
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const load = async () => {
-    if (!programId) return;
-    const [{ data: p }, { data: t }, { data: pm }, { data: pme }, { data: ma }] = await Promise.all([
-      supabase.from("programs").select("*").eq("id", programId).maybeSingle(),
-      supabase.from("program_tags").select("*").eq("program_id", programId).order("label"),
-      supabase.from("program_mentors").select("mentor_id").eq("program_id", programId),
-      supabase.from("program_mentees").select("mentee_id").eq("program_id", programId),
-      supabase.from("mentor_mentee_assignments").select("id, mentor_id, mentee_id").eq("program_id", programId),
+    if (!slug) return;
+    // Look up program by slug; if param looks like a UUID, fall back to id lookup and redirect to the slug URL.
+    let p: Program | null = null;
+    if (UUID_RE.test(slug)) {
+      const { data } = await supabase.from("programs").select("*").eq("id", slug).maybeSingle();
+      p = data ?? null;
+      if (p?.slug) {
+        navigate(`/admin/programs/${p.slug}`, { replace: true });
+        return;
+      }
+    } else {
+      const { data } = await supabase.from("programs").select("*").eq("slug", slug).maybeSingle();
+      p = data ?? null;
+    }
+    setProgram(p);
+    if (!p) return;
+
+    const [{ data: t }, { data: pm }, { data: pme }, { data: ma }] = await Promise.all([
+      supabase.from("program_tags").select("*").eq("program_id", p.id).order("label"),
+      supabase.from("program_mentors").select("mentor_id").eq("program_id", p.id),
+      supabase.from("program_mentees").select("mentee_id").eq("program_id", p.id),
+      supabase.from("mentor_mentee_assignments").select("id, mentor_id, mentee_id").eq("program_id", p.id),
     ]);
-    setProgram(p ?? null);
     setTags(t || []);
     setProgramMentors((pm || []).map((r: any) => r.mentor_id));
     setProgramMentees((pme || []).map((r: any) => r.mentee_id));
@@ -211,7 +230,7 @@ const AdminProgramDetail = () => {
     setAllMentees(((mentees || []) as any).map((r: any) => r.users).filter(Boolean));
   };
 
-  useEffect(() => { load(); loadDirectory(); }, [programId]);
+  useEffect(() => { load(); loadDirectory(); }, [slug]);
 
   const mentorsInProgram = useMemo(
     () => allMentors.filter((m) => programMentors.includes(m.id)),
