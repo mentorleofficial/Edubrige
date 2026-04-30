@@ -28,6 +28,7 @@ const MentorProgramDetail = () => {
   const [program, setProgram] = useState<Program | null>(null);
   const [coMentors, setCoMentors] = useState<ProgramMember[]>([]);
   const [myMentees, setMyMentees] = useState<ProgramMember[]>([]);
+  const [allMentees, setAllMentees] = useState<ProgramMember[]>([]);
   const [tags, setTags] = useState<ProgramTag[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,14 +39,16 @@ const MentorProgramDetail = () => {
       const p = await fetchProgramBySlug(slug);
       setProgram(p);
       if (p) {
-        const [m, t, mm] = await Promise.all([
+        const [m, t, mm, am] = await Promise.all([
           fetchProgramMentors(p.id),
           fetchProgramTags(p.id),
           fetchMyAssignedMentees(p.id, user.id),
+          fetchProgramMentees(p.id),
         ]);
         setCoMentors(m.filter((x) => x.id !== user.id));
         setTags(t);
         setMyMentees(mm);
+        setAllMentees(am);
       }
       setLoading(false);
     })();
