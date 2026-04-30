@@ -127,7 +127,7 @@ export async function fetchMyAssignedMentor(programId: string, menteeId: string)
 }
 
 /**
- * For a given mentor in a program, return assigned mentees.
+ * For a given mentor in a program, return the explicit 1:1 assigned mentees.
  */
 export async function fetchMyAssignedMentees(
   programId: string,
