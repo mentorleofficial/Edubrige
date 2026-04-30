@@ -2,14 +2,19 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, Clock, Star } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { BookOpen, Clock, Star, FolderKanban } from "lucide-react";
+import { Link } from "react-router-dom";
 import InactiveMentorBanner from "@/components/InactiveMentorBanner";
+import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
+import ProgramBadge from "@/components/programs/ProgramBadge";
 
 const MentorDashboard = () => {
   const { user, mentorActive } = useAuth();
   const [upcoming, setUpcoming] = useState(0);
   const [completed, setCompleted] = useState(0);
   const [avgRating, setAvgRating] = useState<number | null>(null);
+  const { data: programs = [] } = useMyPrograms();
 
   useEffect(() => {
     if (!user) return;
@@ -59,6 +64,23 @@ const MentorDashboard = () => {
         <CardContent><div className="text-3xl font-bold">{avgRating ? avgRating.toFixed(1) : "—"}</div></CardContent>
       </Card>
       </div>
+
+      {programs.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FolderKanban className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">My Programs ({programs.length})</CardTitle>
+            </div>
+            <Button variant="ghost" size="sm" asChild><Link to="/mentor/programs">View all</Link></Button>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {programs.slice(0, 6).map((p) => (
+              <ProgramBadge key={p.id} name={p.name} color={p.color} to={`/mentor/programs/${p.slug}`} />
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
