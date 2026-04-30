@@ -186,6 +186,7 @@ const AdminProgramDetail = () => {
   const [newTag, setNewTag] = useState("");
   const [mentorSearch, setMentorSearch] = useState("");
   const [menteeSearch, setMenteeSearch] = useState("");
+  const [directoryLoading, setDirectoryLoading] = useState(true);
 
   const programId = program?.id;
 
@@ -222,15 +223,24 @@ const AdminProgramDetail = () => {
   };
 
   const loadDirectory = async () => {
-    const [{ data: mentors }, { data: mentees }] = await Promise.all([
+    setDirectoryLoading(true);
+    const [{ data: mentors, error: mErr }, { data: mentees, error: meErr }] = await Promise.all([
       supabase.from("user_roles").select("user_id, users:user_id(id, full_name, email)").eq("role", "mentor"),
       supabase.from("user_roles").select("user_id, users:user_id(id, full_name, email)").eq("role", "mentee"),
     ]);
+    if (mErr) console.error("Load mentors failed:", mErr);
+    if (meErr) console.error("Load mentees failed:", meErr);
     setAllMentors(((mentors || []) as any).map((r: any) => r.users).filter(Boolean));
     setAllMentees(((mentees || []) as any).map((r: any) => r.users).filter(Boolean));
+    setDirectoryLoading(false);
   };
 
-  useEffect(() => { load(); loadDirectory(); }, [slug]);
+  // Wait for auth-restored user before hitting RLS-protected tables.
+  useEffect(() => {
+    if (!user?.id) return;
+    load();
+    loadDirectory();
+  }, [slug, user?.id]);
 
   const mentorsInProgram = useMemo(
     () => allMentors.filter((m) => programMentors.includes(m.id)),
@@ -483,8 +493,18 @@ const AdminProgramDetail = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-1 max-h-[500px] overflow-y-auto">
-                  {filteredMentors.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-2">No mentors match.</p>
+                  {directoryLoading ? (
+                    <p className="text-sm text-muted-foreground py-2">Loading mentors…</p>
+                  ) : allMentors.length === 0 ? (
+                    <div className="py-3 space-y-2">
+                      <p className="text-sm text-muted-foreground">No mentors exist on the platform yet.</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button asChild size="sm" variant="outline"><Link to="/admin/applications">Review applications</Link></Button>
+                        <Button asChild size="sm" variant="outline"><Link to="/admin/users">Manage users</Link></Button>
+                      </div>
+                    </div>
+                  ) : filteredMentors.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2">No mentors match “{mentorSearch}”.</p>
                   ) : filteredMentors.map((u) => (
                     <label key={u.id} className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50 cursor-pointer">
                       <Checkbox checked={programMentors.includes(u.id)} onCheckedChange={(v) => toggleMentor(u.id, !!v)} />
@@ -512,8 +532,15 @@ const AdminProgramDetail = () => {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-1 max-h-[500px] overflow-y-auto">
-                  {filteredMentees.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-2">No mentees match.</p>
+                  {directoryLoading ? (
+                    <p className="text-sm text-muted-foreground py-2">Loading mentees…</p>
+                  ) : allMentees.length === 0 ? (
+                    <div className="py-3 space-y-2">
+                      <p className="text-sm text-muted-foreground">No mentees exist on the platform yet.</p>
+                      <Button asChild size="sm" variant="outline"><Link to="/admin/users">Manage users</Link></Button>
+                    </div>
+                  ) : filteredMentees.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-2">No mentees match “{menteeSearch}”.</p>
                   ) : filteredMentees.map((u) => (
                     <label key={u.id} className="flex items-center gap-2 rounded px-2 py-1.5 hover:bg-muted/50 cursor-pointer">
                       <Checkbox checked={programMentees.includes(u.id)} onCheckedChange={(v) => toggleMentee(u.id, !!v)} />

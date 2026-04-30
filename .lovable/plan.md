@@ -1,27 +1,24 @@
-# Clean URLs for Admin Programs
+# Fix empty Mentor/Mentee lists in Program Members tab
 
-Right now opening a program lands you on `/admin/programs/d10ca6e3-351c-4282-a337-e55a244a2824` — an ugly UUID. Programs already have a `slug` column (auto-generated from the name on create), so we'll use it in the URL instead.
+## What's wrong
 
-## What changes
+You have 1 mentor (Abhishek Soni) and 1 mentee (Test Mentee) in the database, but the Members tab shows "No mentors match" / "No mentees match". The data is there — it's not being fetched.
 
-- Program detail URL becomes `/admin/programs/spring-2026-engineering-cohort-a8x2` instead of `/admin/programs/<uuid>`.
-- The "Open mapping board" link on the Programs list will point to the slug.
-- Old UUID URLs (already shared / bookmarked) will still work — they auto-redirect to the slug version, so nothing breaks.
+The page calls `loadDirectory()` immediately on mount. If the Supabase auth session hasn't finished restoring at that moment, `auth.uid()` is `null`, the admin RLS policy on `user_roles` evaluates to false, and the query silently returns an empty array. There's no retry, so the empty state sticks until you reload.
 
-## Other URLs reviewed
+## Fix
 
-- **Mentor profiles** (`/mentors/:mentorId`) — already use slugs (handle). No change needed.
-- **Booking** (`/book/:mentorId`) and **Session feedback** (`/session/:id/feedback`) — these are session/transaction routes where a stable opaque id is appropriate (sessions don't have a user-facing name). Leaving as-is.
-- **Admin lists** (`/admin/users`, `/admin/applications`, `/admin/audit-logs`, `/admin/settings`) — already clean, no IDs.
+In `src/pages/AdminProgramDetail.tsx`:
 
-If you'd like mentor or other routes changed too, tell me which.
+1. **Gate the directory + program loads on `user` from `useAuth()`**. Don't fire either query until `user?.id` is available.
+2. **Add empty-state messaging** that distinguishes "no users on platform yet" from "no search match":
+   - If `allMentors.length === 0` (after load completes), show: *"No mentors exist yet. Approve mentor applications or invite mentors from Admin → Users."* with two link buttons to `/admin/applications` and `/admin/users`.
+   - Same for mentees, pointing to `/admin/users`.
+   - Only show "No mentors match" when the user has typed a search that filters everything out.
+3. **Add a small `loading` flag** so we don't flash the "no mentors" message during the initial fetch.
 
-## Technical details
+No DB changes, no schema changes — purely a client-side timing + UX fix.
 
-1. **`src/App.tsx`** — change the route from `/admin/programs/:id` to `/admin/programs/:slug`.
-2. **`src/pages/AdminProgramDetail.tsx`**:
-   - Read `slug` from `useParams` instead of `id`.
-   - Load the program with `.eq("slug", slug).maybeSingle()`; use the returned `program.id` everywhere internally (assignments, members, tags queries are all keyed on the UUID — no DB changes).
-   - Add a small fallback: if the param looks like a UUID (regex match), look it up by `id`, then `navigate(`/admin/programs/${program.slug}`, { replace: true })` so old links auto-upgrade.
-3. **`src/pages/AdminPrograms.tsx`** — change the Link target from `/admin/programs/${p.id}` to `/admin/programs/${p.slug}`.
-4. No DB migration. Slugs are already populated and unique-enough (name + 4-char suffix). If a duplicate slug ever occurs, the lookup uses `maybeSingle` and we'll fall back to showing the first match.
+## Why this matches what you saw
+
+Your screenshot shows both cards empty with "0 in program" and "No mentors match" before you've typed anything in search. With the fix, you'll see Abhishek Soni in the Mentors card and Test Mentee in the Mentees card, each with a checkbox to add them to the Spring 2026 program.
