@@ -217,8 +217,8 @@ const AdminProgramDetail = () => {
       supabase.from("mentor_mentee_assignments").select("id, mentor_id, mentee_id").eq("program_id", p.id),
     ]);
     setTags(t || []);
-    setProgramMentors((pm || []).map((r: any) => r.mentor_id));
-    setProgramMentees((pme || []).map((r: any) => r.mentee_id));
+    setProgramMentors((pm || []).map(({ mentor_id }) => mentor_id));
+    setProgramMentees((pme || []).map(({ mentee_id }) => mentee_id));
     setAssignments((ma || []) as Assignment[]);
   };
 
@@ -412,7 +412,9 @@ const AdminProgramDetail = () => {
           <ChecklistItem done={allAssigned && hasMentees} label="Map to mentors" count={`${assignments.length}/${menteesInProgram.length}`} onClick={() => goTab("mapping")} active={tab === "mapping"} />
         </div>
 
-        <Tabs value={tab} onValueChange={(v) => goTab(v as any)}>
+        <Tabs value={tab} onValueChange={(v) => {
+          if (v === "members" || v === "mapping" || v === "tags") goTab(v);
+        }}>
           <TabsList>
             <TabsTrigger value="members">Members ({mentorsInProgram.length} / {menteesInProgram.length})</TabsTrigger>
             <TabsTrigger value="mapping">Mapping board</TabsTrigger>
