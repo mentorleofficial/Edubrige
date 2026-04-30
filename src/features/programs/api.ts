@@ -60,6 +60,31 @@ export async function fetchMyPrograms(
   }));
 }
 
+export type ProgramOverview = {
+  program: Program;
+  mentors: ProgramMember[];
+  tags: ProgramTag[];
+  assignedMentor: ProgramMember | null;
+};
+
+/**
+ * One-shot fetch for the mentee program detail page.
+ * Returns program + mentor list + tags + the mentee's assigned mentor.
+ */
+export async function fetchMenteeProgramOverview(
+  slug: string,
+  menteeId: string,
+): Promise<ProgramOverview | null> {
+  const program = await fetchProgramBySlug(slug);
+  if (!program) return null;
+  const [mentors, tags, assignedMentor] = await Promise.all([
+    fetchProgramMentors(program.id),
+    fetchProgramTags(program.id),
+    fetchMyAssignedMentor(program.id, menteeId),
+  ]);
+  return { program, mentors, tags, assignedMentor };
+}
+
 export async function fetchProgramBySlug(slug: string): Promise<Program | null> {
   const { data, error } = await supabase.from("programs").select("*").eq("slug", slug).maybeSingle();
   if (error) throw error;
