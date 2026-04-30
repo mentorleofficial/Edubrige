@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   fetchProgramBySlug,
   fetchProgramMentors,
+  fetchProgramMentees,
   fetchProgramTags,
   fetchMyAssignedMentees,
   type Program,
@@ -27,6 +28,7 @@ const MentorProgramDetail = () => {
   const [program, setProgram] = useState<Program | null>(null);
   const [coMentors, setCoMentors] = useState<ProgramMember[]>([]);
   const [myMentees, setMyMentees] = useState<ProgramMember[]>([]);
+  const [allMentees, setAllMentees] = useState<ProgramMember[]>([]);
   const [tags, setTags] = useState<ProgramTag[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,14 +39,16 @@ const MentorProgramDetail = () => {
       const p = await fetchProgramBySlug(slug);
       setProgram(p);
       if (p) {
-        const [m, t, mm] = await Promise.all([
+        const [m, t, mm, am] = await Promise.all([
           fetchProgramMentors(p.id),
           fetchProgramTags(p.id),
           fetchMyAssignedMentees(p.id, user.id),
+          fetchProgramMentees(p.id),
         ]);
         setCoMentors(m.filter((x) => x.id !== user.id));
         setTags(t);
         setMyMentees(mm);
+        setAllMentees(am);
       }
       setLoading(false);
     })();
@@ -118,6 +122,33 @@ const MentorProgramDetail = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">All mentees in this program ({allMentees.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {allMentees.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No mentees enrolled in this program yet.</p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {allMentees.map((m) => {
+                  const isMine = myMentees.some((x) => x.id === m.id);
+                  return (
+                    <div key={m.id} className="flex items-center gap-3 rounded-md border p-3">
+                      <Avatar className="h-9 w-9"><AvatarFallback>{initials(m.full_name)}</AvatarFallback></Avatar>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{m.full_name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{m.email}</p>
+                      </div>
+                      {isMine && <Badge variant="secondary" className="text-xs">Assigned to you</Badge>}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </CardContent>
