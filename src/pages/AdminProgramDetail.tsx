@@ -203,6 +203,18 @@ const AdminProgramDetail = () => {
   const [mentorSearch, setMentorSearch] = useState("");
   const [menteeSearch, setMenteeSearch] = useState("");
   const [directoryLoading, setDirectoryLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<null | "archive" | "activate" | "delete">(null);
+  const [savingProgram, setSavingProgram] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: "",
+    description: "",
+    status: "draft" as ProgramStatus,
+    starts_on: "",
+    ends_on: "",
+    capacity: "",
+  });
+
 
   const programId = program?.id;
 
