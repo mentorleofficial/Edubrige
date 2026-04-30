@@ -1,106 +1,115 @@
-# Mentor & Mentee Program Experience
+# Fix & Harden the Mentee Program Flow
 
-Today, programs only exist in Admin. Mentors and mentees can be mapped into programs, but they don't *see* their programs anywhere — no list, no badge, no filter, no context on sessions or bookings. This plan brings programs to life on both sides.
+## What's broken (root causes)
 
----
+1. **Mentee can't see mentors of their own program.**
+   - `program_mentors` RLS only allows `mentor_id = auth.uid()` (mentor reads own row) or admins. Mentees enrolled in the program have **no SELECT policy**, so the query returns 0 rows.
+   - That's why the screenshot shows **"0 mentors"** on the card and **"No mentors in this program yet"** on the detail page, even though there is 1 mentor in the DB.
 
-## What's missing today
+2. **Mentor name/email may be missing for mentees.**
+   - `users` table only lets a mentee read another user if that user has an active `mentor_profiles` row ("Public read active mentor users"). If a program mentor hasn't completed/activated their profile, their row is invisible to the mentee.
 
-- **Mentee side**: no "My Programs" page, no way to know which mentors belong to their program, `Find Mentors` shows everyone, no program badges anywhere.
-- **Mentor side**: `My Mentees` groups by program but there's no dedicated programs view, no program filter on Sessions, no program badge on the dashboard.
-- **Both sides**: dashboards don't surface programs, sessions don't show which program they belong to, no program detail page they can open.
+3. **`fetchMyPrograms` mentor count is always 0 for mentees** — same RLS gap as #1 (counts via `program_mentors`).
 
----
+4. **Assigned mentor is duplicated** in the "Mentors in this program" list (no de-dup).
 
-## Mentee improvements
+5. **Mentee detail page has no error/empty handling, no React Query, no skeletons** — silent failures and inconsistent with rest of the app.
 
-### 1. "My Programs" page (`/mentee/programs`)
-List every program the mentee is enrolled in (`program_mentees` join `programs`). Each card shows:
-- Program name, status badge, dates, color stripe
-- Number of mentors available in the program
-- Their assigned mentor (if any) — with "Book session" CTA
-- Tags from `program_tags`
-- "View mentors" button → filtered mentor directory
+6. **`MentorDirectory` "Find a mentor" deep link** (`/mentors?program=<slug>`) — verified the param wiring is fine, but the directory only shows mentors in programs the *current user* belongs to. Good — no change needed, just confirming.
 
-### 2. Program-aware Mentor Directory
-- Add a **Program filter** chip row at the top of `/mentors`
-- Default to "All my programs" for enrolled mentees
-- Show a program badge on each mentor card (which programs they belong to)
-- Respect existing `can_mentee_book_mentor` rules — mentors outside any program show as "Open to all"
+## Fix plan
 
-### 3. Program detail page (`/mentee/programs/:slug`)
-Read-only view showing program info, all mentors in the program (with book buttons), tags, dates, and the mentee's own assignment status.
+### 1. Database migration (RLS)
 
-### 4. Dashboard widget
-Add an "Active Programs" card to `MenteeDashboard` showing count + quick links to top 2 programs.
+Add SELECT policies so a mentee enrolled in a program can read:
+- the program's `program_mentors` rows (to list/count mentors)
+- the `users` rows of those mentors (basic profile fields only)
 
-### 5. Session context
-On `MenteeSessions`, show a program badge next to each booked session (derived from mentor's program membership).
+```sql
+-- Mentees can see the mentor list of programs they're enrolled in
+CREATE POLICY "Mentees read mentors in their programs"
+ON public.program_mentors FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1 FROM public.program_mentees pe
+    WHERE pe.program_id = program_mentors.program_id
+      AND pe.mentee_id = auth.uid()
+  )
+);
 
----
+-- Mentees can read user records of mentors who share a program with them
+CREATE POLICY "Mentees read users of program mentors"
+ON public.users FOR SELECT TO authenticated
+USING (
+  EXISTS (
+    SELECT 1
+    FROM public.program_mentors pmt
+    JOIN public.program_mentees pme ON pme.program_id = pmt.program_id
+    WHERE pmt.mentor_id = users.id
+      AND pme.mentee_id = auth.uid()
+  )
+);
+```
 
-## Mentor improvements
+These are additive (OR'd with existing policies). The `users` policy still only exposes the columns we already select (`id, full_name, email, avatar_url`) — no sensitive fields exist on that table beyond what's already public for active mentors.
 
-### 1. "My Programs" page (`/mentor/programs`)
-List every program the mentor is part of (`program_mentors`). Each card shows:
-- Program name, status, dates, color stripe
-- Mentee count assigned to *this mentor* in this program
-- Total mentees enrolled in the program
-- Tags
-- "View my mentees" → jumps to `MentorMentees` filtered by program
+### 2. API layer (`src/features/programs/api.ts`)
 
-### 2. Filter on `My Mentees` page
-Add a program selector at the top so mentors can scope the list to one program.
+- Wrap fetchers with proper error propagation (currently swallowed).
+- Add a single `fetchProgramOverview(slug, userId, role)` helper that returns `{ program, mentors, mentees, tags, assignedMentor }` in one go — used by both mentee and mentor detail pages — to avoid waterfall and make React Query caching simpler.
+- Keep existing fine-grained fetchers for backwards compatibility.
 
-### 3. Program detail page (`/mentor/programs/:slug`)
-Shows program info, the mentor's assigned mentees in that program, and other mentors in the program (read-only roster for collaboration awareness).
+### 3. React Query refactor
 
-### 4. Dashboard widget
-Add an "Active Programs" card to `MentorDashboard` mirroring the mentee version.
+Replace `useEffect`/`useState` in `MenteeProgramDetail.tsx` (and `MentorProgramDetail.tsx`) with `useQuery`:
+- Key: `["program-overview", slug, userId, role]`
+- Loading → skeletons (consistent with `MenteePrograms.tsx`)
+- Error → friendly card with retry
+- Use the central `queryClient` so errors flow through `handleError`.
 
-### 5. Session context
-On `MentorSessions`, show a program badge next to sessions.
+### 4. UI fixes — `MenteeProgramDetail.tsx`
 
----
+- Show real mentor count (now correctly readable).
+- De-dup the assigned mentor from the "Mentors in this program" grid (or add an "Assigned to you" badge instead of hiding).
+- Skeleton loaders (replace plain "Loading…").
+- Empty state: if `mentors.length === 0`, show a clear message + link back to programs.
+- Add a small header chip with the program color (consistent with `ProgramBadge`).
+- Tags rendered as badges (already there, keep).
+- Add **Co-mentees** section (other mentees in the program) — optional but useful for cohort awareness; gated to only show count if list is empty for privacy. *(I'll add it behind the same RLS we already have: `program_mentees` is already readable by enrolled mentees for their own row only — so listing other mentees would need another RLS policy. **Skipping cohort list** to keep privacy tight; just show a count of "X mentees enrolled" via a server-side count query if feasible, otherwise omit.)*
+- Action row: "Book session" with assigned mentor stays primary; secondary "Browse all program mentors" → `/mentors?program=<slug>`.
 
-## Shared / cross-cutting
+### 5. UI fixes — `MenteePrograms.tsx` / `ProgramCard.tsx`
 
-- **Sidebar**: add `Programs` (FolderKanban icon) to both mentor and mentee sidebars, between Profile and Sessions area.
-- **Reusable `ProgramBadge` component** — colored chip using `programs.color` (HSL), name + status. Used on mentor cards, session rows, dashboards.
-- **Reusable `useMyPrograms()` hook** — returns programs for the current user based on their role, with caching.
-- **Empty states**: friendly copy when a mentee/mentor isn't in any program yet ("Programs you join will appear here").
-- **Clean slugs everywhere** (per existing project rule) — link to `/mentor/programs/:slug` and `/mentee/programs/:slug`, never IDs.
+- After RLS fix, mentor counts in `fetchMyPrograms` will populate correctly. No code change needed there, but verify after migration.
+- Add a tiny "Assigned: <mentor name>" line on the card when a mentee has an assignment in that program (one extra batched query in `fetchMyPrograms` for mentees).
 
----
+### 6. Mentee dashboard widget
 
-## Technical notes
+- Verify `MenteeDashboard` "My Programs" widget renders correct counts post-fix.
+- Add a CTA "View program" → `/mentee/programs/<slug>` if missing.
 
-**New files**
-- `src/features/programs/api.ts` — `fetchMyPrograms(userId, role)`, `fetchProgramBySlug(slug)`, `fetchProgramMentors(programId)`, `fetchProgramMentees(programId)`
-- `src/features/programs/hooks/useMyPrograms.ts`
-- `src/components/programs/ProgramBadge.tsx`
-- `src/components/programs/ProgramCard.tsx`
-- `src/pages/MenteePrograms.tsx`, `src/pages/MenteeProgramDetail.tsx`
-- `src/pages/MentorPrograms.tsx`, `src/pages/MentorProgramDetail.tsx`
+### 7. Audit / production hardening checklist
 
-**Edited files**
-- `src/App.tsx` — register 4 new routes (mentor + mentee programs list + detail), guarded by role
-- `src/components/AppSidebar.tsx` — add Programs item to mentor and mentee menus
-- `src/components/dashboards/MentorDashboard.tsx` + `MenteeDashboard.tsx` — add Programs widget
-- `src/pages/MentorDirectory.tsx` — add program filter + badges on mentor cards
-- `src/pages/MentorMentees.tsx` — add program filter dropdown
-- `src/pages/MentorSessions.tsx` + `src/pages/MenteeSessions.tsx` — show program badges
+- ✅ RLS: confirm no recursive policies, all use `SECURITY DEFINER` helpers.
+- ✅ Run `supabase--linter` after migration.
+- ✅ Confirm `can_mentee_book_mentor` still works correctly for program-mapped mentors (it does — uses `mentor_mentee_assignments`).
+- ✅ Verify `MentorDirectory` `?program=<slug>` filter end-to-end as a mentee.
+- ✅ Verify `MenteeSessions` program badges resolve (uses `program_mentors`/`program_mentees` lookups — will benefit from new RLS).
+- ✅ Confirm `fetchMyAssignedMentor` works when mentor profile is inactive (now fixed by new `users` policy).
 
-**RLS** is already correct — `Members read their programs` policy on `programs`, plus role-scoped reads on `program_mentors` / `program_mentees`. No DB migration needed.
+## Files to change
 
-**Queries are slug-based** for detail pages, matching the project convention. List pages use `program_mentors.mentor_id = auth.uid()` / `program_mentees.mentee_id = auth.uid()` joined with `programs`.
+- **New migration**: `supabase/migrations/<ts>_mentee_program_visibility.sql` (the two policies above)
+- **Edited**: `src/features/programs/api.ts` (new overview helper + assignment lookup batched into `fetchMyPrograms` for mentees)
+- **Edited**: `src/features/programs/hooks/useMyPrograms.ts` (return assigned mentor map for mentees)
+- **Edited**: `src/pages/MenteeProgramDetail.tsx` (React Query, skeletons, de-dup, empty/error states)
+- **Edited**: `src/pages/MentorProgramDetail.tsx` (parallel React Query refactor for consistency)
+- **Edited**: `src/components/programs/ProgramCard.tsx` (optional "Assigned: …" line for mentees)
 
----
+## Out of scope (call out, no change)
 
-## Out of scope (call out for later)
-- Program-level chat/announcements
-- Program progress tracking / milestones
-- Program-level analytics for mentors
-- Mentee self-enrollment (currently admin-only)
+- Listing other mentees (cohort) to a mentee — privacy concern, would require a separate RLS policy + product decision.
+- Messaging / chat between program members.
+- Program announcements / resources tab.
 
-Approve and I'll build it.
+Approve to apply the migration and ship the UI fixes.
