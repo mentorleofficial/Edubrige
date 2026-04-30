@@ -224,14 +224,40 @@ const AdminProgramDetail = () => {
 
   const loadDirectory = async () => {
     setDirectoryLoading(true);
-    const [{ data: mentors, error: mErr }, { data: mentees, error: meErr }] = await Promise.all([
-      supabase.from("user_roles").select("user_id, users:user_id(id, full_name, email)").eq("role", "mentor"),
-      supabase.from("user_roles").select("user_id, users:user_id(id, full_name, email)").eq("role", "mentee"),
+    const loadRoleDirectory = async (role: "mentor" | "mentee") => {
+      const { data: roleRows, error: roleErr } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", role);
+
+      if (roleErr) {
+        console.error(`Load ${role} roles failed:`, roleErr);
+        return [] as UserRow[];
+      }
+
+      const userIds = Array.from(new Set((roleRows || []).map((r) => r.user_id).filter(Boolean)));
+      if (userIds.length === 0) return [] as UserRow[];
+
+      const { data: users, error: usersErr } = await supabase
+        .from("users")
+        .select("id, full_name, email")
+        .in("id", userIds)
+        .order("full_name");
+
+      if (usersErr) {
+        console.error(`Load ${role} users failed:`, usersErr);
+        return [] as UserRow[];
+      }
+
+      return (users || []) as UserRow[];
+    };
+
+    const [mentors, mentees] = await Promise.all([
+      loadRoleDirectory("mentor"),
+      loadRoleDirectory("mentee"),
     ]);
-    if (mErr) console.error("Load mentors failed:", mErr);
-    if (meErr) console.error("Load mentees failed:", meErr);
-    setAllMentors(((mentors || []) as any).map((r: any) => r.users).filter(Boolean));
-    setAllMentees(((mentees || []) as any).map((r: any) => r.users).filter(Boolean));
+    setAllMentors(mentors);
+    setAllMentees(mentees);
     setDirectoryLoading(false);
   };
 
