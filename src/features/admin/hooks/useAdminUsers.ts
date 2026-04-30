@@ -5,13 +5,15 @@ import {
   type FetchUsersParams,
   type FetchUsersResult,
   type RoleFilter,
+  type StatusFilter,
   createUser,
   fetchAdminUsers,
+  setUserDisabled,
   toggleMentorActive,
 } from "../api/users";
 
 const adminUsersKey = (params: FetchUsersParams) =>
-  ["admin", "users", params.page, params.pageSize, params.role] as const;
+  ["admin", "users", params.page, params.pageSize, params.role, params.status ?? "active"] as const;
 
 export function useAdminUsers(params: FetchUsersParams) {
   return useQuery({
@@ -58,10 +60,20 @@ export function useCreateUser() {
   return useMutation({
     mutationFn: (input: CreateUserInput) => createUser(input),
     onSuccess: () => {
-      // Allow trigger to populate users row before refetch.
       setTimeout(() => qc.invalidateQueries({ queryKey: ["admin", "users"] }), 800);
     },
   });
 }
 
-export type { AdminUserRow, RoleFilter };
+export function useSetUserDisabled() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, disabled }: { userId: string; disabled: boolean }) =>
+      setUserDisabled(userId, disabled),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+export type { AdminUserRow, RoleFilter, StatusFilter };
