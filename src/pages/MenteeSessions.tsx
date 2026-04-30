@@ -87,13 +87,24 @@ const MenteeSessions = () => {
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                 ) : sessions.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No sessions yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No sessions yet</TableCell></TableRow>
                 ) : (
-                  sessions.map((s) => (
+                  sessions.map((s) => {
+                    const progs = mentorPrograms[s.mentor_id] || [];
+                    return (
                     <TableRow key={s.id}>
                       <TableCell className="font-medium">{(s.mentor as any)?.full_name || "Unknown"}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {progs.length === 0 ? (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          ) : (
+                            progs.map((p) => <ProgramBadge key={p.slug} name={p.name} color={p.color} to={`/mentee/programs/${p.slug}`} />)
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{new Date(s.scheduled_at).toLocaleString()}</TableCell>
                       <TableCell>{s.duration_minutes} min</TableCell>
                       <TableCell><Badge variant={statusColor(s.status)}>{s.status}</Badge></TableCell>
@@ -105,7 +116,8 @@ const MenteeSessions = () => {
                         )}
                       </TableCell>
                     </TableRow>
-                  ))
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
