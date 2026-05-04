@@ -179,6 +179,24 @@ const BookSession = () => {
       }).eq("id", rescheduleId);
     }
 
+    // Fire-and-forget booking confirmation emails (Brevo). Do not block the user.
+    if (inserted && meetingUrl && mentor?.email && user.email) {
+      supabase.functions.invoke("send-booking-email", {
+        body: {
+          mentorEmail: mentor.email,
+          mentorName: mentor.full_name || "your mentor",
+          menteeEmail: user.email,
+          menteeName: (user.user_metadata as any)?.full_name || user.email,
+          scheduledAtISO: scheduledAt.toISOString(),
+          durationMinutes: 30,
+          meetingUrl,
+          menteeNotes: notes || undefined,
+        },
+      }).then(({ error }) => {
+        if (error) console.error("send-booking-email failed:", error);
+      });
+    }
+
     toast({ title: rescheduleId ? "Session rescheduled" : "Session booked!", description: `Scheduled for ${format(scheduledAt, "PPP 'at' p")}` });
     navigate("/mentee/sessions");
   };
