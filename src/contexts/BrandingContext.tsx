@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { loadBrandingFonts } from "@/lib/fonts";
 
 interface BrandingConfig {
   app_name: string;
@@ -8,6 +9,11 @@ interface BrandingConfig {
   secondary_color: string;
   accent_color: string;
   login_bg_url: string | null;
+  sidebar_background: string;
+  sidebar_foreground: string;
+  sidebar_primary: string;
+  body_font: string;
+  heading_font: string;
 }
 
 const defaultBranding: BrandingConfig = {
@@ -17,14 +23,33 @@ const defaultBranding: BrandingConfig = {
   secondary_color: "40 33% 94%",
   accent_color: "31 95% 55%",
   login_bg_url: null,
+  sidebar_background: "220 25% 10%",
+  sidebar_foreground: "40 33% 96%",
+  sidebar_primary: "199 89% 48%",
+  body_font: "DM Sans",
+  heading_font: "DM Serif Display",
 };
 
 const BrandingContext = createContext<BrandingConfig>(defaultBranding);
+
+export const applyBrandingToDom = (config: BrandingConfig) => {
+  const root = document.documentElement;
+  root.style.setProperty("--primary", config.primary_color);
+  root.style.setProperty("--secondary", config.secondary_color);
+  root.style.setProperty("--accent", config.accent_color);
+  root.style.setProperty("--sidebar-background", config.sidebar_background);
+  root.style.setProperty("--sidebar-foreground", config.sidebar_foreground);
+  root.style.setProperty("--sidebar-primary", config.sidebar_primary);
+  root.style.setProperty("--sidebar-ring", config.sidebar_primary);
+  loadBrandingFonts(config.body_font, config.heading_font);
+};
 
 export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [branding, setBranding] = useState<BrandingConfig>(defaultBranding);
 
   useEffect(() => {
+    // Apply defaults immediately so fonts load even before fetch resolves
+    applyBrandingToDom(defaultBranding);
     const fetchBranding = async () => {
       const { data } = await supabase.from("branding").select("*").limit(1).single();
       if (data) {
@@ -35,14 +60,14 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           secondary_color: data.secondary_color,
           accent_color: data.accent_color,
           login_bg_url: data.login_bg_url,
+          sidebar_background: (data as any).sidebar_background ?? defaultBranding.sidebar_background,
+          sidebar_foreground: (data as any).sidebar_foreground ?? defaultBranding.sidebar_foreground,
+          sidebar_primary: (data as any).sidebar_primary ?? defaultBranding.sidebar_primary,
+          body_font: (data as any).body_font ?? defaultBranding.body_font,
+          heading_font: (data as any).heading_font ?? defaultBranding.heading_font,
         };
         setBranding(config);
-
-        // Apply to CSS custom properties
-        const root = document.documentElement;
-        root.style.setProperty("--primary", config.primary_color);
-        root.style.setProperty("--secondary", config.secondary_color);
-        root.style.setProperty("--accent", config.accent_color);
+        applyBrandingToDom(config);
       }
     };
     fetchBranding();
