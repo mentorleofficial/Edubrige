@@ -484,47 +484,63 @@ const BrandingSettings = () => {
             <CardDescription>How your brand will look</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border border-border overflow-hidden">
+            <div className="rounded-lg border border-border overflow-hidden flex">
+              {/* mini sidebar */}
               <div
-                className="flex items-center gap-2 px-4 py-3 border-b border-border"
-                style={{ backgroundColor: secondaryHex }}
+                className="w-24 shrink-0 p-2 space-y-1 text-[10px]"
+                style={{ backgroundColor: sbBgHex, color: sbFgHex, fontFamily: getFontStack(draft.body_font) }}
               >
-                <div
-                  className="h-7 w-7 rounded bg-background flex items-center justify-center overflow-hidden border border-border"
-                >
-                  {draft.logo_url ? (
-                    <img src={draft.logo_url} alt="" className="h-full w-full object-contain" />
-                  ) : (
-                    <span className="text-[10px] font-bold" style={{ color: primaryHex }}>
-                      {(draft.app_name || "A").slice(0, 1)}
-                    </span>
-                  )}
+                <div className="font-semibold mb-2 truncate">{draft.app_name || "App"}</div>
+                <div className="rounded px-1.5 py-1" style={{ backgroundColor: sbPrimaryHex, color: "#fff" }}>
+                  Dashboard
                 </div>
-                <span className="font-semibold text-sm" style={{ color: primaryHex }}>
-                  {draft.app_name || "App name"}
-                </span>
+                <div className="px-1.5 py-1 opacity-80">Users</div>
+                <div className="px-1.5 py-1 opacity-80">Settings</div>
               </div>
-              <div className="p-4 space-y-3 bg-card">
-                <h3 className="font-serif text-lg leading-tight" style={{ color: primaryHex }}>
-                  Welcome back
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Your brand colors will appear consistently across the app.
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    className="rounded-md px-3 py-1.5 text-xs font-medium text-white shadow-sm"
-                    style={{ backgroundColor: primaryHex }}
+              {/* main panel */}
+              <div className="flex-1">
+                <div
+                  className="flex items-center gap-2 px-4 py-3 border-b border-border"
+                  style={{ backgroundColor: secondaryHex }}
+                >
+                  <div className="h-7 w-7 rounded bg-background flex items-center justify-center overflow-hidden border border-border">
+                    {draft.logo_url ? (
+                      <img src={draft.logo_url} alt="" className="h-full w-full object-contain" />
+                    ) : (
+                      <span className="text-[10px] font-bold" style={{ color: primaryHex }}>
+                        {(draft.app_name || "A").slice(0, 1)}
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-semibold text-sm" style={{ color: primaryHex, fontFamily: getFontStack(draft.body_font) }}>
+                    {draft.app_name || "App name"}
+                  </span>
+                </div>
+                <div className="p-4 space-y-3 bg-card">
+                  <h3
+                    className="text-lg leading-tight"
+                    style={{ color: primaryHex, fontFamily: getFontStack(draft.heading_font) }}
                   >
-                    Primary action
-                  </button>
-                  <button
-                    className="rounded-md px-3 py-1.5 text-xs font-medium border"
-                    style={{ borderColor: primaryHex, color: primaryHex }}
-                  >
-                    Secondary
-                  </button>
-                  <Badge style={{ backgroundColor: accentHex, color: "#fff" }}>Accent</Badge>
+                    Welcome back
+                  </h3>
+                  <p className="text-xs text-muted-foreground" style={{ fontFamily: getFontStack(draft.body_font) }}>
+                    Your brand colors and fonts will appear consistently across the app.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      className="rounded-md px-3 py-1.5 text-xs font-medium text-white shadow-sm"
+                      style={{ backgroundColor: primaryHex }}
+                    >
+                      Primary action
+                    </button>
+                    <button
+                      className="rounded-md px-3 py-1.5 text-xs font-medium border"
+                      style={{ borderColor: primaryHex, color: primaryHex }}
+                    >
+                      Secondary
+                    </button>
+                    <Badge style={{ backgroundColor: accentHex, color: "#fff" }}>Accent</Badge>
+                  </div>
                 </div>
               </div>
             </div>
