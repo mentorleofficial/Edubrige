@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, X, UserX, Link2, FileEdit } from "lucide-react";
+import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import ProgramBadge from "@/components/programs/ProgramBadge";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import type { Database } from "@/integrations/supabase/types";
@@ -145,6 +146,20 @@ const MentorSessions = () => {
               <div className="flex items-center gap-1 flex-wrap">
                 {isUpcoming && (
                   <>
+                    <AddToCalendarMenu
+                      event={{
+                        title: `Mentorship session with ${s.mentee?.full_name || "your mentee"}`,
+                        description: [
+                          s.meeting_url ? `Meeting link: ${s.meeting_url}` : "",
+                          s.mentee_notes ? `Mentee asked: ${s.mentee_notes}` : "",
+                          s.notes ? `Your notes: ${s.notes}` : "",
+                        ].filter(Boolean).join("\n"),
+                        location: s.meeting_url || undefined,
+                        startISO: s.scheduled_at,
+                        durationMinutes: s.duration_minutes,
+                      }}
+                      filename={`session-${s.id}.ics`}
+                    />
                     <Button variant="ghost" size="sm" onClick={() => updateStatus(s.id, "completed")}>
                       <CheckCircle2 className="mr-1 h-3 w-3" />Complete
                     </Button>

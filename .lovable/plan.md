@@ -1,68 +1,68 @@
-## Redesign Mentee Booking — Calendar + Side Slot Panel
+## Auto Meet Links + Email Notifications + Add to Calendar
 
-Replace the current vertical list of bookable slots on `src/pages/BookSession.tsx` with the same calendar-based interface used in the mentor `AvailabilityPreview`: a month calendar on the left (color-coded by availability) and a slot panel on the right that appears when a date is selected.
+Wire up three booking enhancements: auto-generate a Jitsi meet link on every booking, email both parties on confirmation, and add an "Add to Calendar" menu (.ics + Google Calendar) on every upcoming session row.
 
-### Layout
+### 1. Auto-generated Jitsi meet link
 
-```
-┌──────────── Mentor header ────────────┐
-│ Avatar  Name + timezone note          │
-└───────────────────────────────────────┘
-┌─────────── Calendar ─────────┐ ┌──── Slots for [Date] ─────┐
-│   < November 2026 >          │ │ Wed, Nov 12               │
-│   S  M  T  W  T  F  S        │ │                           │
-│   ·  ·  ·  ·  ·  1  2        │ │ [ 9:00 AM ] [ 9:30 AM ]   │
-│   3  4  5  6  7  8  9        │ │ [10:00 AM ] [10:30 AM ]   │
-│  10 11 12 13 14 15 16        │ │ [11:00 AM ] (taken)       │
-│  ...                         │ │                           │
-│ Legend: Avail · Custom · Full│ │ Notes (optional) [textarea]│
-└──────────────────────────────┘ │ [ Confirm Booking ]       │
-                                 └───────────────────────────┘
-```
+- On every successful insert into `sessions` (in `BookSession.tsx`), generate a unique room URL: `https://meet.jit.si/mentorle-{sessionId}` (using the returned session id — guaranteed unique, no collisions, no auth required).
+- Immediately follow up with a single `update sessions set meeting_url = ...` for that row.
+- Mentor can still override the link via the existing "Notes/Link" dialog in `MentorSessions.tsx` (no change needed there — they just edit what was auto-set).
+- Mentee always sees the link in their session row (already implemented).
 
-On mobile (single column) the calendar stacks above the slot panel.
+### 2. Email notifications on booking
 
-### Behaviour
+Use Lovable's built-in email infrastructure (transactional email).
 
-1. **Calendar grid** (reuse helpers from `src/features/availability/previewUtils.ts`):
-   - Month navigation (prev/next), Sunday-first 6×7 grid.
-   - Color coding per date:
-     - **Available** (has weekly slots or custom override with free time): primary tint background.
-     - **Custom hours** (override defines non-default hours): amber ring.
-     - **Fully booked** (all slots that day are taken): muted with strikethrough + "Full" dot.
-     - **Blocked** (mentor override `is_unavailable`): muted, line-through, destructive dot.
-     - **Past** dates: disabled.
-     - **Today**: ring.
-     - **Selected**: filled primary.
-   - Only future dates within the next ~90 days are clickable.
+**Setup steps (handled automatically):**
+- Set up email domain (one-time, via dialog) if not configured.
+- Set up email infrastructure (queue + tables + cron) — `setup_email_infra`.
+- Scaffold transactional email function — `scaffold_transactional_email`.
 
-2. **Side slot panel** (renders when a date is selected):
-   - Header shows the formatted selected date and a badge if Custom/Blocked.
-   - Builds half-hour slots from that date's ranges using `sliceIntoSlots(ranges, 30)`.
-   - Each slot becomes a clickable chip:
-     - Free → outlined primary, click to select.
-     - Taken (matches `bookedTimes` set from existing `sessions` query) → disabled with "Taken" label.
-     - Selected → filled primary with check icon.
-   - Below the chips: "What would you like to discuss?" textarea (existing behavior).
-   - "Confirm Booking" / "Reschedule to this slot" button → opens the existing confirmation `AlertDialog`.
-   - Empty state: "No availability on this day." or "Marked unavailable on this date."
+**Templates created** in `supabase/functions/_shared/transactional-email-templates/`:
+- `booking-confirmation-mentee.tsx` — "Your session with {mentor} is booked", includes date/time, meet link, and a one-click "Add to Google Calendar" link.
+- `booking-confirmation-mentor.tsx` — "New session booked by {mentee}", same details, plus the mentee's discussion notes.
 
-3. **Booking logic**: unchanged. Same insert into `sessions`, same overlap-error handling, same reschedule flow (cancels old session if `?reschedule=` param present).
+Both registered in `registry.ts`.
 
-### Technical Notes
+**Trigger** — in `BookSession.tsx` after the session insert + meet-link update succeed, fire two `supabase.functions.invoke('send-transactional-email', ...)` calls in parallel:
+- One to mentee email, one to mentor email.
+- `idempotencyKey: \`booking-mentee-${sessionId}\`` and `booking-mentor-${sessionId}` — safe against retries.
+- `templateData`: mentor name, mentee name, ISO date, formatted date, meet link, duration, mentee notes, Google Calendar quick-add URL.
 
-- **File edited**: `src/pages/BookSession.tsx` only. No DB changes, no new routes.
-- Reuse existing utilities:
-  - `getMonthMatrix`, `getRangesForDate`, `getOverrideKind`, `sliceIntoSlots`, `formatSlotLabel`, `hasAnyAvailability`, `isSameDay`, `ymd` from `src/features/availability/previewUtils.ts`.
-- New local helper `isSlotTakenAt(date, hhmm)` that builds the ISO string and checks against the existing `bookedTimes: Set<string>` (already populated from the `sessions` query in the current file).
-- Compute a per-date "fully booked" flag by intersecting the day's slot list with `bookedTimes` so the calendar can dim those days.
-- Keep the same data fetch (mentor row, `mentor_availability`, `mentor_profiles`, `mentor_availability_overrides`, future booked `sessions`) — no API changes.
-- Keep the timezone info line ("Times shown in mentor's timezone: …").
-- Keep the existing confirm `AlertDialog` and toast messages.
-- Two-column layout via `grid lg:grid-cols-[minmax(0,1fr)_320px] gap-6`; calendar card and slot card are siblings.
+We need both parties' email addresses — fetch the mentee email from the existing auth `user.email` and the mentor email via the existing `users` table query in `BookSession.tsx` (add `email` to the mentor select).
+
+### 3. Add to Calendar dropdown
+
+Create `src/lib/calendarLinks.ts` with two pure helpers:
+- `buildIcsContent({ title, description, location, startISO, durationMinutes })` → returns RFC-5545 .ics text. Triggers download via `Blob` + temporary anchor.
+- `buildGoogleCalendarUrl({ title, details, location, startISO, durationMinutes })` → returns `https://calendar.google.com/calendar/render?action=TEMPLATE&...` URL.
+
+Add a reusable component `src/components/AddToCalendarMenu.tsx` — a `DropdownMenu` button labeled "Add to Calendar" with two items:
+- "Download .ics file"
+- "Add to Google Calendar" (opens in new tab)
+
+Render it in two places, but only for **upcoming, booked** sessions:
+- `MenteeSessions.tsx` — Actions column (next to Reschedule / Cancel).
+- `MentorSessions.tsx` — Actions column (next to Complete / No-show / Cancel).
+
+Title format: `Mentorship session with {other party name}`. Description includes meet link and (for mentor) the mentee's discussion notes.
 
 ### Out of scope
 
-- No change to mentor-side availability editor.
-- No change to `MenteeSessions`, `MentorSessions`, or `AdminSessions`.
-- No DB migration.
+- No Google OAuth, no real Google Meet, no per-mentor calendar sync.
+- No reminder emails, no cancellation/reschedule emails (this round).
+- No DB schema changes — `meeting_url` column already exists.
+
+### Files
+
+**New:**
+- `src/lib/calendarLinks.ts`
+- `src/components/AddToCalendarMenu.tsx`
+- `supabase/functions/_shared/transactional-email-templates/booking-confirmation-mentee.tsx`
+- `supabase/functions/_shared/transactional-email-templates/booking-confirmation-mentor.tsx`
+
+**Edited:**
+- `src/pages/BookSession.tsx` — fetch mentor email, set meeting_url after insert, send 2 emails.
+- `src/pages/MenteeSessions.tsx` — render AddToCalendarMenu for upcoming sessions.
+- `src/pages/MentorSessions.tsx` — render AddToCalendarMenu for upcoming sessions.
+- `supabase/functions/_shared/transactional-email-templates/registry.ts` — register both templates.
