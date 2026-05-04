@@ -644,30 +644,45 @@ export type Database = {
       }
       sessions: {
         Row: {
+          cancellation_reason: string
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string
           duration_minutes: number
           id: string
+          meeting_url: string
           mentee_id: string
+          mentee_notes: string
           mentor_id: string
           notes: string | null
           scheduled_at: string
           status: Database["public"]["Enums"]["session_status"]
         }
         Insert: {
+          cancellation_reason?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           duration_minutes?: number
           id?: string
+          meeting_url?: string
           mentee_id: string
+          mentee_notes?: string
           mentor_id: string
           notes?: string | null
           scheduled_at: string
           status?: Database["public"]["Enums"]["session_status"]
         }
         Update: {
+          cancellation_reason?: string
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string
           duration_minutes?: number
           id?: string
+          meeting_url?: string
           mentee_id?: string
+          mentee_notes?: string
           mentor_id?: string
           notes?: string | null
           scheduled_at?: string
