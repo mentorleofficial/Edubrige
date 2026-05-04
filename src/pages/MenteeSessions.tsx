@@ -17,6 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Fragment } from "react";
 import { MessageSquare, X, RefreshCw, ExternalLink, Copy } from "lucide-react";
+import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import ProgramBadge from "@/components/programs/ProgramBadge";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import type { Database } from "@/integrations/supabase/types";
@@ -132,6 +133,19 @@ const MenteeSessions = () => {
               <div className="flex items-center gap-1 flex-wrap">
                 {isUpcoming && (
                   <>
+                    <AddToCalendarMenu
+                      event={{
+                        title: `Mentorship session with ${s.mentor?.full_name || "your mentor"}`,
+                        description: [
+                          s.meeting_url ? `Meeting link: ${s.meeting_url}` : "",
+                          s.mentee_notes ? `Notes: ${s.mentee_notes}` : "",
+                        ].filter(Boolean).join("\n"),
+                        location: s.meeting_url || undefined,
+                        startISO: s.scheduled_at,
+                        durationMinutes: s.duration_minutes,
+                      }}
+                      filename={`session-${s.id}.ics`}
+                    />
                     <Button variant="ghost" size="sm" onClick={() => navigate(`/book/${s.mentor_id}?reschedule=${s.id}`)}>
                       <RefreshCw className="mr-1 h-3 w-3" />Reschedule
                     </Button>

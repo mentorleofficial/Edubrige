@@ -164,6 +164,12 @@ const BookSession = () => {
       return;
     }
 
+    // Auto-generate a unique Jitsi meeting URL for this session.
+    const meetingUrl = inserted ? `https://meet.jit.si/mentorle-${inserted.id}` : "";
+    if (inserted && meetingUrl) {
+      await supabase.from("sessions").update({ meeting_url: meetingUrl }).eq("id", inserted.id);
+    }
+
     if (rescheduleId && inserted) {
       await supabase.from("sessions").update({
         status: "cancelled",
