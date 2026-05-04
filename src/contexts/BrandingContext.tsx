@@ -41,6 +41,11 @@ export const applyBrandingToDom = (config: BrandingConfig) => {
   root.style.setProperty("--sidebar-foreground", config.sidebar_foreground);
   root.style.setProperty("--sidebar-primary", config.sidebar_primary);
   root.style.setProperty("--sidebar-ring", config.sidebar_primary);
+  // The shadcn sidebar uses --sidebar-accent for hover/active item background.
+  // Map the admin-chosen "active item" color to it so the selection actually applies.
+  root.style.setProperty("--sidebar-accent", config.sidebar_primary);
+  root.style.setProperty("--sidebar-accent-foreground", "0 0% 100%");
+  root.style.setProperty("--sidebar-primary-foreground", "0 0% 100%");
   loadBrandingFonts(config.body_font, config.heading_font);
 };
 
