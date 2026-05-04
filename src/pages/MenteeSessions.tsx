@@ -14,9 +14,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, X, RefreshCw, ChevronDown, ExternalLink, Copy } from "lucide-react";
+import { Fragment } from "react";
+import { MessageSquare, X, RefreshCw, ExternalLink, Copy } from "lucide-react";
 import ProgramBadge from "@/components/programs/ProgramBadge";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import type { Database } from "@/integrations/supabase/types";
@@ -116,8 +116,8 @@ const MenteeSessions = () => {
       const progs = mentorPrograms[s.mentor_id] || [];
       const hasDetails = !!(s.mentee_notes || s.notes || s.meeting_url || s.cancellation_reason);
       return (
-        <>
-          <TableRow key={s.id}>
+        <Fragment key={s.id}>
+          <TableRow>
             <TableCell className="font-medium">{s.mentor?.full_name || "Unknown"}</TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
