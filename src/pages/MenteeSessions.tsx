@@ -145,19 +145,11 @@ const MenteeSessions = () => {
                     <MessageSquare className="mr-1 h-3 w-3" />Feedback
                   </Button>
                 )}
-                {hasDetails && (
-                  <Collapsible>
-                    <CollapsibleTrigger asChild>
-                      <Button variant="ghost" size="sm"><ChevronDown className="h-3 w-3" /></Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent />
-                  </Collapsible>
-                )}
               </div>
             </TableCell>
           </TableRow>
           {hasDetails && (
-            <TableRow key={`${s.id}-details`} className="bg-muted/30">
+            <TableRow className="bg-muted/30">
               <TableCell colSpan={6} className="py-3 space-y-2 text-sm">
                 {s.meeting_url && (
                   <div className="flex items-center gap-2">
@@ -176,7 +168,7 @@ const MenteeSessions = () => {
               </TableCell>
             </TableRow>
           )}
-        </>
+        </Fragment>
       );
     });
   };
