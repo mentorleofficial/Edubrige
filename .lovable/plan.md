@@ -1,89 +1,111 @@
-## Goal
+# Complete Booking Flow + Admin Session Oversight
 
-Extend the admin **Branding** page so admins can:
-1. Customize the **sidebar colors** (background, foreground, primary accent) — currently hard-coded in `src/index.css`.
-2. Choose the **fonts** used for body text and headings from a curated list of Google Fonts.
+The booking flow today is functional but thin: it lets a mentee pick a slot and create a `sessions` row, mentors can update status, mentees can leave feedback. Several real-world gaps remain (no slot conflict check, no cancel/reschedule, no notes, no admin visibility). This plan closes those gaps and gives Admins a proper dashboard to track bookings.
 
-Changes are persisted in the existing `branding` table and applied globally via CSS variables (same mechanism already used for primary/secondary/accent).
+## Goals
 
----
-
-## What the user will see
-
-In `Admin → Settings → Branding`, two new cards appear below the existing "Colors" card:
-
-- **Sidebar colors** — three color tiles (Background, Foreground/text, Active item) with the same picker UX as existing color tiles, plus the same preset chips concept (Dark, Light, Brand-tinted).
-- **Typography** — two dropdowns (Body font, Heading font) populated with ~8 curated Google Fonts (DM Sans, Inter, Roboto, Poppins, Lato, Nunito for body; DM Serif Display, Playfair Display, Lora, Merriweather, Space Grotesk for headings). A small live sample shows the chosen pairing.
-
-The right-hand **Live preview** card gets a mini sidebar strip and a heading/body sample so changes are visible before saving.
-
-After saving, the new values apply instantly across the whole app (sidebar in `AppSidebar`, headings everywhere via the global `h1..h6` rule).
+1. A robust mentee booking flow (conflict-safe, with notes & confirmation).
+2. Mentor session management (accept/complete/cancel + reschedule + notes).
+3. Mentee can cancel/reschedule upcoming sessions and leave feedback after completion.
+4. A new **Admin → Sessions** page with stats, filters, and the ability to intervene (cancel, reassign status).
+5. Session counts surfaced on the Admin dashboard.
 
 ---
 
-## Technical plan
+## 1. Database changes (one migration)
 
-### 1. Database — new migration
+Add fields the flow needs and protect against double-bookings.
 
-Add columns to `public.branding`:
-- `sidebar_background` text default `'220 25% 10%'`
-- `sidebar_foreground` text default `'40 33% 96%'`
-- `sidebar_primary` text default `'199 89% 48%'` (active item / accent inside sidebar)
-- `body_font` text default `'DM Sans'`
-- `heading_font` text default `'DM Serif Display'`
+- `sessions` table:
+  - `mentee_notes text default ''` — what the mentee wants to discuss (collected at booking).
+  - `mentor_notes text default ''` — private mentor notes after the session (rename of existing `notes` is risky; instead keep `notes` and treat it as mentor_notes in UI).
+  - `cancelled_by uuid` (nullable) and `cancelled_at timestamptz` (nullable) — who cancelled.
+  - `cancellation_reason text default ''`.
+  - `meeting_url text default ''` — optional link mentor can attach.
+- Add a partial **unique index** preventing the same mentor having two `booked` sessions at the same `scheduled_at`:
+  `CREATE UNIQUE INDEX sessions_mentor_slot_unique ON sessions(mentor_id, scheduled_at) WHERE status = 'booked';`
+- Add an **overlap-prevention trigger** `prevent_session_overlap()` that, on INSERT/UPDATE of a `booked` session, rejects if the mentor has any other `booked` session whose `[scheduled_at, scheduled_at + duration_minutes)` interval overlaps. Same for the mentee (so a mentee can't double-book themselves).
+- RLS additions:
+  - Allow mentees to UPDATE their own session **only** to set `status = 'cancelled'` (policy with `WITH CHECK (mentee_id = auth.uid() AND status IN ('cancelled'))`).
+  - Existing mentor UPDATE policy already covers mentor-side changes.
 
-Existing RLS (admin-only update, public read) already covers these.
-Existing `audit_branding` trigger will pick them up automatically.
+Validation is done via triggers (per project rule: no CHECK constraints with non-immutable expressions).
 
-### 2. Font loading
+---
 
-Replace the hard-coded `@import` in `src/index.css` with **dynamic injection** done in `BrandingProvider`:
-- Maintain a static map `FONT_OPTIONS = { 'DM Sans': '<google-fonts url>', ... }`.
-- On branding load, inject/update a single `<link id="branding-fonts" rel="stylesheet">` in `<head>` containing the two selected families.
-- Set CSS vars `--font-sans` and `--font-serif` on `:root`.
+## 2. Booking page (`src/pages/BookSession.tsx`)
 
-### 3. Tailwind / CSS wiring
+Enhancements:
+- Fetch mentor's existing **booked** sessions for the next 4 weeks and **hide/disable** slots that conflict.
+- Add a **"What would you like to discuss?"** textarea (saved to `mentee_notes`).
+- Show a confirmation dialog ("Book {slot} with {mentor}?") before insert.
+- After a successful booking, show a success card with options: View my sessions / Book another time.
+- Surface DB error from the overlap trigger as a friendly toast ("That slot was just taken — please pick another.").
 
-- In `tailwind.config.ts`, change `fontFamily.sans` / `fontFamily.serif` to read from the new CSS vars with sensible fallbacks:
-  ```
-  sans: ["var(--font-sans)", "DM Sans", "system-ui", "sans-serif"]
-  serif: ["var(--font-serif)", "DM Serif Display", "Georgia", "serif"]
-  ```
-- In `src/index.css`, drop the static `@import` and add `--font-sans` / `--font-serif` defaults under `:root`. Keep the global `h1..h6 { font-family: var(--font-serif) }` rule.
-- Add `--sidebar-background`, `--sidebar-foreground`, `--sidebar-primary` defaults (already present); `BrandingProvider` will overwrite them at runtime.
+## 3. Mentee Sessions page (`src/pages/MenteeSessions.tsx`)
 
-### 4. `BrandingContext.tsx`
+- Split view: **Upcoming** vs **Past** (tabs).
+- For each upcoming `booked` session: **Cancel** button (confirm dialog → updates status to `cancelled` with optional reason) and **Reschedule** button (navigates to `/book/{mentorId}?reschedule={sessionId}` — booking page detects param, books new slot, then cancels the old one in a single client-side flow).
+- Show `meeting_url` if mentor has set one (with copy button).
+- Display `mentee_notes` and `mentor_notes` (read-only) under each row in an expandable area.
+- Keep existing Feedback button for completed sessions.
 
-- Extend `BrandingConfig` with the 5 new fields.
-- After fetching, set the additional CSS vars (`--sidebar-background`, `--sidebar-foreground`, `--sidebar-primary`, `--font-sans`, `--font-serif`) and call the font-link injector.
+## 4. Mentor Sessions page (`src/pages/MentorSessions.tsx`)
 
-### 5. `BrandingSettings.tsx`
+- Same Upcoming / Past tabs.
+- Per-row actions on `booked` sessions: **Mark Complete**, **Mark No-show**, **Cancel** (with reason), **Add meeting link** (small inline editor that updates `meeting_url`).
+- Add **Notes** drawer/dialog so mentor can write `notes` (mentor notes) for the session.
+- Show mentee's `mentee_notes` so the mentor knows the topic before the call.
 
-- Extend `BrandingRow` and `draft` shape with the new fields.
-- New **Sidebar colors** card reusing the existing `ColorTile` component (3 tiles).
-- New **Typography** card with two `Select` dropdowns + a text sample.
-- Update `save()` to include the new columns and apply the new CSS vars + reload font link immediately on success.
-- Update the right-hand live preview to show: a mini dark sidebar strip using the chosen sidebar colors, and a heading + body line using the chosen fonts.
+## 5. Admin Sessions page (NEW)
 
-### 6. Types regeneration
+New route `/admin/sessions` (added to App.tsx routes and to the AppSidebar admin items between "Programs" and "Settings").
 
-`src/integrations/supabase/types.ts` will be updated automatically when the migration runs.
+New file `src/pages/AdminSessions.tsx`:
+
+- **Stat cards** at the top:
+  - Upcoming (booked, scheduled_at >= now)
+  - Completed (last 30 days)
+  - Cancelled (last 30 days)
+  - No-shows (last 30 days)
+  - Avg rating (from feedback)
+- **Filters**: status (all/booked/completed/cancelled/no_show), date range (today / this week / this month / custom), program (dropdown of programs), mentor search, mentee search.
+- **Table** of sessions with columns: When · Mentor · Mentee · Program(s) · Duration · Status · Actions.
+  - Action menu: View details (drawer with both notes, meeting link, feedback if any), Cancel session, Force-complete, Force no-show.
+- **Export CSV** button (client-side) of currently filtered rows.
+- Pagination (25/50/100 per page).
+
+New API helpers in `src/features/admin/api/sessions.ts` and a hook `useAdminSessions(filters)` using React Query.
+
+## 6. Admin dashboard widget (`src/components/dashboards/AdminDashboard.tsx`)
+
+Add two cards next to the existing four:
+- **Upcoming sessions** (booked, future).
+- **Sessions this week** (any status, scheduled in next 7 days).
+Make the existing **Sessions** card link to `/admin/sessions`. Add a small "Recent sessions" list (last 5) under the cards with a "View all" link.
+
+## 7. Sidebar update
+
+Add `{ title: "Sessions", icon: BookOpen, path: "/admin/sessions" }` to `adminItems` in `AppSidebar.tsx`.
 
 ---
 
 ## Files touched
 
-- new: `supabase/migrations/<ts>_branding_sidebar_fonts.sql`
-- edited: `src/index.css` (remove static @import, add font-var defaults)
-- edited: `tailwind.config.ts` (font families read from CSS vars)
-- edited: `src/contexts/BrandingContext.tsx` (load + apply new fields, inject Google Fonts link)
-- edited: `src/components/admin/BrandingSettings.tsx` (Sidebar colors card, Typography card, updated preview, updated save)
-- auto-edited: `src/integrations/supabase/types.ts`
+- `supabase/migrations/<new>.sql` — schema, indexes, trigger, RLS policy.
+- `src/pages/BookSession.tsx` — conflict filtering, notes, confirmation.
+- `src/pages/MenteeSessions.tsx` — tabs, cancel, reschedule, notes display.
+- `src/pages/MentorSessions.tsx` — tabs, mark actions, meeting link, notes.
+- `src/pages/AdminSessions.tsx` — **new**, full oversight UI.
+- `src/features/admin/api/sessions.ts` + `src/features/admin/hooks/useAdminSessions.ts` — **new**.
+- `src/components/dashboards/AdminDashboard.tsx` — extra cards + recent list.
+- `src/components/AppSidebar.tsx` — add Sessions link for admin.
+- `src/App.tsx` — register `/admin/sessions` route.
 
----
+## Out of scope (call out for follow-up if you want them)
 
-## Out of scope (can do in a follow-up if you want)
+- Email/calendar invites (would need email-domain setup + ICS generation).
+- Real-time video link generation (Zoom/Meet integration).
+- Automatic reminders.
 
-- Per-role sidebar themes (e.g. different sidebar look for mentor vs admin).
-- Uploading custom font files. We stick to a curated Google Fonts list to keep performance and licensing predictable.
-- Dark-mode-specific sidebar overrides — current app is light-mode only in practice; sidebar already uses its own dark tokens, which is what we'll customize.
+Want me to also include any of those in this round, or proceed with the plan above as-is?
