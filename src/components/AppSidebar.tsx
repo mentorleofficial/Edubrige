@@ -54,6 +54,7 @@ const AppSidebar = () => {
     { title: "Users", icon: Users, path: "/admin/users" },
     { title: "Applications", icon: ClipboardCheck, path: "/admin/applications", badge: pendingApps },
     { title: "Programs", icon: FolderKanban, path: "/admin/programs" },
+    { title: "Sessions", icon: BookOpen, path: "/admin/sessions" },
     { title: "Settings", icon: Settings, path: "/admin/settings" },
     { title: "Audit Logs", icon: ClipboardList, path: "/admin/audit-logs" },
   ];
