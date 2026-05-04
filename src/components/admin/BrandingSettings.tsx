@@ -161,6 +161,12 @@ const BrandingSettings = () => {
     else update({ login_bg_url: data.publicUrl });
   };
 
+  // Live-preview fonts as the admin tweaks them, even before saving
+  useEffect(() => {
+    if (!draft) return;
+    loadBrandingFonts(draft.body_font, draft.heading_font);
+  }, [draft?.body_font, draft?.heading_font]);
+
   const save = async () => {
     if (!draft) return;
     setSaving(true);
@@ -173,6 +179,11 @@ const BrandingSettings = () => {
         accent_color: draft.accent_color,
         logo_url: draft.logo_url,
         login_bg_url: draft.login_bg_url,
+        sidebar_background: draft.sidebar_background,
+        sidebar_foreground: draft.sidebar_foreground,
+        sidebar_primary: draft.sidebar_primary,
+        body_font: draft.body_font,
+        heading_font: draft.heading_font,
       })
       .eq("id", draft.id);
     setSaving(false);
@@ -181,10 +192,7 @@ const BrandingSettings = () => {
       return;
     }
     toast({ title: "Saved", description: "Branding updated successfully." });
-    const root = document.documentElement;
-    root.style.setProperty("--primary", draft.primary_color);
-    root.style.setProperty("--secondary", draft.secondary_color);
-    root.style.setProperty("--accent", draft.accent_color);
+    applyBrandingToDom(draft);
     setOriginal(draft);
   };
 
@@ -195,6 +203,9 @@ const BrandingSettings = () => {
   const primaryHex = isValidHsl(draft.primary_color) ? hslToHex(draft.primary_color) : "#000";
   const secondaryHex = isValidHsl(draft.secondary_color) ? hslToHex(draft.secondary_color) : "#000";
   const accentHex = isValidHsl(draft.accent_color) ? hslToHex(draft.accent_color) : "#000";
+  const sbBgHex = isValidHsl(draft.sidebar_background) ? hslToHex(draft.sidebar_background) : "#111";
+  const sbFgHex = isValidHsl(draft.sidebar_foreground) ? hslToHex(draft.sidebar_foreground) : "#fff";
+  const sbPrimaryHex = isValidHsl(draft.sidebar_primary) ? hslToHex(draft.sidebar_primary) : "#3b82f6";
 
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
