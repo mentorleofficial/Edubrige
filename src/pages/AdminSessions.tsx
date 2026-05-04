@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminSessions, useAdminSessionStats, type AdminSessionFilters, type AdminSessionRow } from "@/features/admin/hooks/useAdminSessions";
-import { usePrograms } from "@/features/programs/api";
+import { useQuery } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
 
 type SessionStatus = Database["public"]["Enums"]["session_status"];
@@ -67,7 +67,13 @@ const AdminSessions = () => {
 
   const { data: rows = [], isLoading } = useAdminSessions(filters);
   const { data: stats } = useAdminSessionStats();
-  const programsQuery = usePrograms();
+  const programsQuery = useQuery({
+    queryKey: ["all-programs"],
+    queryFn: async () => {
+      const { data } = await supabase.from("programs").select("id, name").order("name");
+      return data || [];
+    },
+  });
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["admin-sessions"] });
