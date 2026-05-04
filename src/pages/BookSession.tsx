@@ -72,7 +72,7 @@ const BookSession = () => {
   useEffect(() => {
     if (!mentorId) return;
     Promise.all([
-      supabase.from("users").select("id, full_name, avatar_url").eq("id", mentorId).single(),
+      supabase.from("users").select("id, full_name, avatar_url, email").eq("id", mentorId).single(),
       supabase.from("mentor_availability").select("*").eq("mentor_id", mentorId).order("day_of_week"),
       supabase.from("mentor_profiles").select("is_active, timezone").eq("user_id", mentorId).maybeSingle(),
       supabase.from("mentor_availability_overrides").select("*").eq("mentor_id", mentorId)
