@@ -1,68 +1,46 @@
-## Auto Meet Links + Email Notifications + Add to Calendar
+## Booking Confirmation Emails via Brevo SMTP API
 
-Wire up three booking enhancements: auto-generate a Jitsi meet link on every booking, email both parties on confirmation, and add an "Add to Calendar" menu (.ics + Google Calendar) on every upcoming session row.
+Hook the existing booking flow into Brevo's transactional email API. Sender: `noreply@mentorle.in` (must be a verified sender in your Brevo account).
 
-### 1. Auto-generated Jitsi meet link
+### 1. New secret
 
-- On every successful insert into `sessions` (in `BookSession.tsx`), generate a unique room URL: `https://meet.jit.si/mentorle-{sessionId}` (using the returned session id — guaranteed unique, no collisions, no auth required).
-- Immediately follow up with a single `update sessions set meeting_url = ...` for that row.
-- Mentor can still override the link via the existing "Notes/Link" dialog in `MentorSessions.tsx` (no change needed there — they just edit what was auto-set).
-- Mentee always sees the link in their session row (already implemented).
+- `BREVO_API_KEY` — your Brevo API key from https://app.brevo.com/settings/keys/api. I'll prompt you to add it before the function runs.
 
-### 2. Email notifications on booking
+### 2. New edge function: `send-booking-email`
 
-Use Lovable's built-in email infrastructure (transactional email).
+**File:** `supabase/functions/send-booking-email/index.ts`
 
-**Setup steps (handled automatically):**
-- Set up email domain (one-time, via dialog) if not configured.
-- Set up email infrastructure (queue + tables + cron) — `setup_email_infra`.
-- Scaffold transactional email function — `scaffold_transactional_email`.
+- POST endpoint, accepts `{ mentorEmail, mentorName, menteeEmail, menteeName, scheduledAtISO, durationMinutes, meetingUrl, menteeNotes? }`.
+- Validates required fields, returns 400 on missing input.
+- Builds two branded HTML emails (mentee + mentor variants):
+  - Header, formatted date/time, duration, other party's name
+  - Mentor variant includes the mentee's discussion notes
+  - "Join meeting" button (Jitsi link)
+  - "Add to Google Calendar" link with a pre-filled `calendar.google.com/calendar/render?action=TEMPLATE&...` URL
+- Sends both in parallel via `POST https://api.brevo.com/v3/smtp/email` with `api-key: ${BREVO_API_KEY}` header.
+- Sender hardcoded to `{ email: "noreply@mentorle.in", name: "Mentorle" }`.
+- Returns `{ ok, errors }` so the frontend can log failures without blocking the booking UX.
+- Public function (no JWT verify needed) — invoked from the booking client. CORS via `@supabase/supabase-js/cors`.
 
-**Templates created** in `supabase/functions/_shared/transactional-email-templates/`:
-- `booking-confirmation-mentee.tsx` — "Your session with {mentor} is booked", includes date/time, meet link, and a one-click "Add to Google Calendar" link.
-- `booking-confirmation-mentor.tsx` — "New session booked by {mentee}", same details, plus the mentee's discussion notes.
+### 3. Wire it into the booking flow
 
-Both registered in `registry.ts`.
+**File:** `src/pages/BookSession.tsx`
 
-**Trigger** — in `BookSession.tsx` after the session insert + meet-link update succeed, fire two `supabase.functions.invoke('send-transactional-email', ...)` calls in parallel:
-- One to mentee email, one to mentor email.
-- `idempotencyKey: \`booking-mentee-${sessionId}\`` and `booking-mentor-${sessionId}` — safe against retries.
-- `templateData`: mentor name, mentee name, ISO date, formatted date, meet link, duration, mentee notes, Google Calendar quick-add URL.
-
-We need both parties' email addresses — fetch the mentee email from the existing auth `user.email` and the mentor email via the existing `users` table query in `BookSession.tsx` (add `email` to the mentor select).
-
-### 3. Add to Calendar dropdown
-
-Create `src/lib/calendarLinks.ts` with two pure helpers:
-- `buildIcsContent({ title, description, location, startISO, durationMinutes })` → returns RFC-5545 .ics text. Triggers download via `Blob` + temporary anchor.
-- `buildGoogleCalendarUrl({ title, details, location, startISO, durationMinutes })` → returns `https://calendar.google.com/calendar/render?action=TEMPLATE&...` URL.
-
-Add a reusable component `src/components/AddToCalendarMenu.tsx` — a `DropdownMenu` button labeled "Add to Calendar" with two items:
-- "Download .ics file"
-- "Add to Google Calendar" (opens in new tab)
-
-Render it in two places, but only for **upcoming, booked** sessions:
-- `MenteeSessions.tsx` — Actions column (next to Reschedule / Cancel).
-- `MentorSessions.tsx` — Actions column (next to Complete / No-show / Cancel).
-
-Title format: `Mentorship session with {other party name}`. Description includes meet link and (for mentor) the mentee's discussion notes.
+- Extend the existing mentor-fetch query to also pull `email`.
+- After the `sessions` insert succeeds AND the `meeting_url` update completes, fire `supabase.functions.invoke('send-booking-email', { body: {...} })`.
+- Run it fire-and-forget — don't block the success toast or navigation. Errors are logged to console only (booking already saved at this point).
 
 ### Out of scope
 
-- No Google OAuth, no real Google Meet, no per-mentor calendar sync.
-- No reminder emails, no cancellation/reschedule emails (this round).
-- No DB schema changes — `meeting_url` column already exists.
+- Cancellation / reschedule emails (we'll do these next round if you want)
+- Reminder emails (would need a cron job)
+- DB schema changes — none required
 
 ### Files
 
 **New:**
-- `src/lib/calendarLinks.ts`
-- `src/components/AddToCalendarMenu.tsx`
-- `supabase/functions/_shared/transactional-email-templates/booking-confirmation-mentee.tsx`
-- `supabase/functions/_shared/transactional-email-templates/booking-confirmation-mentor.tsx`
+- `supabase/functions/send-booking-email/index.ts`
 
 **Edited:**
-- `src/pages/BookSession.tsx` — fetch mentor email, set meeting_url after insert, send 2 emails.
-- `src/pages/MenteeSessions.tsx` — render AddToCalendarMenu for upcoming sessions.
-- `src/pages/MentorSessions.tsx` — render AddToCalendarMenu for upcoming sessions.
-- `supabase/functions/_shared/transactional-email-templates/registry.ts` — register both templates.
+- `src/pages/BookSession.tsx` — add `email` to mentor select, invoke the function after booking.
+- `supabase/config.toml` — add `[functions.send-booking-email] verify_jwt = false` so the client can call it without a service-role key.
