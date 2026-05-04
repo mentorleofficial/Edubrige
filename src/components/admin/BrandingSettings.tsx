@@ -318,6 +318,105 @@ const BrandingSettings = () => {
           </CardContent>
         </Card>
 
+        {/* Sidebar colors */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Sidebar colors</CardTitle>
+            <CardDescription>Customize the navigation sidebar background, text, and active item.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {SIDEBAR_PRESETS.map((p) => (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() =>
+                    update({
+                      sidebar_background: p.bg,
+                      sidebar_foreground: p.fg,
+                      sidebar_primary: p.primary,
+                    })
+                  }
+                  className="group flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs hover:bg-muted transition"
+                >
+                  <span className="flex">
+                    <span className="h-4 w-4 rounded-full border border-background" style={{ backgroundColor: hslToHex(p.bg) }} />
+                    <span className="h-4 w-4 -ml-1 rounded-full border border-background" style={{ backgroundColor: hslToHex(p.fg) }} />
+                    <span className="h-4 w-4 -ml-1 rounded-full border border-background" style={{ backgroundColor: hslToHex(p.primary) }} />
+                  </span>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <ColorTile
+                label="Background"
+                value={draft.sidebar_background}
+                defaultValue={DEFAULTS.sidebar_background}
+                onChange={(v) => update({ sidebar_background: v })}
+              />
+              <ColorTile
+                label="Text"
+                value={draft.sidebar_foreground}
+                defaultValue={DEFAULTS.sidebar_foreground}
+                onChange={(v) => update({ sidebar_foreground: v })}
+              />
+              <ColorTile
+                label="Active item"
+                value={draft.sidebar_primary}
+                defaultValue={DEFAULTS.sidebar_primary}
+                onChange={(v) => update({ sidebar_primary: v })}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Typography */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Typography</CardTitle>
+            <CardDescription>Choose the fonts used for body text and headings across the app.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Body font</Label>
+                <Select value={draft.body_font} onValueChange={(v) => update({ body_font: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {BODY_FONTS.map((f) => (
+                      <SelectItem key={f.name} value={f.name}>
+                        <span style={{ fontFamily: f.stack }}>{f.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Heading font</Label>
+                <Select value={draft.heading_font} onValueChange={(v) => update({ heading_font: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {HEADING_FONTS.map((f) => (
+                      <SelectItem key={f.name} value={f.name}>
+                        <span style={{ fontFamily: f.stack }}>{f.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="rounded-md border border-border bg-muted/30 p-4 space-y-1">
+              <div className="text-2xl leading-tight" style={{ fontFamily: getFontStack(draft.heading_font) }}>
+                The quick brown fox
+              </div>
+              <div className="text-sm text-muted-foreground" style={{ fontFamily: getFontStack(draft.body_font) }}>
+                Pack my box with five dozen liquor jugs — 0123456789.
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Login background */}
         <Card>
           <CardHeader>
