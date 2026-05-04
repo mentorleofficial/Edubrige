@@ -13,8 +13,8 @@ export default {
       },
     },
     fontFamily: {
-        sans: ["DM Sans", "system-ui", "sans-serif"],
-        serif: ["DM Serif Display", "Georgia", "serif"],
+        sans: ["var(--font-sans)", "DM Sans", "system-ui", "sans-serif"],
+        serif: ["var(--font-serif)", "DM Serif Display", "Georgia", "serif"],
       },
     extend: {
       colors: {
