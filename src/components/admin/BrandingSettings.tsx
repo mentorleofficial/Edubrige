@@ -5,8 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { hexToHsl, hslToHex, isValidHsl } from "@/lib/color";
+import { applyBrandingToDom } from "@/contexts/BrandingContext";
+import { BODY_FONTS, HEADING_FONTS, getFontStack, loadBrandingFonts } from "@/lib/fonts";
 import { Upload, X, RotateCcw, Image as ImageIcon } from "lucide-react";
 
 interface BrandingRow {
@@ -17,12 +20,22 @@ interface BrandingRow {
   accent_color: string;
   logo_url: string | null;
   login_bg_url: string | null;
+  sidebar_background: string;
+  sidebar_foreground: string;
+  sidebar_primary: string;
+  body_font: string;
+  heading_font: string;
 }
 
 const DEFAULTS = {
   primary: "199 89% 32%",
   secondary: "40 33% 94%",
   accent: "31 95% 55%",
+  sidebar_background: "220 25% 10%",
+  sidebar_foreground: "40 33% 96%",
+  sidebar_primary: "199 89% 48%",
+  body_font: "DM Sans",
+  heading_font: "DM Serif Display",
 };
 
 const PRESETS = [
@@ -30,6 +43,13 @@ const PRESETS = [
   { name: "Ocean", primary: "210 90% 45%", secondary: "200 30% 95%", accent: "180 75% 50%" },
   { name: "Forest", primary: "142 60% 30%", secondary: "60 20% 95%", accent: "30 80% 55%" },
   { name: "Sunset", primary: "340 80% 50%", secondary: "20 30% 96%", accent: "40 95% 60%" },
+];
+
+const SIDEBAR_PRESETS = [
+  { name: "Midnight", bg: "220 25% 10%", fg: "40 33% 96%", primary: "199 89% 48%" },
+  { name: "Slate", bg: "215 28% 17%", fg: "210 20% 96%", primary: "199 89% 60%" },
+  { name: "Light", bg: "0 0% 100%", fg: "220 25% 15%", primary: "199 89% 32%" },
+  { name: "Cream", bg: "40 33% 96%", fg: "220 25% 15%", primary: "31 95% 50%" },
 ];
 
 const ColorTile = ({
