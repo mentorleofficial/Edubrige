@@ -5,8 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { hexToHsl, hslToHex, isValidHsl } from "@/lib/color";
+import { applyBrandingToDom } from "@/contexts/BrandingContext";
+import { BODY_FONTS, HEADING_FONTS, getFontStack, loadBrandingFonts } from "@/lib/fonts";
 import { Upload, X, RotateCcw, Image as ImageIcon } from "lucide-react";
 
 interface BrandingRow {
@@ -17,12 +20,22 @@ interface BrandingRow {
   accent_color: string;
   logo_url: string | null;
   login_bg_url: string | null;
+  sidebar_background: string;
+  sidebar_foreground: string;
+  sidebar_primary: string;
+  body_font: string;
+  heading_font: string;
 }
 
 const DEFAULTS = {
   primary: "199 89% 32%",
   secondary: "40 33% 94%",
   accent: "31 95% 55%",
+  sidebar_background: "220 25% 10%",
+  sidebar_foreground: "40 33% 96%",
+  sidebar_primary: "199 89% 48%",
+  body_font: "DM Sans",
+  heading_font: "DM Serif Display",
 };
 
 const PRESETS = [
@@ -30,6 +43,13 @@ const PRESETS = [
   { name: "Ocean", primary: "210 90% 45%", secondary: "200 30% 95%", accent: "180 75% 50%" },
   { name: "Forest", primary: "142 60% 30%", secondary: "60 20% 95%", accent: "30 80% 55%" },
   { name: "Sunset", primary: "340 80% 50%", secondary: "20 30% 96%", accent: "40 95% 60%" },
+];
+
+const SIDEBAR_PRESETS = [
+  { name: "Midnight", bg: "220 25% 10%", fg: "40 33% 96%", primary: "199 89% 48%" },
+  { name: "Slate", bg: "215 28% 17%", fg: "210 20% 96%", primary: "199 89% 60%" },
+  { name: "Light", bg: "0 0% 100%", fg: "220 25% 15%", primary: "199 89% 32%" },
+  { name: "Cream", bg: "40 33% 96%", fg: "220 25% 15%", primary: "31 95% 50%" },
 ];
 
 const ColorTile = ({
@@ -141,6 +161,12 @@ const BrandingSettings = () => {
     else update({ login_bg_url: data.publicUrl });
   };
 
+  // Live-preview fonts as the admin tweaks them, even before saving
+  useEffect(() => {
+    if (!draft) return;
+    loadBrandingFonts(draft.body_font, draft.heading_font);
+  }, [draft?.body_font, draft?.heading_font]);
+
   const save = async () => {
     if (!draft) return;
     setSaving(true);
@@ -153,6 +179,11 @@ const BrandingSettings = () => {
         accent_color: draft.accent_color,
         logo_url: draft.logo_url,
         login_bg_url: draft.login_bg_url,
+        sidebar_background: draft.sidebar_background,
+        sidebar_foreground: draft.sidebar_foreground,
+        sidebar_primary: draft.sidebar_primary,
+        body_font: draft.body_font,
+        heading_font: draft.heading_font,
       })
       .eq("id", draft.id);
     setSaving(false);
@@ -161,10 +192,7 @@ const BrandingSettings = () => {
       return;
     }
     toast({ title: "Saved", description: "Branding updated successfully." });
-    const root = document.documentElement;
-    root.style.setProperty("--primary", draft.primary_color);
-    root.style.setProperty("--secondary", draft.secondary_color);
-    root.style.setProperty("--accent", draft.accent_color);
+    applyBrandingToDom(draft);
     setOriginal(draft);
   };
 
@@ -175,6 +203,9 @@ const BrandingSettings = () => {
   const primaryHex = isValidHsl(draft.primary_color) ? hslToHex(draft.primary_color) : "#000";
   const secondaryHex = isValidHsl(draft.secondary_color) ? hslToHex(draft.secondary_color) : "#000";
   const accentHex = isValidHsl(draft.accent_color) ? hslToHex(draft.accent_color) : "#000";
+  const sbBgHex = isValidHsl(draft.sidebar_background) ? hslToHex(draft.sidebar_background) : "#111";
+  const sbFgHex = isValidHsl(draft.sidebar_foreground) ? hslToHex(draft.sidebar_foreground) : "#fff";
+  const sbPrimaryHex = isValidHsl(draft.sidebar_primary) ? hslToHex(draft.sidebar_primary) : "#3b82f6";
 
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_360px]">
@@ -287,6 +318,105 @@ const BrandingSettings = () => {
           </CardContent>
         </Card>
 
+        {/* Sidebar colors */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Sidebar colors</CardTitle>
+            <CardDescription>Customize the navigation sidebar background, text, and active item.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {SIDEBAR_PRESETS.map((p) => (
+                <button
+                  key={p.name}
+                  type="button"
+                  onClick={() =>
+                    update({
+                      sidebar_background: p.bg,
+                      sidebar_foreground: p.fg,
+                      sidebar_primary: p.primary,
+                    })
+                  }
+                  className="group flex items-center gap-2 rounded-full border border-border px-3 py-1.5 text-xs hover:bg-muted transition"
+                >
+                  <span className="flex">
+                    <span className="h-4 w-4 rounded-full border border-background" style={{ backgroundColor: hslToHex(p.bg) }} />
+                    <span className="h-4 w-4 -ml-1 rounded-full border border-background" style={{ backgroundColor: hslToHex(p.fg) }} />
+                    <span className="h-4 w-4 -ml-1 rounded-full border border-background" style={{ backgroundColor: hslToHex(p.primary) }} />
+                  </span>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <ColorTile
+                label="Background"
+                value={draft.sidebar_background}
+                defaultValue={DEFAULTS.sidebar_background}
+                onChange={(v) => update({ sidebar_background: v })}
+              />
+              <ColorTile
+                label="Text"
+                value={draft.sidebar_foreground}
+                defaultValue={DEFAULTS.sidebar_foreground}
+                onChange={(v) => update({ sidebar_foreground: v })}
+              />
+              <ColorTile
+                label="Active item"
+                value={draft.sidebar_primary}
+                defaultValue={DEFAULTS.sidebar_primary}
+                onChange={(v) => update({ sidebar_primary: v })}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Typography */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Typography</CardTitle>
+            <CardDescription>Choose the fonts used for body text and headings across the app.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Body font</Label>
+                <Select value={draft.body_font} onValueChange={(v) => update({ body_font: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {BODY_FONTS.map((f) => (
+                      <SelectItem key={f.name} value={f.name}>
+                        <span style={{ fontFamily: f.stack }}>{f.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Heading font</Label>
+                <Select value={draft.heading_font} onValueChange={(v) => update({ heading_font: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {HEADING_FONTS.map((f) => (
+                      <SelectItem key={f.name} value={f.name}>
+                        <span style={{ fontFamily: f.stack }}>{f.name}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="rounded-md border border-border bg-muted/30 p-4 space-y-1">
+              <div className="text-2xl leading-tight" style={{ fontFamily: getFontStack(draft.heading_font) }}>
+                The quick brown fox
+              </div>
+              <div className="text-sm text-muted-foreground" style={{ fontFamily: getFontStack(draft.body_font) }}>
+                Pack my box with five dozen liquor jugs — 0123456789.
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Login background */}
         <Card>
           <CardHeader>
@@ -354,47 +484,63 @@ const BrandingSettings = () => {
             <CardDescription>How your brand will look</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="rounded-lg border border-border overflow-hidden">
+            <div className="rounded-lg border border-border overflow-hidden flex">
+              {/* mini sidebar */}
               <div
-                className="flex items-center gap-2 px-4 py-3 border-b border-border"
-                style={{ backgroundColor: secondaryHex }}
+                className="w-24 shrink-0 p-2 space-y-1 text-[10px]"
+                style={{ backgroundColor: sbBgHex, color: sbFgHex, fontFamily: getFontStack(draft.body_font) }}
               >
-                <div
-                  className="h-7 w-7 rounded bg-background flex items-center justify-center overflow-hidden border border-border"
-                >
-                  {draft.logo_url ? (
-                    <img src={draft.logo_url} alt="" className="h-full w-full object-contain" />
-                  ) : (
-                    <span className="text-[10px] font-bold" style={{ color: primaryHex }}>
-                      {(draft.app_name || "A").slice(0, 1)}
-                    </span>
-                  )}
+                <div className="font-semibold mb-2 truncate">{draft.app_name || "App"}</div>
+                <div className="rounded px-1.5 py-1" style={{ backgroundColor: sbPrimaryHex, color: "#fff" }}>
+                  Dashboard
                 </div>
-                <span className="font-semibold text-sm" style={{ color: primaryHex }}>
-                  {draft.app_name || "App name"}
-                </span>
+                <div className="px-1.5 py-1 opacity-80">Users</div>
+                <div className="px-1.5 py-1 opacity-80">Settings</div>
               </div>
-              <div className="p-4 space-y-3 bg-card">
-                <h3 className="font-serif text-lg leading-tight" style={{ color: primaryHex }}>
-                  Welcome back
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Your brand colors will appear consistently across the app.
-                </p>
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    className="rounded-md px-3 py-1.5 text-xs font-medium text-white shadow-sm"
-                    style={{ backgroundColor: primaryHex }}
+              {/* main panel */}
+              <div className="flex-1">
+                <div
+                  className="flex items-center gap-2 px-4 py-3 border-b border-border"
+                  style={{ backgroundColor: secondaryHex }}
+                >
+                  <div className="h-7 w-7 rounded bg-background flex items-center justify-center overflow-hidden border border-border">
+                    {draft.logo_url ? (
+                      <img src={draft.logo_url} alt="" className="h-full w-full object-contain" />
+                    ) : (
+                      <span className="text-[10px] font-bold" style={{ color: primaryHex }}>
+                        {(draft.app_name || "A").slice(0, 1)}
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-semibold text-sm" style={{ color: primaryHex, fontFamily: getFontStack(draft.body_font) }}>
+                    {draft.app_name || "App name"}
+                  </span>
+                </div>
+                <div className="p-4 space-y-3 bg-card">
+                  <h3
+                    className="text-lg leading-tight"
+                    style={{ color: primaryHex, fontFamily: getFontStack(draft.heading_font) }}
                   >
-                    Primary action
-                  </button>
-                  <button
-                    className="rounded-md px-3 py-1.5 text-xs font-medium border"
-                    style={{ borderColor: primaryHex, color: primaryHex }}
-                  >
-                    Secondary
-                  </button>
-                  <Badge style={{ backgroundColor: accentHex, color: "#fff" }}>Accent</Badge>
+                    Welcome back
+                  </h3>
+                  <p className="text-xs text-muted-foreground" style={{ fontFamily: getFontStack(draft.body_font) }}>
+                    Your brand colors and fonts will appear consistently across the app.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      className="rounded-md px-3 py-1.5 text-xs font-medium text-white shadow-sm"
+                      style={{ backgroundColor: primaryHex }}
+                    >
+                      Primary action
+                    </button>
+                    <button
+                      className="rounded-md px-3 py-1.5 text-xs font-medium border"
+                      style={{ borderColor: primaryHex, color: primaryHex }}
+                    >
+                      Secondary
+                    </button>
+                    <Badge style={{ backgroundColor: accentHex, color: "#fff" }}>Accent</Badge>
+                  </div>
                 </div>
               </div>
             </div>

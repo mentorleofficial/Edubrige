@@ -59,31 +59,46 @@ export type Database = {
         Row: {
           accent_color: string
           app_name: string
+          body_font: string
+          heading_font: string
           id: string
           login_bg_url: string | null
           logo_url: string | null
           primary_color: string
           secondary_color: string
+          sidebar_background: string
+          sidebar_foreground: string
+          sidebar_primary: string
           updated_at: string
         }
         Insert: {
           accent_color?: string
           app_name?: string
+          body_font?: string
+          heading_font?: string
           id?: string
           login_bg_url?: string | null
           logo_url?: string | null
           primary_color?: string
           secondary_color?: string
+          sidebar_background?: string
+          sidebar_foreground?: string
+          sidebar_primary?: string
           updated_at?: string
         }
         Update: {
           accent_color?: string
           app_name?: string
+          body_font?: string
+          heading_font?: string
           id?: string
           login_bg_url?: string | null
           logo_url?: string | null
           primary_color?: string
           secondary_color?: string
+          sidebar_background?: string
+          sidebar_foreground?: string
+          sidebar_primary?: string
           updated_at?: string
         }
         Relationships: []
