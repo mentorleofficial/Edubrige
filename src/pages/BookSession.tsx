@@ -72,7 +72,7 @@ const BookSession = () => {
   useEffect(() => {
     if (!mentorId) return;
     Promise.all([
-      supabase.from("users").select("id, full_name, avatar_url").eq("id", mentorId).single(),
+      supabase.from("users").select("id, full_name, avatar_url, email").eq("id", mentorId).single(),
       supabase.from("mentor_availability").select("*").eq("mentor_id", mentorId).order("day_of_week"),
       supabase.from("mentor_profiles").select("is_active, timezone").eq("user_id", mentorId).maybeSingle(),
       supabase.from("mentor_availability_overrides").select("*").eq("mentor_id", mentorId)
@@ -177,6 +177,24 @@ const BookSession = () => {
         cancelled_at: new Date().toISOString(),
         cancellation_reason: "Rescheduled",
       }).eq("id", rescheduleId);
+    }
+
+    // Fire-and-forget booking confirmation emails (Brevo). Do not block the user.
+    if (inserted && meetingUrl && mentor?.email && user.email) {
+      supabase.functions.invoke("send-booking-email", {
+        body: {
+          mentorEmail: mentor.email,
+          mentorName: mentor.full_name || "your mentor",
+          menteeEmail: user.email,
+          menteeName: (user.user_metadata as any)?.full_name || user.email,
+          scheduledAtISO: scheduledAt.toISOString(),
+          durationMinutes: 30,
+          meetingUrl,
+          menteeNotes: notes || undefined,
+        },
+      }).then(({ error }) => {
+        if (error) console.error("send-booking-email failed:", error);
+      });
     }
 
     toast({ title: rescheduleId ? "Session rescheduled" : "Session booked!", description: `Scheduled for ${format(scheduledAt, "PPP 'at' p")}` });
