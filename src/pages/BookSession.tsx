@@ -211,6 +211,87 @@ const BookSession = () => {
 
   if (!mentor) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
 
+  if (bookedSession) {
+    const { scheduledAt, meetingUrl } = bookedSession;
+    return (
+      <AppLayout>
+        <div className="max-w-2xl mx-auto py-8">
+          <Card>
+            <CardHeader className="text-center pb-3">
+              <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-primary" />
+              </div>
+              <CardTitle className="text-2xl">Session booked!</CardTitle>
+              <p className="text-muted-foreground text-sm pt-1">
+                with <strong>{mentor.full_name}</strong> on{" "}
+                {format(scheduledAt, "PPP 'at' p")}
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <a href={meetingUrl} target="_blank" rel="noopener noreferrer" className="block">
+                <Button size="lg" className="w-full">
+                  <Video className="mr-2 h-4 w-4" />
+                  Join meeting
+                </Button>
+              </a>
+
+              <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-xs">
+                <span className="truncate flex-1 font-mono text-muted-foreground">{meetingUrl}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={() => {
+                    navigator.clipboard.writeText(meetingUrl);
+                    toast({ title: "Link copied" });
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              <div className="flex justify-center">
+                <AddToCalendarMenu
+                  event={{
+                    title: `Mentorship session with ${mentor.full_name}`,
+                    description: `Meeting link: ${meetingUrl}`,
+                    location: meetingUrl,
+                    startISO: scheduledAt.toISOString(),
+                    durationMinutes: 30,
+                  }}
+                  filename={`mentorle-session-${format(scheduledAt, "yyyy-MM-dd-HHmm")}.ics`}
+                />
+              </div>
+
+              <p className="text-xs text-muted-foreground text-center pt-2">
+                A confirmation email has been sent to you and your mentor.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                <Button variant="outline" className="flex-1" onClick={() => navigate("/mentee/sessions")}>
+                  View my sessions
+                </Button>
+                <Button
+                  variant="ghost"
+                  className="flex-1"
+                  onClick={() => {
+                    setBookedSession(null);
+                    setSelectedDate(null);
+                    setSelectedTime(null);
+                    setNotes("");
+                    navigate("/mentors");
+                  }}
+                >
+                  Book another
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    );
+  }
+
   const initials = mentor.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase();
 
   return (
