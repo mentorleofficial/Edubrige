@@ -14,7 +14,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight, CheckCircle, Globe, Info } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle, Globe, Info, Video, Copy } from "lucide-react";
+import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import { format, setHours, setMinutes } from "date-fns";
 import { cn } from "@/lib/utils";
 import {
