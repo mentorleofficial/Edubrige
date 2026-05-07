@@ -69,6 +69,7 @@ const BookSession = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [booking, setBooking] = useState(false);
+  const [bookedSession, setBookedSession] = useState<{ scheduledAt: Date; meetingUrl: string } | null>(null);
 
   useEffect(() => {
     if (!mentorId) return;
