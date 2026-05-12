@@ -177,13 +177,19 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const apiKey = Deno.env.get("BREVO_API_KEY");
-    if (!apiKey) {
+    const rawKey = Deno.env.get("BREVO_API_KEY");
+    if (!rawKey) {
       return new Response(JSON.stringify({ error: "BREVO_API_KEY not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    const apiKey = rawKey.trim();
+    console.log("BREVO_API_KEY debug:", {
+      length: apiKey.length,
+      prefix: apiKey.slice(0, 9),
+      startsWithXkeysib: apiKey.startsWith("xkeysib-"),
+    });
 
     const body = (await req.json()) as Payload;
     const required: (keyof Payload)[] = ["mentorEmail", "mentorName", "menteeEmail", "menteeName", "scheduledAtISO", "durationMinutes", "meetingUrl"];
