@@ -194,8 +194,11 @@ const BookSession = () => {
           meetingUrl,
           menteeNotes: notes || undefined,
         },
-      }).then(({ error }) => {
-        if (error) console.error("send-booking-email failed:", error);
+      }).then(({ data, error }) => {
+        if (error || (data as any)?.error || ((data as any)?.errors?.length)) {
+          console.error("send-booking-email failed:", error || data);
+          toast({ variant: "destructive", title: "Booking saved, email not sent", description: "We couldn't send the confirmation email. Use the meeting link on this page." });
+        }
       });
     }
 
