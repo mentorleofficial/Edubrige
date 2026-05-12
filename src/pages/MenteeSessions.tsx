@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Fragment } from "react";
-import { MessageSquare, X, RefreshCw, ExternalLink, Copy } from "lucide-react";
+import { MessageSquare, X, RefreshCw, ExternalLink, Copy, Video } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import ProgramBadge from "@/components/programs/ProgramBadge";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
@@ -131,6 +131,13 @@ const MenteeSessions = () => {
             <TableCell><Badge variant={statusColor(s.status)}>{s.status}</Badge></TableCell>
             <TableCell>
               <div className="flex items-center gap-1 flex-wrap">
+                {isUpcoming && s.meeting_url && (
+                  <Button asChild size="sm">
+                    <a href={s.meeting_url} target="_blank" rel="noreferrer">
+                      <Video className="mr-1 h-3 w-3" />Join now
+                    </a>
+                  </Button>
+                )}
                 {isUpcoming && (
                   <>
                     <AddToCalendarMenu

@@ -14,7 +14,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, X, UserX, Link2, FileEdit } from "lucide-react";
+import { CheckCircle2, X, UserX, Link2, FileEdit, Video } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import ProgramBadge from "@/components/programs/ProgramBadge";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
@@ -144,6 +144,13 @@ const MentorSessions = () => {
             <TableCell><Badge variant={statusColor(s.status)}>{s.status}</Badge></TableCell>
             <TableCell>
               <div className="flex items-center gap-1 flex-wrap">
+                {isUpcoming && s.meeting_url && (
+                  <Button asChild size="sm">
+                    <a href={s.meeting_url} target="_blank" rel="noreferrer">
+                      <Video className="mr-1 h-3 w-3" />Join now
+                    </a>
+                  </Button>
+                )}
                 {isUpcoming && (
                   <>
                     <AddToCalendarMenu

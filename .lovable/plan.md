@@ -1,39 +1,44 @@
-## Problem
+## Current state (already in place)
 
-1. **Emails fail to send.** Edge function logs show `Brevo 401: {"message":"Key not found","code":"unauthorized"}` for both mentor and mentee sends. The `BREVO_API_KEY` secret is set, but Brevo is rejecting it as invalid/unknown.
-2. **No post-booking confirmation.** After a successful booking, `BookSession.tsx` immediately navigates to `/mentee/sessions`, so the mentee never sees the generated Jitsi meeting link or a clear "Join meeting" CTA.
+Most of what you asked for is already wired up:
 
-## Plan
+- **Jitsi link generated & stored**: On booking, `BookSession.tsx` generates `https://meet.jit.si/mentorle-<sessionId>` and writes it to `sessions.meeting_url`.
+- **Emails to mentor + mentee**: `send-booking-email` edge function sends two Brevo emails from `noreply@mentorle.in` (mentor template + mentee template, both with the Jitsi link and "Add to Google Calendar").
+- **Post-booking confirmation**: The booking page already shows a "Session booked!" card with a Join meeting button.
+- **Meeting link visible on sessions pages**: `MenteeSessions.tsx` and `MentorSessions.tsx` show the link in the expanded row.
 
-### 1. Re-key Brevo (resolves the 401)
+## What's missing / to do
 
-The 401 "Key not found" is Brevo telling us the value stored in `BREVO_API_KEY` is not a recognized v3 API key. Common causes: an SMTP relay key/password was pasted instead of an API key, the key was deleted/rotated in Brevo, or a stray newline/space crept in.
+### 1. Add a prominent "Join now" button on session rows
 
-I'll re-prompt to update `BREVO_API_KEY` with a fresh **v3 API key** generated from Brevo → SMTP & API → API Keys (https://app.brevo.com/settings/keys/api). It must start with `xkeysib-`. After updating, no code change is needed — the function already reads `BREVO_API_KEY` and posts to `https://api.brevo.com/v3/smtp/email`.
+Today the meeting link is rendered as a plain anchor inside the expandable detail row. Make it a first-class action button that's always visible on the row (not buried in the detail expansion), so mentors and mentees can join with one click.
 
-Also confirm in Brevo that **`noreply@mentorle.in`** is listed as a verified sender under Senders & IP → Senders, otherwise sends will fail with a different 400 error after the key is fixed.
+- **`src/pages/MenteeSessions.tsx`**: in the action cell of each `booked` session row, add a `<Button asChild variant="default" size="sm">` with a `Video` icon, label "Join now", linking to `s.meeting_url` (target=_blank). Show only when `status === 'booked'` and `meeting_url` exists.
+- **`src/pages/MentorSessions.tsx`**: same treatment in the action cell.
+- Keep the existing copy-link UI in the expanded detail row.
 
-### 2. Show booking confirmation with Jitsi link in-page
+### 2. Verify email delivery end-to-end
 
-Replace the immediate `navigate("/mentee/sessions")` with a success state rendered inside `BookSession.tsx`:
+No logs exist for `send-booking-email` yet, which means either it hasn't been invoked since the last deploy, or invocations are silently failing client-side. Steps:
 
-- Add `bookedSession` state holding `{ scheduledAt, meetingUrl }`.
-- On successful booking, set this state instead of navigating.
-- Render a confirmation card showing:
-  - "Session booked!" heading + formatted date/time + mentor name
-  - Large primary **Join meeting** button (`<a href={meetingUrl} target="_blank">`) — visible immediately
-  - The raw Jitsi URL underneath (copyable)
-  - Reuse existing `AddToCalendarMenu` component for "Add to Calendar"
-  - Secondary buttons: "View my sessions" → `/mentee/sessions`, "Book another" → resets state
-- Keep the toast notification.
-- Reschedule flow keeps current behavior (navigates back) since there's no new meeting link to show.
+- Deploy `send-booking-email` to ensure latest code is live.
+- Test it directly with a sample payload via curl to confirm Brevo accepts the `BREVO_API_KEY` (returns 200, not 401).
+- If 401: re-prompt to update `BREVO_API_KEY` (must start with `xkeysib-`).
+- If 400 with sender error: confirm `noreply@mentorle.in` is verified in Brevo → Senders & IP → Senders.
 
-### Files
+### 3. (Optional) Make email failures observable
 
-- **Edited**: `src/pages/BookSession.tsx` — add success state + confirmation card with Jitsi CTA.
-- **No code change** to `supabase/functions/send-booking-email/index.ts` — the fix is the secret value.
+Currently the invoke is fire-and-forget with only a console.error. Add a non-blocking toast on email failure so the mentee at least knows "Booking saved, email could not be sent" — they still have the on-screen Join button as fallback.
 
-### Out of scope
+## Files
 
-- Adding the same in-page confirmation to reschedule flow.
-- Email retries / fallback provider.
+- **Edited**: `src/pages/MenteeSessions.tsx` — add "Join now" button to row actions.
+- **Edited**: `src/pages/MentorSessions.tsx` — add "Join now" button to row actions.
+- **Edited**: `src/pages/BookSession.tsx` — surface email send failure as a soft toast (optional).
+- **No code change** to `supabase/functions/send-booking-email/index.ts` or `sessions` schema — the link is already stored and the function already sends from `noreply@mentorle.in`.
+
+## Out of scope
+
+- Switching email providers (staying on Brevo).
+- Reminder emails before the session.
+- Replacing Jitsi with another meeting provider.
