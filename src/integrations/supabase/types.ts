@@ -50,13 +50,6 @@ export type Database = {
             foreignKeyName: "audit_logs_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "public_mentor_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "audit_logs_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -144,13 +137,6 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "sessions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "feedback_submitted_by_fkey"
-            columns: ["submitted_by"]
-            isOneToOne: false
-            referencedRelation: "public_mentor_users"
             referencedColumns: ["id"]
           },
           {
@@ -273,13 +259,6 @@ export type Database = {
             foreignKeyName: "mentee_profiles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
-            referencedRelation: "public_mentor_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mentee_profiles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -374,13 +353,6 @@ export type Database = {
           start_time?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "mentor_availability_mentor_id_fkey"
-            columns: ["mentor_id"]
-            isOneToOne: false
-            referencedRelation: "public_mentor_users"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "mentor_availability_mentor_id_fkey"
             columns: ["mentor_id"]
@@ -526,13 +498,6 @@ export type Database = {
           years_experience?: number | null
         }
         Relationships: [
-          {
-            foreignKeyName: "mentor_profiles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "public_mentor_users"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "mentor_profiles_user_id_fkey"
             columns: ["user_id"]
@@ -731,21 +696,7 @@ export type Database = {
             foreignKeyName: "sessions_mentee_id_fkey"
             columns: ["mentee_id"]
             isOneToOne: false
-            referencedRelation: "public_mentor_users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sessions_mentee_id_fkey"
-            columns: ["mentee_id"]
-            isOneToOne: false
             referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "sessions_mentor_id_fkey"
-            columns: ["mentor_id"]
-            isOneToOne: false
-            referencedRelation: "public_mentor_users"
             referencedColumns: ["id"]
           },
           {
@@ -822,14 +773,7 @@ export type Database = {
       }
     }
     Views: {
-      public_mentor_users: {
-        Row: {
-          avatar_url: string | null
-          full_name: string | null
-          id: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       can_mentee_book_mentor: {
@@ -839,6 +783,25 @@ export type Database = {
       generate_mentor_slug: {
         Args: { _full_name: string; _user_id: string }
         Returns: string
+      }
+      get_public_mentor: {
+        Args: { _slug_or_id: string }
+        Returns: {
+          avatar_url: string
+          bio: string
+          current_organization: string
+          current_role: string
+          experiences: Json
+          expertise: string[]
+          full_name: string
+          headline: string
+          linkedin_url: string
+          portfolio_url: string
+          qualifications: Json
+          slug: string
+          user_id: string
+          years_experience: number
+        }[]
       }
       has_role: {
         Args: {
@@ -854,6 +817,19 @@ export type Database = {
       is_program_mentor: {
         Args: { _program_id: string; _user_id: string }
         Returns: boolean
+      }
+      list_public_mentors: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          bio: string
+          expertise: string[]
+          full_name: string
+          headline: string
+          slug: string
+          user_id: string
+          years_experience: number
+        }[]
       }
     }
     Enums: {
