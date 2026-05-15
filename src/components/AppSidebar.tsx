@@ -16,6 +16,7 @@ import {
   GraduationCap,
   FolderKanban,
   UsersRound,
+  Star,
 } from "lucide-react";
 import {
   Sidebar,
@@ -55,6 +56,7 @@ const AppSidebar = () => {
     { title: "Applications", icon: ClipboardCheck, path: "/admin/applications", badge: pendingApps },
     { title: "Programs", icon: FolderKanban, path: "/admin/programs" },
     { title: "Sessions", icon: BookOpen, path: "/admin/sessions" },
+    { title: "Feedback", icon: Star, path: "/admin/feedback" },
     { title: "Settings", icon: Settings, path: "/admin/settings" },
     { title: "Audit Logs", icon: ClipboardList, path: "/admin/audit-logs" },
   ];

@@ -1,4 +1,5 @@
 import { useEffect, useState, Fragment } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -14,7 +15,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle2, X, UserX, Link2, FileEdit, Video } from "lucide-react";
+import { CheckCircle2, X, UserX, Link2, FileEdit, Video, Star } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import ProgramBadge from "@/components/programs/ProgramBadge";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
@@ -37,6 +38,7 @@ interface SessionRow {
 
 const MentorSessions = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [sessions, setSessions] = useState<SessionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +48,7 @@ const MentorSessions = () => {
   const [editNotes, setEditNotes] = useState("");
   const [editMeetingUrl, setEditMeetingUrl] = useState("");
   const [saving, setSaving] = useState(false);
+  const [ratedSessionIds, setRatedSessionIds] = useState<Set<string>>(new Set());
 
   const fetchSessions = async () => {
     if (!user) return;
@@ -54,8 +57,18 @@ const MentorSessions = () => {
       .select("id, scheduled_at, duration_minutes, status, notes, mentee_notes, meeting_url, cancellation_reason, mentee_id, mentee:users!sessions_mentee_id_fkey(full_name)")
       .eq("mentor_id", user.id)
       .order("scheduled_at", { ascending: false });
-    setSessions((data as any) || []);
+    const list = (data as any) || [];
+    setSessions(list);
     setLoading(false);
+    if (list.length) {
+      const { data: fb } = await supabase
+        .from("feedback")
+        .select("session_id")
+        .eq("submitted_by", user.id)
+        .eq("audience", "mentee")
+        .in("session_id", list.map((s: SessionRow) => s.id));
+      setRatedSessionIds(new Set((fb || []).map((r: any) => r.session_id)));
+    }
   };
 
   useEffect(() => { fetchSessions(); }, [user]);
@@ -177,6 +190,15 @@ const MentorSessions = () => {
                       <X className="mr-1 h-3 w-3" />Cancel
                     </Button>
                   </>
+                )}
+                {s.status === "completed" && (
+                  ratedSessionIds.has(s.id) ? (
+                    <Badge variant="secondary" className="text-xs"><Star className="mr-1 h-3 w-3" />Rated</Badge>
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={() => navigate(`/session/${s.id}/feedback`)}>
+                      <Star className="mr-1 h-3 w-3" />Rate mentee
+                    </Button>
+                  )
                 )}
                 <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
                   <FileEdit className="mr-1 h-3 w-3" />Notes/Link

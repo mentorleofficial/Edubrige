@@ -21,6 +21,7 @@ const AdminApplications = lazy(() => import("@/pages/AdminApplications"));
 const AdminPrograms = lazy(() => import("@/pages/AdminPrograms"));
 const AdminProgramDetail = lazy(() => import("@/pages/AdminProgramDetail"));
 const AdminSessions = lazy(() => import("@/pages/AdminSessions"));
+const AdminFeedback = lazy(() => import("@/pages/AdminFeedback"));
 const MentorMentees = lazy(() => import("@/pages/MentorMentees"));
 const MentorPrograms = lazy(() => import("@/pages/MentorPrograms"));
 const MentorProgramDetail = lazy(() => import("@/pages/MentorProgramDetail"));
@@ -68,6 +69,7 @@ const App = () => (
                   <Route path="/admin/users" element={<RoleGuard allowedRoles={["admin"]}><AdminUsers /></RoleGuard>} />
                   <Route path="/admin/settings" element={<RoleGuard allowedRoles={["admin"]}><AdminSettings /></RoleGuard>} />
                   <Route path="/admin/sessions" element={<RoleGuard allowedRoles={["admin"]}><AdminSessions /></RoleGuard>} />
+                  <Route path="/admin/feedback" element={<RoleGuard allowedRoles={["admin"]}><AdminFeedback /></RoleGuard>} />
                   <Route path="/admin/audit-logs" element={<RoleGuard allowedRoles={["admin"]}><AdminAuditLogs /></RoleGuard>} />
                   <Route path="/mentors" element={<RoleGuard allowedRoles={["mentee", "admin"]}><MenteeOnboardingGuard><MentorDirectory /></MenteeOnboardingGuard></RoleGuard>} />
                   <Route path="/mentor/profile" element={<RoleGuard allowedRoles={["mentor"]}><MentorProfile /></RoleGuard>} />

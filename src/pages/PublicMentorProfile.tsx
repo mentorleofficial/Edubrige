@@ -19,6 +19,7 @@ import {
   Calendar,
   Sparkles,
   ArrowLeft,
+  Star,
 } from "lucide-react";
 
 type Qualification = {
@@ -76,6 +77,7 @@ const PublicMentorProfile = () => {
   const [mentor, setMentor] = useState<PublicMentor | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [rating, setRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
 
   useEffect(() => {
     const fetch = async () => {
@@ -141,6 +143,17 @@ const PublicMentorProfile = () => {
         experiences: (mp.experiences as Experience[]) ?? [],
       });
       setLoading(false);
+
+      // Aggregate mentor rating
+      const { data: fb } = await supabase
+        .from("feedback")
+        .select("rating, sessions!inner(mentor_id)")
+        .eq("audience", "mentor")
+        .eq("sessions.mentor_id", mp.user_id);
+      if (fb && fb.length) {
+        const avg = fb.reduce((s: number, r: any) => s + r.rating, 0) / fb.length;
+        setRating({ avg: Math.round(avg * 10) / 10, count: fb.length });
+      }
     };
     fetch();
   }, [mentorId]);
@@ -222,6 +235,11 @@ const PublicMentorProfile = () => {
                   {mentor.years_experience > 0 && (
                     <span className="flex items-center gap-1.5">
                       <Calendar className="h-4 w-4" /> {mentor.years_experience}+ years
+                    </span>
+                  )}
+                  {rating.count > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <Star className="h-4 w-4 fill-primary text-primary" /> {rating.avg} ({rating.count} review{rating.count === 1 ? "" : "s"})
                     </span>
                   )}
                 </div>
