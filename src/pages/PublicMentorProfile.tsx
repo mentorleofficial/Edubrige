@@ -85,28 +85,11 @@ const PublicMentorProfile = () => {
       setLoading(true);
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mentorId);
 
-      // Try slug first
-      let { data: mp } = await supabase
-        .from("mentor_profiles")
-        .select(
-          "user_id, slug, headline, bio, expertise, years_experience, current_organization, current_role, linkedin_url, portfolio_url, qualifications, experiences, is_active"
-        )
-        .eq("slug", mentorId)
-        .eq("is_active", true)
-        .maybeSingle();
-
-      // Fallback to uuid lookup
-      if (!mp && isUuid) {
-        const res = await supabase
-          .from("mentor_profiles")
-          .select(
-            "user_id, slug, headline, bio, expertise, years_experience, current_organization, current_role, linkedin_url, portfolio_url, qualifications, experiences, is_active"
-          )
-          .eq("user_id", mentorId)
-          .eq("is_active", true)
-          .maybeSingle();
-        mp = res.data;
-      }
+      // SECURITY DEFINER RPC: returns only public-safe mentor fields, no email.
+      const { data: rows } = await supabase.rpc("get_public_mentor", {
+        _slug_or_id: mentorId,
+      });
+      const mp = Array.isArray(rows) && rows.length ? (rows[0] as any) : null;
 
       if (!mp) {
         setNotFound(true);
@@ -115,22 +98,16 @@ const PublicMentorProfile = () => {
       }
 
       // If accessed via UUID but slug exists, redirect to pretty URL
-      if (isUuid && (mp as any).slug) {
-        navigate(`/mentors/${(mp as any).slug}`, { replace: true });
+      if (isUuid && mp.slug) {
+        navigate(`/mentors/${mp.slug}`, { replace: true });
         return;
       }
 
-      const { data: u } = await supabase
-        .from("users")
-        .select("full_name, avatar_url")
-        .eq("id", mp.user_id)
-        .maybeSingle();
-
       setMentor({
         user_id: mp.user_id,
-        slug: (mp as any).slug ?? null,
-        full_name: u?.full_name ?? "Mentor",
-        avatar_url: u?.avatar_url ?? null,
+        slug: mp.slug ?? null,
+        full_name: mp.full_name ?? "Mentor",
+        avatar_url: mp.avatar_url ?? null,
         headline: mp.headline ?? "",
         bio: mp.bio ?? "",
         expertise: mp.expertise ?? [],
