@@ -142,6 +142,17 @@ const PublicMentorProfile = () => {
         experiences: (mp.experiences as Experience[]) ?? [],
       });
       setLoading(false);
+
+      // Aggregate mentor rating
+      const { data: fb } = await supabase
+        .from("feedback")
+        .select("rating, sessions!inner(mentor_id)")
+        .eq("audience", "mentor")
+        .eq("sessions.mentor_id", mp.user_id);
+      if (fb && fb.length) {
+        const avg = fb.reduce((s: number, r: any) => s + r.rating, 0) / fb.length;
+        setRating({ avg: Math.round(avg * 10) / 10, count: fb.length });
+      }
     };
     fetch();
   }, [mentorId]);
