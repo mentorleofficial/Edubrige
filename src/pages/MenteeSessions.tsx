@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Fragment } from "react";
-import { MessageSquare, X, RefreshCw, ExternalLink, Copy, Video } from "lucide-react";
+import { MessageSquare, X, RefreshCw, ExternalLink, Copy, Video, Star } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import ProgramBadge from "@/components/programs/ProgramBadge";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
@@ -48,6 +48,7 @@ const MenteeSessions = () => {
   const [cancelTarget, setCancelTarget] = useState<SessionRow | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [ratedSessionIds, setRatedSessionIds] = useState<Set<string>>(new Set());
 
   const fetchSessions = async () => {
     if (!user) return;
@@ -56,8 +57,18 @@ const MenteeSessions = () => {
       .select("id, scheduled_at, duration_minutes, status, mentor_id, mentee_notes, notes, meeting_url, cancellation_reason, mentor:users!sessions_mentor_id_fkey(full_name)")
       .eq("mentee_id", user.id)
       .order("scheduled_at", { ascending: false });
-    setSessions((data as any) || []);
+    const list = (data as any) || [];
+    setSessions(list);
     setLoading(false);
+    if (list.length) {
+      const { data: fb } = await supabase
+        .from("feedback")
+        .select("session_id")
+        .eq("submitted_by", user.id)
+        .eq("audience", "mentor")
+        .in("session_id", list.map((s: SessionRow) => s.id));
+      setRatedSessionIds(new Set((fb || []).map((r: any) => r.session_id)));
+    }
   };
 
   useEffect(() => { fetchSessions(); }, [user]);
@@ -162,9 +173,13 @@ const MenteeSessions = () => {
                   </>
                 )}
                 {s.status === "completed" && (
-                  <Button variant="ghost" size="sm" onClick={() => navigate(`/session/${s.id}/feedback`)}>
-                    <MessageSquare className="mr-1 h-3 w-3" />Feedback
-                  </Button>
+                  ratedSessionIds.has(s.id) ? (
+                    <Badge variant="secondary" className="text-xs"><Star className="mr-1 h-3 w-3" />Rated</Badge>
+                  ) : (
+                    <Button variant="default" size="sm" onClick={() => navigate(`/session/${s.id}/feedback`)}>
+                      <MessageSquare className="mr-1 h-3 w-3" />Rate session
+                    </Button>
+                  )
                 )}
               </div>
             </TableCell>
