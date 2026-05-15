@@ -16,7 +16,7 @@ import RecommendedMentors from "./mentee/RecommendedMentors";
 import RecentActivity from "./mentee/RecentActivity";
 
 const MenteeDashboard = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { isComplete, loading: onbLoading } = useMenteeProfileStatus(user?.id);
   const { data, isLoading } = useMenteeDashboardData(user?.id);
