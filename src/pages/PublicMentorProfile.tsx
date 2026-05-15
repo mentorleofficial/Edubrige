@@ -76,6 +76,7 @@ const PublicMentorProfile = () => {
   const [mentor, setMentor] = useState<PublicMentor | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [rating, setRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
 
   useEffect(() => {
     const fetch = async () => {
