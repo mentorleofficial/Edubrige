@@ -105,6 +105,7 @@ export type Database = {
       }
       feedback: {
         Row: {
+          audience: Database["public"]["Enums"]["feedback_audience"]
           comment: string | null
           created_at: string
           id: string
@@ -113,6 +114,7 @@ export type Database = {
           submitted_by: string
         }
         Insert: {
+          audience?: Database["public"]["Enums"]["feedback_audience"]
           comment?: string | null
           created_at?: string
           id?: string
@@ -121,6 +123,7 @@ export type Database = {
           submitted_by: string
         }
         Update: {
+          audience?: Database["public"]["Enums"]["feedback_audience"]
           comment?: string | null
           created_at?: string
           id?: string
@@ -800,6 +803,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "mentor" | "mentee"
       application_status: "pending" | "approved" | "rejected"
+      feedback_audience: "mentor" | "mentee" | "admin_private"
       session_status: "booked" | "completed" | "cancelled" | "no_show"
     }
     CompositeTypes: {
@@ -930,6 +934,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "mentor", "mentee"],
       application_status: ["pending", "approved", "rejected"],
+      feedback_audience: ["mentor", "mentee", "admin_private"],
       session_status: ["booked", "completed", "cancelled", "no_show"],
     },
   },
