@@ -19,6 +19,7 @@ import {
   Calendar,
   Sparkles,
   ArrowLeft,
+  Star,
 } from "lucide-react";
 
 type Qualification = {
@@ -234,6 +235,11 @@ const PublicMentorProfile = () => {
                   {mentor.years_experience > 0 && (
                     <span className="flex items-center gap-1.5">
                       <Calendar className="h-4 w-4" /> {mentor.years_experience}+ years
+                    </span>
+                  )}
+                  {rating.count > 0 && (
+                    <span className="flex items-center gap-1.5">
+                      <Star className="h-4 w-4 fill-primary text-primary" /> {rating.avg} ({rating.count} review{rating.count === 1 ? "" : "s"})
                     </span>
                   )}
                 </div>
