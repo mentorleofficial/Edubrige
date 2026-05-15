@@ -191,6 +191,15 @@ const MentorSessions = () => {
                     </Button>
                   </>
                 )}
+                {s.status === "completed" && (
+                  ratedSessionIds.has(s.id) ? (
+                    <Badge variant="secondary" className="text-xs"><Star className="mr-1 h-3 w-3" />Rated</Badge>
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={() => navigate(`/session/${s.id}/feedback`)}>
+                      <Star className="mr-1 h-3 w-3" />Rate mentee
+                    </Button>
+                  )
+                )}
                 <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
                   <FileEdit className="mr-1 h-3 w-3" />Notes/Link
                 </Button>
