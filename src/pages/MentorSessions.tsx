@@ -57,8 +57,18 @@ const MentorSessions = () => {
       .select("id, scheduled_at, duration_minutes, status, notes, mentee_notes, meeting_url, cancellation_reason, mentee_id, mentee:users!sessions_mentee_id_fkey(full_name)")
       .eq("mentor_id", user.id)
       .order("scheduled_at", { ascending: false });
-    setSessions((data as any) || []);
+    const list = (data as any) || [];
+    setSessions(list);
     setLoading(false);
+    if (list.length) {
+      const { data: fb } = await supabase
+        .from("feedback")
+        .select("session_id")
+        .eq("submitted_by", user.id)
+        .eq("audience", "mentee")
+        .in("session_id", list.map((s: SessionRow) => s.id));
+      setRatedSessionIds(new Set((fb || []).map((r: any) => r.session_id)));
+    }
   };
 
   useEffect(() => { fetchSessions(); }, [user]);
