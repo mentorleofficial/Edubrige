@@ -69,9 +69,7 @@ const MenteeDashboard = () => {
     );
   }
 
-  const firstName = (user?.user_metadata?.full_name as string | undefined)?.split(" ")[0]
-    || user?.email?.split("@")[0]
-    || "there";
+  const firstName = user?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
 
   return (
     <div className="space-y-6">
