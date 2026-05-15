@@ -1,40 +1,42 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenteeProfileStatus } from "@/features/mentee-onboarding/hooks/useMenteeProfileStatus";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { BookOpen, GraduationCap, Clock, Sparkles, FolderKanban } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Sparkles } from "lucide-react";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
-import ProgramBadge from "@/components/programs/ProgramBadge";
-import { Link } from "react-router-dom";
+import { useMenteeDashboardData } from "@/features/mentee-dashboard/useMenteeDashboardData";
+import NextSessionCard from "./mentee/NextSessionCard";
+import StatsRow from "./mentee/StatsRow";
+import SessionsCalendar from "./mentee/SessionsCalendar";
+import InsightsPanel from "./mentee/InsightsPanel";
+import RecommendedMentors from "./mentee/RecommendedMentors";
+import RecentActivity from "./mentee/RecentActivity";
 
 const MenteeDashboard = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
-  const { isComplete, loading } = useMenteeProfileStatus(user?.id);
-  const [upcoming, setUpcoming] = useState(0);
-  const [total, setTotal] = useState(0);
-
+  const { isComplete, loading: onbLoading } = useMenteeProfileStatus(user?.id);
+  const { data, isLoading } = useMenteeDashboardData(user?.id);
   const { data: programs = [] } = useMyPrograms();
 
-  useEffect(() => {
-    if (!user) return;
-    const fetchData = async () => {
-      const [upRes, totalRes] = await Promise.all([
-        supabase.from("sessions").select("id", { count: "exact", head: true })
-          .eq("mentee_id", user.id).eq("status", "booked"),
-        supabase.from("sessions").select("id", { count: "exact", head: true })
-          .eq("mentee_id", user.id),
-      ]);
-      setUpcoming(upRes.count || 0);
-      setTotal(totalRes.count || 0);
-    };
-    fetchData();
-  }, [user]);
+  const computed = useMemo(() => {
+    const sessions = data?.sessions ?? [];
+    const now = Date.now();
+    const upcoming = sessions.filter(
+      (s) => s.status === "booked" && new Date(s.scheduled_at).getTime() >= now
+    );
+    const completed = sessions.filter((s) => s.status === "completed");
+    const hours = completed.reduce((sum, s) => sum + (s.duration_minutes || 0), 0) / 60;
+    const ratings = (data?.feedback ?? []).map((f) => f.rating);
+    const avg = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
+    const next = upcoming.sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))[0] ?? null;
+    return { upcomingCount: upcoming.length, completedCount: completed.length, hours, avg, next };
+  }, [data]);
 
-  if (!loading && !isComplete) {
+  if (!onbLoading && !isComplete) {
     return (
       <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <CardHeader>
@@ -55,45 +57,54 @@ const MenteeDashboard = () => {
     );
   }
 
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-32 w-full" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
+        </div>
+        <Skeleton className="h-80 w-full" />
+      </div>
+    );
+  }
+
+  const firstName = profile?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
+
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Upcoming Sessions</CardTitle>
-            <Clock className="h-5 w-5 text-primary" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold">{upcoming}</div></CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Sessions</CardTitle>
-            <BookOpen className="h-5 w-5 text-primary" />
-          </CardHeader>
-          <CardContent><div className="text-3xl font-bold">{total}</div></CardContent>
-        </Card>
-        <Card className="flex flex-col items-center justify-center p-6">
-          <GraduationCap className="h-8 w-8 text-accent mb-2" />
-          <Button onClick={() => navigate("/mentors")}>Find a Mentor</Button>
-        </Card>
+      <div>
+        <h2 className="text-2xl font-semibold" style={{ fontFamily: "var(--font-serif)" }}>
+          Welcome back, {firstName}
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Here's a snapshot of your mentorship journey.
+        </p>
       </div>
 
-      {programs.length > 0 && (
-        <Card>
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <div className="flex items-center gap-2">
-              <FolderKanban className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">My Programs ({programs.length})</CardTitle>
-            </div>
-            <Button variant="ghost" size="sm" asChild><Link to="/mentee/programs">View all</Link></Button>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            {programs.slice(0, 6).map((p) => (
-              <ProgramBadge key={p.id} name={p.name} color={p.color} to={`/mentee/programs/${p.slug}`} />
-            ))}
-          </CardContent>
-        </Card>
-      )}
+      <NextSessionCard session={computed.next} />
+
+      <StatsRow
+        upcoming={computed.upcomingCount}
+        completed={computed.completedCount}
+        hours={computed.hours}
+        avgRating={computed.avg}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <SessionsCalendar sessions={data.sessions} />
+        </div>
+        <InsightsPanel
+          sessions={data.sessions}
+          feedback={data.feedback}
+          programsCount={programs.length}
+        />
+      </div>
+
+      <RecommendedMentors mentors={data.recommended} />
+
+      <RecentActivity sessions={data.sessions} feedback={data.feedback} />
     </div>
   );
 };
