@@ -201,7 +201,7 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
     setSubmitting(true);
     try {
       const ext = resume!.name.split(".").pop();
-      const resumePath = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const resumePath = `applications/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from("mentor-resumes")
         .upload(resumePath, resume!, { contentType: resume!.type });
