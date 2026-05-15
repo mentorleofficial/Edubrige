@@ -50,6 +50,13 @@ export type Database = {
             foreignKeyName: "audit_logs_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "public_mentor_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -137,6 +144,13 @@ export type Database = {
             columns: ["session_id"]
             isOneToOne: false
             referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_submitted_by_fkey"
+            columns: ["submitted_by"]
+            isOneToOne: false
+            referencedRelation: "public_mentor_users"
             referencedColumns: ["id"]
           },
           {
@@ -259,6 +273,13 @@ export type Database = {
             foreignKeyName: "mentee_profiles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "public_mentor_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mentee_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -353,6 +374,13 @@ export type Database = {
           start_time?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "mentor_availability_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "public_mentor_users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "mentor_availability_mentor_id_fkey"
             columns: ["mentor_id"]
@@ -498,6 +526,13 @@ export type Database = {
           years_experience?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "mentor_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "public_mentor_users"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "mentor_profiles_user_id_fkey"
             columns: ["user_id"]
@@ -696,7 +731,21 @@ export type Database = {
             foreignKeyName: "sessions_mentee_id_fkey"
             columns: ["mentee_id"]
             isOneToOne: false
+            referencedRelation: "public_mentor_users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_mentee_id_fkey"
+            columns: ["mentee_id"]
+            isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "public_mentor_users"
             referencedColumns: ["id"]
           },
           {
@@ -773,7 +822,14 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_mentor_users: {
+        Row: {
+          avatar_url: string | null
+          full_name: string | null
+          id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       can_mentee_book_mentor: {
