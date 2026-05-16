@@ -203,6 +203,7 @@ const MentorSessions = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Mentee</TableHead>
+                        <TableHead>Title</TableHead>
                         <TableHead>Program</TableHead>
                         <TableHead>Date & Time</TableHead>
                         <TableHead>Duration</TableHead>
