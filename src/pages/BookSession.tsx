@@ -80,6 +80,8 @@ const BookSession = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [topic, setTopic] = useState("");
   const [notes, setNotes] = useState("");
   const [bookedSession, setBookedSession] = useState<{ scheduledAt: Date; meetingUrl: string } | null>(null);
 
