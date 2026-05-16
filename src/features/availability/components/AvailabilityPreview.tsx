@@ -164,11 +164,7 @@ export function AvailabilityPreview({ slots, overrides, timezone }: Props) {
           {selected && (
             <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
               <div className="text-xs font-medium">
-                {selected.toLocaleDateString(undefined, {
-                  weekday: "long",
-                  month: "short",
-                  day: "numeric",
-                })}
+                {formatIST(selected, "EEEE, MMM d")}
               </div>
               {selectedKind === "blocked" && (
                 <Badge variant="destructive" className="text-[10px]">Blocked</Badge>
