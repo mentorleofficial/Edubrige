@@ -1,74 +1,90 @@
-# Admin Dashboard Upgrade
+# Mentor-side performance & stability optimization
 
-Turn the admin home from a flat 6-stat grid into a real operations cockpit covering platform health, growth, engagement, moderation queues, and live activity.
+Goal: make the mentor experience feel instant, eliminate the occasional "crack" around login/route changes, and remove the duplicated data-fetch patterns that cause double renders and stale UI.
 
-## New layout
+We will do this in **one focused chunk** scoped to mentor surface area + the shared login/auth path that affects it. Admin and mentee passes come later.
 
-```text
-+---------------------------------------------------------+
-| KPI strip:                                              |
-|  Users | Mentors | Mentees | Sessions | Hours | Avg ★   |
-+---------------------------------------------------------+
-| Growth chart (last 30 days)     | Action Queue          |
-|  - new signups / day            | - Pending mentor apps |
-|  - sessions booked / day        | - Disabled accounts   |
-|                                 | - Empty programs      |
-|                                 | - Missing branding    |
-+---------------------------------------------------------+
-| Today / Next 7 days schedule    | Platform Health       |
-|  - today booked count           | - JWT auth enabled    |
-|  - week timeline                | - Avg rating trend    |
-|                                 | - Cancellation rate   |
-+---------------------------------------------------------+
-| Top Mentors (by sessions + ★)   | Recent Feedback       |
-+---------------------------------------------------------+
-| Recent Sessions (existing list, polished)               |
-+---------------------------------------------------------+
-| Recent Audit Activity (last 8 entries)                  |
-+---------------------------------------------------------+
-```
+## Scope (this chunk)
 
-## Sections
+In:
+- `src/contexts/AuthContext.tsx` (login flicker / race)
+- `src/pages/Login.tsx` (redirect race)
+- `src/pages/MentorSessions.tsx`
+- `src/pages/MentorMentees.tsx`
+- `src/pages/MentorAvailability.tsx`
+- `src/pages/MentorProfile.tsx` (only render/perf — no logic changes)
+- `src/components/dashboards/MentorDashboard.tsx` + `src/components/dashboards/mentor/*`
+- `src/features/mentor-dashboard/useMentorDashboardData.ts`
 
-1. **KPI strip (6 cards)** — Total users, mentors, mentees, all-time sessions, total hours delivered, platform average rating. Each card links to its admin page.
-2. **Growth chart** — 30-day stacked area/line using `recharts` showing daily signups (from `users.created_at`) and daily sessions booked (from `sessions.created_at`). Toggle between the two series.
-3. **Action Queue** — counts that need admin attention with deep links:
-   - Pending mentor applications (`mentor_applications.status = 'pending'`)
-   - Disabled users (`users.is_disabled = true`)
-   - Programs with zero mentees or zero mentors
-   - Missing branding fields (no logo, default app name)
-4. **Today / Next 7 days** — today's session count + a 7-day strip mirroring the mentor view (booked counts per day, distinct mentors active).
-5. **Platform Health** — small panel:
-   - JWT auth enabled/disabled chip from `jwt_config.enabled`
-   - 30-day vs prior-30-day average rating delta
-   - 30-day cancellation rate (% of cancelled / (cancelled+completed))
-6. **Top Mentors** — top 5 mentors by completed sessions, with their avg rating; avatar + link.
-7. **Recent Feedback** — last 5 mentor-audience feedback entries with rating + truncated comment.
-8. **Recent Sessions** — keep existing list, add a status filter chip and mentor/mentee avatars.
-9. **Recent Audit Activity** — last 8 `audit_logs` rows showing action, entity_type, actor, time. Link to full audit page.
+Out (separate chunks): admin pages, mentee pages, public mentor pages, edge functions, DB schema.
+
+## What we will change and why
+
+### 1. Fix the login "crack"
+Symptom: brief flash to `/login`, double profile fetches, occasional bounce after refresh.
+
+- In `AuthContext`, the `onAuthStateChange` listener and `getSession()` both call `fetchProfile`, causing two parallel fetches on every refresh. Guard so we only fetch when the `user.id` actually changes.
+- `setTimeout(fetchProfile, 0)` is unnecessary now that the listener is async-safe — call it directly but deduped.
+- Stop writing `setLoading(false)` before the profile resolves on cold start. Currently `loading` flips to false while `profile` is still null, which lets `RoleGuard` redirect to `/login` for one frame on slow networks.
+- `Login.tsx` redirect should wait for `loading === false && profile` rather than just `user`, so the redirect target matches the actual role.
+- Cache the `mentor_profiles.is_active` flag in the same `localStorage` blob as the profile so `requireActiveMentor` guards don't bounce mentors to `/dashboard` for one frame on refresh.
+
+### 2. Convert mentor pages to React Query
+Today three mentor pages (`MentorSessions`, `MentorMentees`, `MentorAvailability`) use `useState + useEffect + supabase` directly. This causes:
+- A full network round-trip on every navigation back to the page
+- No cache sharing with the dashboard (we fetch the same `sessions` rows twice)
+- `loading` flicker on every visit
+
+Migration:
+- New hook `useMentorSessions(userId)` that returns sessions + a derived `ratedSessionIds` set in a second query keyed on the session ids. Mutations (`updateStatus`, `saveEdit`) become `useMutation` with optimistic update + `queryClient.invalidateQueries(['mentor-sessions', userId])`.
+- New hook `useMentorMentees(userId)` collapsing the 5 sequential supabase calls into one `Promise.all` and caching it. Today the second `useEffect` re-runs whenever `sessions` or `myPrograms` changes, refetching `program_mentees` needlessly.
+- New hook `useMentorAvailability(userId)` wrapping `fetchWeeklySlots` / `fetchOverrides` / `fetchTimezone` as a single query, with each mutation invalidating it. Removes the manual `refresh()` calls scattered through the file.
+
+### 3. Share the sessions cache with the dashboard
+`MentorDashboard` already calls `useMentorDashboardData` which fetches the same `sessions` rows that `MentorSessions` and `MyMenteesPanel` need. We'll:
+- Move the sessions query into its own `useMentorSessions` hook with key `['mentor', userId, 'sessions']`.
+- `useMentorDashboardData` composes it instead of re-querying.
+- Result: opening `My Sessions` after the dashboard is instant (no spinner, served from cache, then revalidated).
+
+### 4. Render-perf cleanups
+- `MentorDashboard` recomputes `computed` from `useMemo` correctly but renders 7 child cards even while `isLoading`. Move the skeleton branch above the `useMemo` and split the dashboard children into `React.memo` components so a single mutation doesn't re-render unrelated panels.
+- `MentorSessions` builds the `menteePrograms` map in an effect — convert to `useMemo` over the cached `program_mentees` query.
+- `MentorProfile` (553 lines) — extract the 5 section panels into separate files so editing one section doesn't re-render the whole form. No behavior change.
+- Wrap heavy lucide icon imports with tree-shaking-friendly named imports only (already mostly fine, audit MentorProfile).
+
+### 5. Network hygiene
+- Today `MentorSessions` fires `select(...).in('session_id', list.map(...))` even when `list` is empty after the initial render of an empty mentor account → returns 400 from PostgREST. Guard the call.
+- `MentorMentees`: avoid the `select` on `users` when `menteeIds.length === 0` (already guarded), but also drop the redundant `select("program_id")` on `program_mentors` once — we can join it into the first query.
+- All mentor queries pass `staleTime: 60_000` (matches global default) and `refetchOnWindowFocus: false`.
+
+### 6. Code-split the heavy mentor profile page
+`MentorProfile.tsx` is 553 lines and pulls in `react-hook-form` + zod + 5 sub-components synchronously. It's already lazy-loaded at the route level — we'll additionally `lazy()` the resume dropzone and avatar uploader so the first paint of the profile page is faster.
+
+## Out of scope (call out for later chunks)
+- Admin dashboards & admin pages
+- Mentee dashboards & mentee pages
+- Public `/mentors/:id` page and directory
+- Any DB index work or RLS changes
+- Switching to realtime subscriptions
 
 ## Technical notes
 
-- New folder `src/components/dashboards/admin/` with sub-components: `KpiStrip`, `GrowthChart`, `ActionQueue`, `WeekSchedule`, `PlatformHealth`, `TopMentors`, `RecentFeedback`, `RecentSessions`, `RecentAudit`.
-- Single hook `src/features/admin-dashboard/useAdminDashboardData.ts` running parallel Supabase queries with `react-query` (staleTime 30s):
-  - Count queries: total users, mentors, mentees, sessions, completed sessions (for hours), pending applications, disabled users.
-  - `sessions` for the last 30 days (id, scheduled_at, created_at, duration_minutes, status, mentor_id, mentee_id) — drives growth chart, week strip, cancellation rate.
-  - `users` created in last 30 days (id, created_at, role) for signup series.
-  - `feedback` last 30 days + prior 30 days (rating, comment, created_at, session_id, audience) for avg rating delta, platform avg, and recent feedback.
-  - `mentor_applications` count where status='pending'.
-  - `programs` with embedded `program_mentees(count)` and `program_mentors(count)` to find empty programs.
-  - `branding` single row to detect missing logo / default app_name.
-  - `jwt_config` row for JWT enabled chip.
-  - `audit_logs` order by created_at desc limit 8, joined with users for actor name.
-  - Top mentors: aggregate client-side from sessions+feedback (no schema change).
-- Chart uses existing `recharts` (already in `package.json`) and the existing `ui/chart.tsx` wrapper. Keep colors from semantic tokens (`hsl(var(--primary))`, `hsl(var(--accent))`).
-- Replace body of `src/components/dashboards/AdminDashboard.tsx`. Keep links and section spacing consistent with mentor/mentee dashboards (`space-y-6`, semantic tokens, `var(--font-serif)` for section headings only if used elsewhere).
-- Loading skeletons + empty states for each panel. Mobile: KPI strip wraps to 2 cols, two-column rows stack.
-- No DB schema changes, no new RLS policies, no edge functions. All queries rely on existing admin RLS (`has_role(auth.uid(),'admin')`).
+```text
+Before:                          After:
+useEffect → supabase.fetch       useQuery(['mentor-sessions', uid])
+useState(loading)                ↳ cached, dedup'd, shared with dashboard
+manual refresh()                 useMutation + invalidate
 
-## Out of scope
+AuthContext:                     AuthContext:
+  onAuthStateChange → fetch      onAuthStateChange → fetch IF user.id changed
+  getSession → fetch             getSession → fetch IF no cached profile
+  loading=false early            loading stays true until profile resolves
+```
 
-- New admin pages or routes
-- Schema or migration work
-- Mentor / mentee dashboards (already shipped)
-- Bulk-action UI in the action queue (counts and deep links only)
+Files touched (estimate): ~10 edited, ~3 new hooks under `src/features/mentor-*`. No new dependencies. No DB or edge-function changes.
+
+## Success criteria
+- No `/login` flash on hard refresh while signed in.
+- Navigating Dashboard → Sessions → Mentees → Dashboard shows no spinners after the first load.
+- Mutations on sessions (complete / cancel / save notes) update the UI without a full refetch + re-render storm.
+- No PostgREST 400s in the network panel for an empty mentor account.
