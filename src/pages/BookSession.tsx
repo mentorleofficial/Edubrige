@@ -252,7 +252,7 @@ const BookSession = () => {
                     startISO: scheduledAt.toISOString(),
                     durationMinutes: 30,
                   }}
-                  filename={`mentorle-session-${format(scheduledAt, "yyyy-MM-dd-HHmm")}.ics`}
+                  filename={`mentorle-session-${formatIST(scheduledAt, "yyyy-MM-dd-HHmm")}.ics`}
                 />
               </div>
 
