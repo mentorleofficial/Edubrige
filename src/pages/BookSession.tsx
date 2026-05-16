@@ -150,6 +150,8 @@ const BookSession = () => {
         scheduledAt,
         durationMinutes: 30,
         notes,
+        title: title.trim() || `Session with ${mentor?.full_name ?? "mentor"}`,
+        topic: topic.trim(),
         rescheduleId,
       });
 
