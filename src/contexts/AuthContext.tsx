@@ -71,16 +71,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (fetchingFor.current === userId) return;
     fetchingFor.current = userId;
     try {
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from("users")
         .select("id, email, full_name, role, avatar_url")
         .eq("id", userId)
         .single();
 
-      if (!profileData) {
+      if (profileError || !profileData) {
+        // Session exists but we can't load the user row (RLS 403, missing row,
+        // stale token). Clear the orphaned session to avoid redirect loops.
+        console.error("[auth] profile fetch failed, signing out", profileError);
         setProfile(null);
         setMentorActive(false);
         writeCache(null);
+        lastFetchedFor.current = null;
+        await supabase.auth.signOut();
         return;
       }
 
