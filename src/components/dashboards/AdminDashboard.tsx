@@ -1,107 +1,78 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Users, BookOpen, Star, Activity, Clock, CalendarDays, ArrowRight } from "lucide-react";
-
-interface RecentSession {
-  id: string;
-  scheduled_at: string;
-  status: string;
-  mentor: { full_name: string } | null;
-  mentee: { full_name: string } | null;
-}
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAdminDashboardData } from "@/features/admin-dashboard/useAdminDashboardData";
+import KpiStrip from "./admin/KpiStrip";
+import GrowthChart from "./admin/GrowthChart";
+import ActionQueue from "./admin/ActionQueue";
+import WeekSchedule from "./admin/WeekSchedule";
+import PlatformHealth from "./admin/PlatformHealth";
+import TopMentors from "./admin/TopMentors";
+import RecentFeedback from "./admin/RecentFeedback";
+import RecentSessions from "./admin/RecentSessions";
+import RecentAudit from "./admin/RecentAudit";
 
 const AdminDashboard = () => {
-  const [stats, setStats] = useState({ users: 0, sessions: 0, feedback: 0, mentors: 0, upcoming: 0, week: 0 });
-  const [recent, setRecent] = useState<RecentSession[]>([]);
+  const { data, isLoading } = useAdminDashboardData();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      const nowIso = new Date().toISOString();
-      const weekIso = new Date(Date.now() + 7 * 86400000).toISOString();
-      const [usersRes, sessionsRes, feedbackRes, mentorsRes, upcomingRes, weekRes, recentRes] = await Promise.all([
-        supabase.from("users").select("id", { count: "exact", head: true }),
-        supabase.from("sessions").select("id", { count: "exact", head: true }),
-        supabase.from("feedback").select("id", { count: "exact", head: true }),
-        supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "mentor"),
-        supabase.from("sessions").select("id", { count: "exact", head: true }).eq("status", "booked").gte("scheduled_at", nowIso),
-        supabase.from("sessions").select("id", { count: "exact", head: true }).gte("scheduled_at", nowIso).lte("scheduled_at", weekIso),
-        supabase.from("sessions")
-          .select("id, scheduled_at, status, mentor:users!sessions_mentor_id_fkey(full_name), mentee:users!sessions_mentee_id_fkey(full_name)")
-          .order("scheduled_at", { ascending: false })
-          .limit(5),
-      ]);
-      setStats({
-        users: usersRes.count || 0,
-        sessions: sessionsRes.count || 0,
-        feedback: feedbackRes.count || 0,
-        mentors: mentorsRes.count || 0,
-        upcoming: upcomingRes.count || 0,
-        week: weekRes.count || 0,
-      });
-      setRecent((recentRes.data as any) || []);
-    };
-    fetchData();
-  }, []);
-
-  const cards = [
-    { title: "Total Users", value: stats.users, icon: Users, link: "/admin/users" },
-    { title: "Active Mentors", value: stats.mentors, icon: Activity, link: "/admin/users" },
-    { title: "Sessions", value: stats.sessions, icon: BookOpen, link: "/admin/sessions" },
-    { title: "Upcoming", value: stats.upcoming, icon: Clock, link: "/admin/sessions" },
-    { title: "Next 7 days", value: stats.week, icon: CalendarDays, link: "/admin/sessions" },
-    { title: "Feedback", value: stats.feedback, icon: Star, link: "/admin/sessions" },
-  ];
-
-  const statusVariant = (s: string): "default" | "secondary" | "destructive" =>
-    s === "booked" ? "default" : s === "completed" ? "secondary" : "destructive";
+  if (isLoading || !data) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
+        </div>
+        <Skeleton className="h-72 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {cards.map((card) => (
-          <Link key={card.title} to={card.link} className="block">
-            <Card className="hover:shadow-md transition-shadow h-full">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
-                <card.icon className="h-5 w-5 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold">{card.value}</div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
+      <KpiStrip
+        users={data.counts.users}
+        mentors={data.counts.mentors}
+        mentees={data.counts.mentees}
+        sessions={data.counts.sessions}
+        hours={data.totals.hours}
+        avgRating={data.totals.avgRating}
+      />
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <GrowthChart sessions={data.sessions30} users={data.users30} />
+        </div>
+        <ActionQueue
+          pendingApps={data.counts.pendingApps}
+          disabledUsers={data.counts.disabledUsers}
+          programs={data.programs}
+          branding={data.branding}
+        />
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <CardTitle className="text-lg">Recent sessions</CardTitle>
-          <Button variant="ghost" size="sm" asChild>
-            <Link to="/admin/sessions">View all <ArrowRight className="ml-1 h-3 w-3" /></Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {recent.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No sessions yet.</p>
-          ) : (
-            <div className="divide-y">
-              {recent.map((s) => (
-                <div key={s.id} className="flex items-center justify-between py-3 text-sm">
-                  <div className="flex-1">
-                    <p className="font-medium">{s.mentor?.full_name || "—"} → {s.mentee?.full_name || "—"}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(s.scheduled_at).toLocaleString()}</p>
-                  </div>
-                  <Badge variant={statusVariant(s.status)}>{s.status}</Badge>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <WeekSchedule sessions={data.sessions30} />
+        </div>
+        <PlatformHealth
+          jwtEnabled={data.jwtEnabled}
+          feedback60={data.feedback60}
+          sessions30={data.sessions30}
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TopMentors
+          sessions={data.sessions30}
+          feedback={data.feedback60}
+          mentorsById={data.mentorsById}
+        />
+        <RecentFeedback feedback={data.recentFeedback} />
+      </div>
+
+      <RecentSessions />
+
+      <RecentAudit rows={data.audit} />
     </div>
   );
 };
