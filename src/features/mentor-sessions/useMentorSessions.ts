@@ -123,10 +123,22 @@ export function useUpdateSessionStatus(userId?: string) {
 export function useUpdateSessionDetails(userId?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; notes: string; meeting_url: string }) => {
+    mutationFn: async (input: {
+      id: string;
+      notes: string;
+      meeting_url: string;
+      title?: string;
+      topic?: string;
+    }) => {
+      const patch: Record<string, unknown> = {
+        notes: input.notes,
+        meeting_url: input.meeting_url,
+      };
+      if (input.title !== undefined) patch.title = input.title;
+      if (input.topic !== undefined) patch.topic = input.topic;
       const { error } = await supabase
         .from("sessions")
-        .update({ notes: input.notes, meeting_url: input.meeting_url } as never)
+        .update(patch as never)
         .eq("id", input.id);
       if (error) throw error;
       return input;
@@ -139,7 +151,13 @@ export function useUpdateSessionDetails(userId?: string) {
           mentorSessionsKey(userId),
           prev.map((s) =>
             s.id === input.id
-              ? { ...s, notes: input.notes, meeting_url: input.meeting_url }
+              ? {
+                  ...s,
+                  notes: input.notes,
+                  meeting_url: input.meeting_url,
+                  title: input.title ?? s.title,
+                  topic: input.topic ?? s.topic,
+                }
               : s
           )
         );
