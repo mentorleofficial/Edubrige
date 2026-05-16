@@ -149,8 +149,7 @@ const BookSession = () => {
 
   const handleBook = async () => {
     if (!selectedDate || !selectedTime || !user || !mentorId) return;
-    const [hours, minutes] = selectedTime.split(":").map(Number);
-    const scheduledAt = setMinutes(setHours(selectedDate, hours), minutes);
+    const scheduledAt = toISTDate(selectedDate, selectedTime);
 
     try {
       const { meetingUrl } = await bookMutation.mutateAsync({
