@@ -396,7 +396,7 @@ const BookSession = () => {
             <CardHeader className="pb-3">
               <CardTitle className="text-base">
                 {selectedDate
-                  ? selectedDate.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
+                  ? formatIST(selectedDate, "EEEE, MMMM d")
                   : "Select a date"}
               </CardTitle>
               {selectedDate && (
