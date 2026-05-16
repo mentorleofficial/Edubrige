@@ -3,10 +3,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FolderKanban } from "lucide-react";
+import { FolderKanban, Award } from "lucide-react";
 import { Link } from "react-router-dom";
 import InactiveMentorBanner from "@/components/InactiveMentorBanner";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
+import { useMentorBadges } from "@/features/badges/api";
+import BadgeChip from "@/components/badges/BadgeChip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import ProgramBadge from "@/components/programs/ProgramBadge";
 import { useMentorDashboardData } from "@/features/mentor-dashboard/useMentorDashboardData";
 import NextSessionCard from "./mentor/NextSessionCard";
@@ -21,6 +24,7 @@ const MentorDashboard = () => {
   const { user, mentorActive } = useAuth();
   const { data, isLoading } = useMentorDashboardData(user?.id);
   const { data: programs = [] } = useMyPrograms();
+  const { data: badges = [] } = useMentorBadges(user?.id);
 
   const computed = useMemo(() => {
     const sessions = data?.sessions ?? [];
@@ -60,10 +64,23 @@ const MentorDashboard = () => {
   }
 
   return (
+    <TooltipProvider>
     <div className="space-y-6">
       {!mentorActive && <InactiveMentorBanner />}
 
       <NextSessionCard session={computed.next} />
+
+      {badges.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3 flex flex-row items-center gap-2">
+            <Award className="h-5 w-5 text-primary" />
+            <CardTitle className="text-lg">Your badges</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {badges.map((mb) => <BadgeChip key={mb.id} badge={mb.badge} />)}
+          </CardContent>
+        </Card>
+      )}
 
       <MentorStatsRow
         upcoming={computed.upcomingCount}
@@ -112,6 +129,7 @@ const MentorDashboard = () => {
         <RecentActivityFeed sessions={data.sessions} />
       </div>
     </div>
+    </TooltipProvider>
   );
 };
 
