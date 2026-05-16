@@ -122,32 +122,12 @@ const MentorAvailability = () => {
                   <CardTitle className="text-base">Timezone</CardTitle>
                 </div>
                 <CardDescription>
-                  Times below are shown in this timezone. Mentees see your slots converted to theirs.
+                  All times are shown and stored in India Standard Time (IST). Mentees see your slots in IST too.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Label className="sr-only">Timezone</Label>
-                <div className="flex items-center gap-2 max-w-md">
-                  <Select value={timezone} onValueChange={onTimezoneChange}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {TIMEZONES.map((tz) => (
-                        <SelectItem key={tz} value={tz}>
-                          {tz}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onTimezoneChange(detectTimezone())}
-                  >
-                    Detect
-                  </Button>
+                <div className="inline-flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium">
+                  Asia/Kolkata · IST (UTC+5:30)
                 </div>
               </CardContent>
             </Card>
