@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -11,6 +11,11 @@ interface UserProfile {
   full_name: string;
   role: AppRole;
   avatar_url: string | null;
+}
+
+interface CachedAuth {
+  profile: UserProfile;
+  mentorActive: boolean;
 }
 
 interface AuthContextType {
@@ -28,85 +33,130 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const PROFILE_CACHE_KEY = "app:lastProfile";
+const AUTH_CACHE_KEY = "app:lastAuth";
 
-const readCachedProfile = (): UserProfile | null => {
+const readCache = (): CachedAuth | null => {
   try {
-    const raw = localStorage.getItem(PROFILE_CACHE_KEY);
-    return raw ? (JSON.parse(raw) as UserProfile) : null;
+    const raw = localStorage.getItem(AUTH_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as CachedAuth) : null;
   } catch {
     return null;
   }
 };
 
-const writeCachedProfile = (profile: UserProfile | null) => {
+const writeCache = (value: CachedAuth | null) => {
   try {
-    if (profile) localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
-    else localStorage.removeItem(PROFILE_CACHE_KEY);
+    if (value) localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(value));
+    else localStorage.removeItem(AUTH_CACHE_KEY);
   } catch {
     /* noop */
   }
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const cached = readCache();
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(() => readCachedProfile());
-  const [mentorActive, setMentorActive] = useState(true);
-  // Only show loading spinner if we have no cached profile AND no cached session.
-  // This prevents the refresh "flicker" that bounces logged-in users to /login.
-  const [loading, setLoading] = useState(() => !readCachedProfile());
+  const [profile, setProfile] = useState<UserProfile | null>(cached?.profile ?? null);
+  const [mentorActive, setMentorActive] = useState<boolean>(cached?.mentorActive ?? true);
+  // Loading stays true until we have either a confirmed-no-session OR a resolved profile.
+  // Optimistic UI is driven from the cached profile above, not from `loading`.
+  const [loading, setLoading] = useState(true);
+
+  // Dedupe parallel profile fetches across onAuthStateChange + getSession.
+  const fetchingFor = useRef<string | null>(null);
+  const lastFetchedFor = useRef<string | null>(null);
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("users")
-      .select("id, email, full_name, role, avatar_url")
-      .eq("id", userId)
-      .single();
-    setProfile(data);
-    writeCachedProfile(data);
-    if (data?.role === "mentor") {
-      const { data: mp } = await supabase
-        .from("mentor_profiles")
-        .select("is_active")
-        .eq("user_id", userId)
-        .maybeSingle();
-      setMentorActive(!!mp?.is_active);
-    } else {
-      setMentorActive(true);
+    if (fetchingFor.current === userId) return;
+    fetchingFor.current = userId;
+    try {
+      const { data: profileData } = await supabase
+        .from("users")
+        .select("id, email, full_name, role, avatar_url")
+        .eq("id", userId)
+        .single();
+
+      if (!profileData) {
+        setProfile(null);
+        setMentorActive(false);
+        writeCache(null);
+        return;
+      }
+
+      let isActive = true;
+      if (profileData.role === "mentor") {
+        const { data: mp } = await supabase
+          .from("mentor_profiles")
+          .select("is_active")
+          .eq("user_id", userId)
+          .maybeSingle();
+        isActive = !!mp?.is_active;
+      }
+
+      setProfile(profileData);
+      setMentorActive(isActive);
+      writeCache({ profile: profileData, mentorActive: isActive });
+      lastFetchedFor.current = userId;
+    } finally {
+      fetchingFor.current = null;
     }
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          setTimeout(() => fetchProfile(session.user.id), 0);
-        } else {
+      (_event, nextSession) => {
+        if (!mounted) return;
+        setSession(nextSession);
+        setUser(nextSession?.user ?? null);
+        const uid = nextSession?.user?.id ?? null;
+
+        if (!uid) {
           setProfile(null);
           setMentorActive(false);
-          writeCachedProfile(null);
+          writeCache(null);
+          lastFetchedFor.current = null;
+          setLoading(false);
+          return;
         }
-        setLoading(false);
+
+        // Only fetch if the user actually changed; otherwise keep optimistic data.
+        if (uid !== lastFetchedFor.current) {
+          fetchProfile(uid).finally(() => mounted && setLoading(false));
+        } else {
+          setLoading(false);
+        }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        // No session at all → make sure we don't keep stale cached profile around
-        writeCachedProfile(null);
+    supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
+      if (!mounted) return;
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+      const uid = initialSession?.user?.id ?? null;
+
+      if (!uid) {
+        writeCache(null);
         setProfile(null);
+        setMentorActive(false);
+        lastFetchedFor.current = null;
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+
+      if (uid !== lastFetchedFor.current) {
+        fetchProfile(uid).finally(() => mounted && setLoading(false));
+      } else {
+        setLoading(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -127,7 +177,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    // Optionally redirect to IdP logout afterwards
     let logoutUrl: string | null = null;
     try {
       const { data: cfg } = await supabase
@@ -137,21 +186,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .maybeSingle();
       if (cfg?.enabled && cfg.logout_redirect_url) logoutUrl = cfg.logout_redirect_url;
     } catch {
-      /* noop — non-fatal */
+      /* noop */
     }
 
     await supabase.auth.signOut();
     setProfile(null);
     setMentorActive(false);
-    writeCachedProfile(null);
+    writeCache(null);
+    lastFetchedFor.current = null;
 
-    if (logoutUrl) {
-      window.location.href = logoutUrl;
-    }
+    if (logoutUrl) window.location.href = logoutUrl;
   };
 
   const refreshProfile = async () => {
-    if (user) await fetchProfile(user.id);
+    if (user) {
+      lastFetchedFor.current = null;
+      await fetchProfile(user.id);
+    }
   };
 
   return (
