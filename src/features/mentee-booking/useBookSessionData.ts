@@ -115,6 +115,8 @@ export interface BookSessionInput {
   scheduledAt: Date;
   durationMinutes: number;
   notes: string;
+  title: string;
+  topic?: string;
   rescheduleId?: string | null;
 }
 export interface BookSessionResult {
