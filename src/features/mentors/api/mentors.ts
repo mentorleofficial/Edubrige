@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 export interface MentorWithProfile {
   id: string;
   full_name: string;
-  email: string;
   avatar_url: string | null;
   mentor_profiles: {
     bio: string | null;
@@ -14,17 +13,22 @@ export interface MentorWithProfile {
 
 /**
  * Fetch all active mentors with their public profile data.
- * Single source of truth for the mentor directory query.
+ * Uses the `list_public_mentors` security-definer RPC so we never
+ * expose private columns (email, phone, resume_url) to authenticated users.
  */
 export async function fetchActiveMentors(): Promise<MentorWithProfile[]> {
-  const { data, error } = await supabase
-    .from("users")
-    .select(
-      "id, full_name, email, avatar_url, mentor_profiles!inner(bio, expertise, years_experience, is_active)"
-    )
-    .eq("role", "mentor")
-    .eq("mentor_profiles.is_active", true);
-
+  const { data, error } = await supabase.rpc("list_public_mentors");
   if (error) throw error;
-  return (data as unknown as MentorWithProfile[]) ?? [];
+  return (data ?? []).map((row: any) => ({
+    id: row.user_id,
+    full_name: row.full_name,
+    avatar_url: row.avatar_url,
+    mentor_profiles: [
+      {
+        bio: row.bio,
+        expertise: row.expertise,
+        years_experience: row.years_experience,
+      },
+    ],
+  }));
 }
