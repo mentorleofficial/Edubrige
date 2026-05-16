@@ -104,17 +104,19 @@ const AppSidebar = () => {
   const initials = profile?.full_name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "?";
 
   return (
-    <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border p-4">
-        <div className="flex items-center gap-3">
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="border-b border-sidebar-border p-4 group-data-[collapsible=icon]:p-2">
+        <div className="flex items-center gap-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0">
           {branding.logo_url ? (
-            <img src={branding.logo_url} alt={branding.app_name} className="h-8 w-8 rounded" />
+            <img src={branding.logo_url} alt={branding.app_name} className="h-8 w-8 rounded shrink-0" />
           ) : (
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-sidebar-primary text-sidebar-primary-foreground font-bold text-sm">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded bg-sidebar-primary text-sidebar-primary-foreground font-bold text-sm">
               M
             </div>
           )}
-          <span className="font-semibold text-sidebar-foreground text-sm">{branding.app_name}</span>
+          <span className="font-semibold text-sidebar-foreground text-sm truncate group-data-[collapsible=icon]:hidden">
+            {branding.app_name}
+          </span>
         </div>
       </SidebarHeader>
 
@@ -127,16 +129,28 @@ const AppSidebar = () => {
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     isActive={location.pathname === item.path}
+                    tooltip={item.badge ? `${item.title} (${item.badge})` : item.title}
                     onClick={() => {
                       if (item.href) window.open(item.href, "_blank", "noopener,noreferrer");
                       else navigate(item.path);
                     }}
                     className="gap-3"
                   >
-                    <item.icon className="h-4 w-4" />
-                    <span className="flex-1">{item.title}</span>
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 truncate">{item.title}</span>
                     {item.badge ? (
-                      <Badge variant="secondary" className="h-5 min-w-5 px-1.5 text-xs">{item.badge}</Badge>
+                      <Badge
+                        variant="secondary"
+                        className="h-5 min-w-5 px-1.5 text-xs group-data-[collapsible=icon]:hidden"
+                      >
+                        {item.badge}
+                      </Badge>
+                    ) : null}
+                    {item.badge ? (
+                      <span
+                        aria-hidden
+                        className="hidden group-data-[collapsible=icon]:block absolute top-1 right-1 h-2 w-2 rounded-full bg-sidebar-primary ring-2 ring-sidebar"
+                      />
                     ) : null}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -146,15 +160,15 @@ const AppSidebar = () => {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-4">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
+      <SidebarFooter className="border-t border-sidebar-border p-4 group-data-[collapsible=icon]:p-2">
+        <div className="flex items-center gap-3 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:gap-2">
+          <Avatar className="h-8 w-8 shrink-0">
             <AvatarImage src={profile?.avatar_url || undefined} />
             <AvatarFallback className="text-xs bg-sidebar-accent text-sidebar-accent-foreground">
               {initials}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
             <p className="text-sm font-medium text-sidebar-foreground truncate">{profile?.full_name}</p>
             <p className="text-xs text-sidebar-foreground/60 capitalize">
               {profile?.role}{role === "mentor" && !mentorActive ? " · inactive" : ""}
@@ -163,6 +177,8 @@ const AppSidebar = () => {
           <button
             onClick={() => signOut().then(() => navigate("/login"))}
             className="text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+            title="Sign out"
+            aria-label="Sign out"
           >
             <LogOut className="h-4 w-4" />
           </button>
