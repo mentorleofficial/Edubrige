@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ArrowLeft, Calendar, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-fetchProgramBySlug,
+import {
+  fetchProgramBySlug,
   fetchProgramMentors,
   fetchProgramMentees,
   fetchProgramTags,
