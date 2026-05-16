@@ -301,8 +301,8 @@ const BookSession = () => {
         </div>
 
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Globe className="h-3 w-3" /> Times shown in mentor's timezone:{" "}
-          <span className="font-medium">{timezone}</span>
+          <Globe className="h-3 w-3" /> All times shown in{" "}
+          <span className="font-medium">India Standard Time (IST)</span>
         </p>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
