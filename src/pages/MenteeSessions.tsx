@@ -234,6 +234,29 @@ const MenteeSessions = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!actionItemsTarget} onOpenChange={(o) => !o && setActionItemsTarget(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {actionItemsTarget?.title || "Action items"}
+              {actionItemsTarget?.mentor?.full_name ? ` · ${actionItemsTarget.mentor.full_name}` : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Follow-up tasks shared by your mentor. Check them off as you complete them.
+            </DialogDescription>
+          </DialogHeader>
+          {actionItemsTarget && user && (
+            <SessionActionItemsPanel
+              sessionId={actionItemsTarget.id}
+              mentorId={actionItemsTarget.mentor_id}
+              menteeId={user.id}
+              currentUserId={user.id}
+              role="mentee"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
