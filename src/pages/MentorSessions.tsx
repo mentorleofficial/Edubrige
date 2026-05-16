@@ -87,15 +87,21 @@ const MentorSessions = () => {
   }, [sessions]);
 
   const renderRows = (rows: MentorSessionRow[], isUpcoming: boolean) => {
-    if (isLoading) return <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>;
-    if (rows.length === 0) return <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No sessions</TableCell></TableRow>;
+    if (isLoading) return <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>;
+    if (rows.length === 0) return <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No sessions</TableCell></TableRow>;
     return rows.map((s) => {
       const progs = menteePrograms[s.mentee_id] || [];
-      const hasDetails = !!(s.mentee_notes || s.notes || s.meeting_url || s.cancellation_reason);
+      const hasDetails = !!(s.mentee_notes || s.notes || s.meeting_url || s.cancellation_reason || s.topic);
       return (
         <Fragment key={s.id}>
           <TableRow>
             <TableCell className="font-medium">{s.mentee?.full_name || "Unknown"}</TableCell>
+            <TableCell>
+              <div className="flex flex-col">
+                <span className="font-medium text-sm">{s.title || <span className="text-muted-foreground italic">Untitled</span>}</span>
+                {s.topic && <span className="text-xs text-muted-foreground truncate max-w-[18rem]">{s.topic}</span>}
+              </div>
+            </TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
                 {progs.length === 0 ? <span className="text-xs text-muted-foreground">—</span>
