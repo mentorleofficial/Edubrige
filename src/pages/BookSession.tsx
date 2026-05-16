@@ -513,7 +513,7 @@ const BookSession = () => {
               <AlertDialogDescription>
                 {selectedDate && selectedTime && (
                   <>Book a session with <strong>{mentor.full_name}</strong> on{" "}
-                  <strong>{format(selectedDate, "PPP")} at {formatSlotLabel(selectedTime)}</strong>
+                  <strong>{formatIST(selectedDate, "d MMM yyyy")} at {formatSlotLabel(selectedTime)} IST</strong>
                   {slotEndForSelected && <> – {formatSlotLabel(slotEndForSelected)}</>}?</>
                 )}
               </AlertDialogDescription>
