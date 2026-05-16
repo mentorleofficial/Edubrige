@@ -10,6 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import BadgeChip from "@/components/badges/BadgeChip";
+import SocialShareButtons from "@/components/SocialShareButtons";
+import { useMentorBadges } from "@/features/badges/api";
 import {
   Briefcase,
   GraduationCap,
@@ -78,6 +82,7 @@ const PublicMentorProfile = () => {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [rating, setRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
+  const { data: mentorBadges = [] } = useMentorBadges(mentor?.user_id);
 
   useEffect(() => {
     const fetch = async () => {
