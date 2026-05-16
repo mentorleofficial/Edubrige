@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -6,72 +6,64 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, Globe } from "lucide-react";
-import {
-  fetchWeeklySlots,
-  fetchOverrides,
-  fetchTimezone,
-  updateTimezone,
-  addSlot,
-  updateSlot,
-  deleteSlot,
-  deleteSlotsForDay,
-  copySlotsToDays,
-  addOverride,
-  deleteOverride,
-  type WeeklySlot,
-  type DateOverride,
-} from "@/features/availability/api/availability";
+import type { WeeklySlot, DateOverride } from "@/features/availability/api/availability";
 import { DAYS_FULL, TIMEZONES, normalizeHHMM, detectTimezone } from "@/features/availability/timeUtils";
 import { Button } from "@/components/ui/button";
 import { DayRow } from "@/features/availability/components/DayRow";
 import { OverrideList } from "@/features/availability/components/OverrideList";
 import { AvailabilityPreview } from "@/features/availability/components/AvailabilityPreview";
-
-type SaveState = "idle" | "saving" | "saved";
+import {
+  useMentorAvailability,
+  useAvailabilityMutations,
+} from "@/features/mentor-availability/useMentorAvailability";
 
 const MentorAvailability = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [slots, setSlots] = useState<WeeklySlot[]>([]);
-  const [overrides, setOverrides] = useState<DateOverride[]>([]);
-  const [timezone, setTimezone] = useState<string>("UTC");
-  const [loading, setLoading] = useState(true);
-  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const { data, isLoading, isFetching } = useMentorAvailability(user?.id);
+  const slots = data?.slots ?? [];
+  const overrides = data?.overrides ?? [];
+  const timezone = data?.timezone ?? "UTC";
+
+  const m = useAvailabilityMutations(user?.id);
   const autoDetectedRef = useRef(false);
 
-  const flashSaved = () => {
-    setSaveState("saved");
-    setTimeout(() => setSaveState("idle"), 1200);
-  };
+  const anyPending =
+    m.addSlot.isPending ||
+    m.updateSlot.isPending ||
+    m.deleteSlot.isPending ||
+    m.deleteSlotsForDay.isPending ||
+    m.copySlotsToDays.isPending ||
+    m.updateTimezone.isPending ||
+    m.addOverride.isPending ||
+    m.deleteOverride.isPending;
+
+  const showSaving = anyPending || (isFetching && !isLoading);
+  const showSaved = !anyPending && !isFetching && !isLoading;
 
   const handleError = (e: unknown) => {
     const message = e instanceof Error ? e.message : "Something went wrong";
-    setSaveState("idle");
     toast({ variant: "destructive", title: "Save failed", description: message });
   };
 
-  const refresh = async () => {
-    if (!user) return;
-    const [w, o, tz] = await Promise.all([
-      fetchWeeklySlots(user.id),
-      fetchOverrides(user.id),
-      fetchTimezone(user.id),
-    ]);
-    setSlots(w);
-    setOverrides(o);
-    setTimezone(tz);
-  };
+  const slotsByDay = useMemo(() => {
+    const map: Record<number, WeeklySlot[]> = {};
+    for (let i = 0; i < 7; i++) map[i] = [];
+    for (const s of slots) map[s.day_of_week].push(s);
+    for (const k of Object.keys(map)) {
+      map[Number(k)].sort((a, b) =>
+        normalizeHHMM(a.start_time).localeCompare(normalizeHHMM(b.start_time))
+      );
+    }
+    return map;
+  }, [slots]);
 
-  useEffect(() => {
-    if (!user) return;
-    setLoading(true);
-    refresh().finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  const onTimezoneChange = (tz: string) =>
+    m.updateTimezone.mutate(tz, { onError: handleError });
 
   // Auto-detect mentor's timezone on first load if it's still the default UTC.
   useEffect(() => {
-    if (loading || !user || autoDetectedRef.current) return;
+    if (isLoading || !user || autoDetectedRef.current) return;
     if (timezone === "UTC") {
       const detected = detectTimezone();
       if (detected && detected !== "UTC") {
@@ -80,88 +72,43 @@ const MentorAvailability = () => {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, timezone, user]);
+  }, [isLoading, timezone, user]);
 
-  const slotsByDay = useMemo(() => {
-    const m: Record<number, WeeklySlot[]> = {};
-    for (let i = 0; i < 7; i++) m[i] = [];
-    for (const s of slots) m[s.day_of_week].push(s);
-    for (const k of Object.keys(m)) {
-      m[Number(k)].sort((a, b) =>
-        normalizeHHMM(a.start_time).localeCompare(normalizeHHMM(b.start_time))
+  const onAdd = (day: number, start: string, end: string) =>
+    m.addSlot.mutate(
+      { day_of_week: day, start_time: start, end_time: end },
+      { onError: handleError }
+    );
+
+  const onUpdate = (id: string, patch: { start_time?: string; end_time?: string }) =>
+    m.updateSlot.mutate({ id, patch }, { onError: handleError });
+
+  const onRemove = (id: string) => m.deleteSlot.mutate(id, { onError: handleError });
+
+  const onToggleDay = (day: number, enabled: boolean) => {
+    if (enabled) {
+      m.addSlot.mutate(
+        { day_of_week: day, start_time: "09:00", end_time: "17:00" },
+        { onError: handleError }
       );
-    }
-    return m;
-  }, [slots]);
-
-  // ---- Mutations ----
-
-  const wrap = async (op: () => Promise<void>) => {
-    setSaveState("saving");
-    try {
-      await op();
-      await refresh();
-      flashSaved();
-    } catch (e) {
-      handleError(e);
+    } else {
+      m.deleteSlotsForDay.mutate(day, { onError: handleError });
     }
   };
 
-  const onAdd = (day: number, start: string, end: string) =>
-    wrap(async () => {
-      if (!user) return;
-      await addSlot({
-        mentor_id: user.id,
-        day_of_week: day,
-        start_time: start,
-        end_time: end,
-      });
-    });
-
-  const onUpdate = (id: string, patch: { start_time?: string; end_time?: string }) =>
-    wrap(() => updateSlot(id, patch));
-
-  const onRemove = (id: string) => wrap(() => deleteSlot(id));
-
-  const onToggleDay = (day: number, enabled: boolean) =>
-    wrap(async () => {
-      if (!user) return;
-      if (enabled) {
-        await addSlot({
-          mentor_id: user.id,
-          day_of_week: day,
-          start_time: "09:00",
-          end_time: "17:00",
-        });
-      } else {
-        await deleteSlotsForDay(user.id, day);
-      }
-    });
-
-  const onCopy = (sourceDay: number, targetDays: number[]) =>
-    wrap(async () => {
-      if (!user) return;
-      const source = slotsByDay[sourceDay].map((s) => ({
-        start_time: normalizeHHMM(s.start_time),
-        end_time: normalizeHHMM(s.end_time),
-      }));
-      if (source.length === 0) return;
-      await copySlotsToDays(user.id, source, targetDays);
-    });
-
-  const onTimezoneChange = (tz: string) =>
-    wrap(async () => {
-      if (!user) return;
-      await updateTimezone(user.id, tz);
-    });
+  const onCopy = (sourceDay: number, targetDays: number[]) => {
+    const source = slotsByDay[sourceDay].map((s) => ({
+      start_time: normalizeHHMM(s.start_time),
+      end_time: normalizeHHMM(s.end_time),
+    }));
+    if (source.length === 0) return;
+    m.copySlotsToDays.mutate({ sourceSlots: source, targetDays }, { onError: handleError });
+  };
 
   const onAddOverride = (input: Omit<DateOverride, "id" | "mentor_id">) =>
-    wrap(async () => {
-      if (!user) return;
-      await addOverride({ ...input, mentor_id: user.id });
-    });
+    m.addOverride.mutate(input, { onError: handleError });
 
-  const onRemoveOverride = (id: string) => wrap(() => deleteOverride(id));
+  const onRemoveOverride = (id: string) => m.deleteOverride.mutate(id, { onError: handleError });
 
   return (
     <AppLayout>
@@ -174,12 +121,12 @@ const MentorAvailability = () => {
             </p>
           </div>
           <div className="h-6 flex items-center text-xs text-muted-foreground">
-            {saveState === "saving" && (
+            {showSaving && (
               <span className="flex items-center gap-1">
                 <Loader2 className="h-3 w-3 animate-spin" /> Saving…
               </span>
             )}
-            {saveState === "saved" && (
+            {!showSaving && showSaved && slots.length + overrides.length > 0 && (
               <span className="flex items-center gap-1 text-primary">
                 <CheckCircle2 className="h-3 w-3" /> Saved
               </span>
@@ -234,7 +181,7 @@ const MentorAvailability = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {loading ? (
+                {isLoading ? (
                   <div className="flex items-center gap-2 text-muted-foreground text-sm py-6">
                     <Loader2 className="h-4 w-4 animate-spin" /> Loading…
                   </div>
