@@ -9,6 +9,8 @@ export interface MentorSessionRow {
   scheduled_at: string;
   duration_minutes: number;
   status: SessionStatus;
+  title: string;
+  topic: string;
   notes: string | null;
   mentee_notes: string;
   meeting_url: string;
@@ -25,7 +27,7 @@ async function fetchMentorSessions(userId: string): Promise<MentorSessionRow[]> 
   const { data, error } = await supabase
     .from("sessions")
     .select(
-      "id, scheduled_at, duration_minutes, status, notes, mentee_notes, meeting_url, cancellation_reason, mentee_id, cancelled_at, mentee:users!sessions_mentee_id_fkey(full_name, avatar_url)"
+      "id, scheduled_at, duration_minutes, status, title, topic, notes, mentee_notes, meeting_url, cancellation_reason, mentee_id, cancelled_at, mentee:users!sessions_mentee_id_fkey(full_name, avatar_url)"
     )
     .eq("mentor_id", userId)
     .order("scheduled_at", { ascending: false });
