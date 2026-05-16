@@ -23,7 +23,6 @@ const MentorAvailability = () => {
   const timezone = "Asia/Kolkata";
 
   const m = useAvailabilityMutations(user?.id);
-  const autoDetectedRef = useRef(false);
 
   const anyPending =
     m.addSlot.isPending ||
@@ -31,7 +30,6 @@ const MentorAvailability = () => {
     m.deleteSlot.isPending ||
     m.deleteSlotsForDay.isPending ||
     m.copySlotsToDays.isPending ||
-    m.updateTimezone.isPending ||
     m.addOverride.isPending ||
     m.deleteOverride.isPending;
 
@@ -54,22 +52,6 @@ const MentorAvailability = () => {
     }
     return map;
   }, [slots]);
-
-  const onTimezoneChange = (tz: string) =>
-    m.updateTimezone.mutate(tz, { onError: handleError });
-
-  // Auto-detect mentor's timezone on first load if it's still the default UTC.
-  useEffect(() => {
-    if (isLoading || !user || autoDetectedRef.current) return;
-    if (timezone === "UTC") {
-      const detected = detectTimezone();
-      if (detected && detected !== "UTC") {
-        autoDetectedRef.current = true;
-        onTimezoneChange(detected);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, timezone, user]);
 
   const onAdd = (day: number, start: string, end: string) =>
     m.addSlot.mutate(
