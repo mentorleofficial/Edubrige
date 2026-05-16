@@ -1,3 +1,4 @@
+import { formatISTDateTime } from "@/lib/datetime";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -6,8 +7,6 @@ import { Link } from "react-router-dom";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import type { DashSession } from "@/features/mentee-dashboard/useMenteeDashboardData";
 import { memo, useEffect, useState } from "react";
-import { formatISTDateTime } from "@/lib/datetime";
-
 const fmtCountdown = (ms: number) => {
   if (ms <= 0) return "Starting now";
   const m = Math.floor(ms / 60000);

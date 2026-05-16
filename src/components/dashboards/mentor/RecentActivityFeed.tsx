@@ -1,8 +1,7 @@
+import { formatISTDate } from "@/lib/datetime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, CalendarPlus, CheckCircle2, XCircle } from "lucide-react";
 import type { MentorDashSession } from "@/features/mentor-dashboard/useMentorDashboardData";
-import { formatISTDate } from "@/lib/datetime";
-
 type Evt = {
   ts: number;
   icon: typeof Activity;

@@ -1,11 +1,10 @@
+import { formatISTDate } from "@/lib/datetime";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Calendar, Users } from "lucide-react";
 import type { ProgramWithCounts } from "@/features/programs/api";
-import { formatISTDate } from "@/lib/datetime";
-
 type Props = {
   program: ProgramWithCounts;
   basePath: "/mentor/programs" | "/mentee/programs";

@@ -1,3 +1,4 @@
+import { import { formatISTDate } from "@/lib/datetime";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
@@ -7,9 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ArrowLeft, Calendar, Users } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-import { formatISTDate } from "@/lib/datetime";
-  fetchProgramBySlug,
+fetchProgramBySlug,
   fetchProgramMentors,
   fetchProgramMentees,
   fetchProgramTags,

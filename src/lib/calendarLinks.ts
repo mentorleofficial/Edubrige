@@ -1,6 +1,5 @@
-// Helpers for "Add to Calendar" — universal .ics download and Google Calendar quick-add link.
 import { formatISTDateTime } from "@/lib/datetime";
-
+// Helpers for "Add to Calendar" — universal .ics download and Google Calendar quick-add link.
 export interface CalendarEventInput {
   title: string;
   description?: string;

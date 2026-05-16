@@ -1,3 +1,4 @@
+import { formatISTDate } from "@/lib/datetime";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
@@ -9,8 +10,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Calendar, Users, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchMenteeProgramOverview } from "@/features/programs/api";
-import { formatISTDate } from "@/lib/datetime";
-
 const initials = (n: string) =>
   n.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase() || "?";
 

@@ -1,3 +1,4 @@
+import { formatISTDate, formatISTTime } from "@/lib/datetime";
 import { memo, useMemo, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -5,8 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { CalendarDays } from "lucide-react";
 import type { DashSession } from "@/features/mentee-dashboard/useMenteeDashboardData";
 import { cn } from "@/lib/utils";
-import { formatISTDate, formatISTTime } from "@/lib/datetime";
-
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
   a.getMonth() === b.getMonth() &&

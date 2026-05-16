@@ -1,3 +1,4 @@
+import { formatISTDateTime } from "@/lib/datetime";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,8 +10,6 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Send } from "lucide-react";
-import { formatISTDateTime } from "@/lib/datetime";
-
 interface OutboundEvent {
   id: string;
   event_type: string;

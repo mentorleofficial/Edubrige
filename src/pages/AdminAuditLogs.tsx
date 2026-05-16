@@ -1,3 +1,4 @@
+import { formatISTDateTime } from "@/lib/datetime";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
@@ -7,8 +8,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
-import { formatISTDateTime } from "@/lib/datetime";
-
 type AuditLog = Database["public"]["Tables"]["audit_logs"]["Row"];
 
 const AdminAuditLogs = () => {

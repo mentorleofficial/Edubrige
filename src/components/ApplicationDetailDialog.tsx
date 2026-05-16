@@ -1,3 +1,4 @@
+import { formatISTDate } from "@/lib/datetime";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,8 +11,6 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { ExternalLink, FileText, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
-import { formatISTDate } from "@/lib/datetime";
-
 type Application = Database["public"]["Tables"]["mentor_applications"]["Row"];
 
 interface Props {
