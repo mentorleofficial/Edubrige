@@ -14,9 +14,11 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, X, RefreshCw, ExternalLink, Copy, Video, Star } from "lucide-react";
+import { MessageSquare, X, RefreshCw, ExternalLink, Copy, Video, Star, ListTodo } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import ProgramBadge from "@/components/programs/ProgramBadge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import SessionActionItemsPanel from "@/components/sessions/SessionActionItemsPanel";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import {
   useMenteeSessions,
