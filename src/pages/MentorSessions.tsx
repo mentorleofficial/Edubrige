@@ -13,8 +13,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle2, X, UserX, Link2, FileEdit, Video, Star } from "lucide-react";
+import { CheckCircle2, X, UserX, Link2, FileEdit, Video, Star, ListTodo } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
+import SessionActionItemsPanel from "@/components/sessions/SessionActionItemsPanel";
 import ProgramBadge from "@/components/programs/ProgramBadge";
 import {
   useMentorSessions,
