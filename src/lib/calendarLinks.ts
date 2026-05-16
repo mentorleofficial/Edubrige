@@ -36,6 +36,8 @@ export function buildIcsContent(e: CalendarEventInput): string {
   const dtStart = toCalDate(e.startISO);
   const dtEnd = toCalDate(addMinutes(e.startISO, e.durationMinutes));
   const dtStamp = toCalDate(new Date().toISOString());
+  const istLine = `Scheduled: ${formatISTDateTime(e.startISO)}`;
+  const fullDescription = e.description ? `${istLine}\n\n${e.description}` : istLine;
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -48,7 +50,7 @@ export function buildIcsContent(e: CalendarEventInput): string {
     `DTSTART:${dtStart}`,
     `DTEND:${dtEnd}`,
     `SUMMARY:${escapeIcs(e.title)}`,
-    e.description ? `DESCRIPTION:${escapeIcs(e.description)}` : "",
+    `DESCRIPTION:${escapeIcs(fullDescription)}`,
     e.location ? `LOCATION:${escapeIcs(e.location)}` : "",
     "END:VEVENT",
     "END:VCALENDAR",
