@@ -1,14 +1,11 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, Globe } from "lucide-react";
 import type { WeeklySlot, DateOverride } from "@/features/availability/api/availability";
-import { DAYS_FULL, TIMEZONES, normalizeHHMM, detectTimezone } from "@/features/availability/timeUtils";
-import { Button } from "@/components/ui/button";
+import { DAYS_FULL, normalizeHHMM } from "@/features/availability/timeUtils";
 import { DayRow } from "@/features/availability/components/DayRow";
 import { OverrideList } from "@/features/availability/components/OverrideList";
 import { AvailabilityPreview } from "@/features/availability/components/AvailabilityPreview";
@@ -23,7 +20,7 @@ const MentorAvailability = () => {
   const { data, isLoading, isFetching } = useMentorAvailability(user?.id);
   const slots = data?.slots ?? [];
   const overrides = data?.overrides ?? [];
-  const timezone = data?.timezone ?? "UTC";
+  const timezone = "Asia/Kolkata";
 
   const m = useAvailabilityMutations(user?.id);
   const autoDetectedRef = useRef(false);
