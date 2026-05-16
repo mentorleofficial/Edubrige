@@ -645,6 +645,59 @@ export type Database = {
         }
         Relationships: []
       }
+      session_action_items: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          description: string
+          due_date: string | null
+          id: string
+          mentee_id: string
+          mentor_id: string
+          session_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          mentee_id: string
+          mentor_id: string
+          session_id: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          mentee_id?: string
+          mentor_id?: string
+          session_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "session_action_items_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sessions: {
         Row: {
           cancellation_reason: string
@@ -660,6 +713,8 @@ export type Database = {
           notes: string | null
           scheduled_at: string
           status: Database["public"]["Enums"]["session_status"]
+          title: string
+          topic: string
         }
         Insert: {
           cancellation_reason?: string
@@ -675,6 +730,8 @@ export type Database = {
           notes?: string | null
           scheduled_at: string
           status?: Database["public"]["Enums"]["session_status"]
+          title?: string
+          topic?: string
         }
         Update: {
           cancellation_reason?: string
@@ -690,6 +747,8 @@ export type Database = {
           notes?: string | null
           scheduled_at?: string
           status?: Database["public"]["Enums"]["session_status"]
+          title?: string
+          topic?: string
         }
         Relationships: [
           {

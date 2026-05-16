@@ -14,9 +14,11 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, X, RefreshCw, ExternalLink, Copy, Video, Star } from "lucide-react";
+import { MessageSquare, X, RefreshCw, ExternalLink, Copy, Video, Star, ListTodo } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import ProgramBadge from "@/components/programs/ProgramBadge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import SessionActionItemsPanel from "@/components/sessions/SessionActionItemsPanel";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import {
   useMenteeSessions,
@@ -57,6 +59,7 @@ const MenteeSessions = () => {
   const cancelMutation = useCancelMenteeSession(user?.id);
   const [cancelTarget, setCancelTarget] = useState<MenteeSessionRow | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [actionItemsTarget, setActionItemsTarget] = useState<MenteeSessionRow | null>(null);
 
   const now = new Date();
   const upcoming = sessions.filter((s) => s.status === "booked" && new Date(s.scheduled_at) >= now);
@@ -80,15 +83,21 @@ const MenteeSessions = () => {
   };
 
   const renderRows = (rows: MenteeSessionRow[], isUpcoming: boolean) => {
-    if (isLoading) return <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>;
-    if (rows.length === 0) return <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No sessions</TableCell></TableRow>;
+    if (isLoading) return <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>;
+    if (rows.length === 0) return <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No sessions</TableCell></TableRow>;
     return rows.map((s) => {
       const progs = mentorPrograms[s.mentor_id] || [];
-      const hasDetails = !!(s.mentee_notes || s.notes || s.meeting_url || s.cancellation_reason);
+      const hasDetails = !!(s.mentee_notes || s.notes || s.meeting_url || s.cancellation_reason || s.topic);
       return (
         <Fragment key={s.id}>
           <TableRow>
             <TableCell className="font-medium">{s.mentor?.full_name || "Unknown"}</TableCell>
+            <TableCell>
+              <div className="flex flex-col">
+                <span className="font-medium text-sm">{s.title || <span className="text-muted-foreground italic">Untitled</span>}</span>
+                {s.topic && <span className="text-xs text-muted-foreground truncate max-w-[18rem]">{s.topic}</span>}
+              </div>
+            </TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
                 {progs.length === 0 ? <span className="text-xs text-muted-foreground">—</span>
@@ -139,12 +148,16 @@ const MenteeSessions = () => {
                     </Button>
                   )
                 )}
+                <Button variant="ghost" size="sm" onClick={() => setActionItemsTarget(s)}>
+                  <ListTodo className="mr-1 h-3 w-3" />Tasks
+                </Button>
               </div>
             </TableCell>
           </TableRow>
           {hasDetails && (
             <TableRow className="bg-muted/30">
-              <TableCell colSpan={6} className="py-3 space-y-2 text-sm">
+              <TableCell colSpan={7} className="py-3 space-y-2 text-sm">
+                {s.topic && <div><span className="font-medium">Topic:</span> {s.topic}</div>}
                 {s.meeting_url && (
                   <div className="flex items-center gap-2">
                     <span className="font-medium">Meeting link:</span>
@@ -184,6 +197,7 @@ const MenteeSessions = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Mentor</TableHead>
+                        <TableHead>Title</TableHead>
                         <TableHead>Program</TableHead>
                         <TableHead>Date & Time</TableHead>
                         <TableHead>Duration</TableHead>
@@ -220,6 +234,29 @@ const MenteeSessions = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!actionItemsTarget} onOpenChange={(o) => !o && setActionItemsTarget(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {actionItemsTarget?.title || "Action items"}
+              {actionItemsTarget?.mentor?.full_name ? ` · ${actionItemsTarget.mentor.full_name}` : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Follow-up tasks shared by your mentor. Check them off as you complete them.
+            </DialogDescription>
+          </DialogHeader>
+          {actionItemsTarget && user && (
+            <SessionActionItemsPanel
+              sessionId={actionItemsTarget.id}
+              mentorId={actionItemsTarget.mentor_id}
+              menteeId={user.id}
+              currentUserId={user.id}
+              role="mentee"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };

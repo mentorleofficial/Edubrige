@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -80,6 +81,8 @@ const BookSession = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [topic, setTopic] = useState("");
   const [notes, setNotes] = useState("");
   const [bookedSession, setBookedSession] = useState<{ scheduledAt: Date; meetingUrl: string } | null>(null);
 
@@ -148,6 +151,8 @@ const BookSession = () => {
         scheduledAt,
         durationMinutes: 30,
         notes,
+        title: title.trim() || `Session with ${mentor?.full_name ?? "mentor"}`,
+        topic: topic.trim(),
         rescheduleId,
       });
 
@@ -443,6 +448,32 @@ const BookSession = () => {
                   {selectedTime && (
                     <div className="space-y-3 border-t pt-4">
                       <div>
+                        <Label htmlFor="session-title" className="text-sm">
+                          Session title <span className="text-destructive">*</span>
+                        </Label>
+                        <Input
+                          id="session-title"
+                          className="mt-2"
+                          placeholder="e.g. Resume review · 30 min"
+                          value={title}
+                          onChange={(e) => setTitle(e.target.value)}
+                          maxLength={120}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="session-topic" className="text-sm">
+                          Topic (optional)
+                        </Label>
+                        <Input
+                          id="session-topic"
+                          className="mt-2"
+                          placeholder="e.g. Career change to product"
+                          value={topic}
+                          onChange={(e) => setTopic(e.target.value)}
+                          maxLength={120}
+                        />
+                      </div>
+                      <div>
                         <Label htmlFor="notes" className="flex items-center gap-2 text-sm">
                           <Info className="h-3.5 w-3.5" /> What would you like to discuss? (optional)
                         </Label>
@@ -452,7 +483,12 @@ const BookSession = () => {
                           value={notes} onChange={(e) => setNotes(e.target.value)}
                         />
                       </div>
-                      <Button className="w-full" size="lg" onClick={() => setConfirmOpen(true)} disabled={booking}>
+                      <Button
+                        className="w-full"
+                        size="lg"
+                        onClick={() => setConfirmOpen(true)}
+                        disabled={booking || !title.trim()}
+                      >
                         {rescheduleId ? "Reschedule to this slot" : "Confirm Booking"}
                       </Button>
                     </div>

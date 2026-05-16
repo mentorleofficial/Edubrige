@@ -13,8 +13,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle2, X, UserX, Link2, FileEdit, Video, Star } from "lucide-react";
+import { CheckCircle2, X, UserX, Link2, FileEdit, Video, Star, ListTodo } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
+import SessionActionItemsPanel from "@/components/sessions/SessionActionItemsPanel";
 import ProgramBadge from "@/components/programs/ProgramBadge";
 import {
   useMentorSessions,
@@ -45,17 +46,28 @@ const MentorSessions = () => {
   const [editing, setEditing] = useState<MentorSessionRow | null>(null);
   const [editNotes, setEditNotes] = useState("");
   const [editMeetingUrl, setEditMeetingUrl] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editTopic, setEditTopic] = useState("");
+  const [actionItemsTarget, setActionItemsTarget] = useState<MentorSessionRow | null>(null);
 
   const openEdit = (s: MentorSessionRow) => {
     setEditing(s);
     setEditNotes(s.notes || "");
     setEditMeetingUrl(s.meeting_url || "");
+    setEditTitle(s.title || "");
+    setEditTopic(s.topic || "");
   };
 
   const saveEdit = () => {
     if (!editing) return;
     updateDetails.mutate(
-      { id: editing.id, notes: editNotes, meeting_url: editMeetingUrl },
+      {
+        id: editing.id,
+        notes: editNotes,
+        meeting_url: editMeetingUrl,
+        title: editTitle,
+        topic: editTopic,
+      },
       { onSuccess: () => setEditing(null) }
     );
   };
@@ -75,15 +87,21 @@ const MentorSessions = () => {
   }, [sessions]);
 
   const renderRows = (rows: MentorSessionRow[], isUpcoming: boolean) => {
-    if (isLoading) return <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>;
-    if (rows.length === 0) return <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No sessions</TableCell></TableRow>;
+    if (isLoading) return <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>;
+    if (rows.length === 0) return <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No sessions</TableCell></TableRow>;
     return rows.map((s) => {
       const progs = menteePrograms[s.mentee_id] || [];
-      const hasDetails = !!(s.mentee_notes || s.notes || s.meeting_url || s.cancellation_reason);
+      const hasDetails = !!(s.mentee_notes || s.notes || s.meeting_url || s.cancellation_reason || s.topic);
       return (
         <Fragment key={s.id}>
           <TableRow>
             <TableCell className="font-medium">{s.mentee?.full_name || "Unknown"}</TableCell>
+            <TableCell>
+              <div className="flex flex-col">
+                <span className="font-medium text-sm">{s.title || <span className="text-muted-foreground italic">Untitled</span>}</span>
+                {s.topic && <span className="text-xs text-muted-foreground truncate max-w-[18rem]">{s.topic}</span>}
+              </div>
+            </TableCell>
             <TableCell>
               <div className="flex flex-wrap gap-1">
                 {progs.length === 0 ? <span className="text-xs text-muted-foreground">—</span>
@@ -138,15 +156,19 @@ const MentorSessions = () => {
                     </Button>
                   )
                 )}
+                <Button variant="ghost" size="sm" onClick={() => setActionItemsTarget(s)}>
+                  <ListTodo className="mr-1 h-3 w-3" />Action items
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
-                  <FileEdit className="mr-1 h-3 w-3" />Notes/Link
+                  <FileEdit className="mr-1 h-3 w-3" />Edit
                 </Button>
               </div>
             </TableCell>
           </TableRow>
           {hasDetails && (
             <TableRow className="bg-muted/30">
-              <TableCell colSpan={6} className="py-3 space-y-2 text-sm">
+              <TableCell colSpan={7} className="py-3 space-y-2 text-sm">
+                {s.topic && <div><span className="font-medium">Topic:</span> {s.topic}</div>}
                 {s.meeting_url && (
                   <div className="flex items-center gap-2">
                     <Link2 className="h-3 w-3 text-primary" />
@@ -181,6 +203,7 @@ const MentorSessions = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Mentee</TableHead>
+                        <TableHead>Title</TableHead>
                         <TableHead>Program</TableHead>
                         <TableHead>Date & Time</TableHead>
                         <TableHead>Duration</TableHead>
@@ -201,9 +224,17 @@ const MentorSessions = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Session details</DialogTitle>
-            <DialogDescription>Add a meeting link and your private notes.</DialogDescription>
+            <DialogDescription>Update the session title, topic, meeting link, and your private notes.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Session title" />
+            </div>
+            <div className="space-y-2">
+              <Label>Topic</Label>
+              <Input value={editTopic} onChange={(e) => setEditTopic(e.target.value)} placeholder="Topic / focus area" />
+            </div>
             <div className="space-y-2">
               <Label>Meeting link</Label>
               <Input value={editMeetingUrl} onChange={(e) => setEditMeetingUrl(e.target.value)} placeholder="https://meet…" />
@@ -217,6 +248,29 @@ const MentorSessions = () => {
             <Button variant="outline" onClick={() => setEditing(null)} disabled={updateDetails.isPending}>Cancel</Button>
             <Button onClick={saveEdit} disabled={updateDetails.isPending}>{updateDetails.isPending ? "Saving…" : "Save"}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!actionItemsTarget} onOpenChange={(o) => !o && setActionItemsTarget(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {actionItemsTarget?.title || "Action items"}
+              {actionItemsTarget?.mentee?.full_name ? ` · ${actionItemsTarget.mentee.full_name}` : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Assign follow-up tasks to your mentee. They'll see them on their dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          {actionItemsTarget && user && (
+            <SessionActionItemsPanel
+              sessionId={actionItemsTarget.id}
+              mentorId={user.id}
+              menteeId={actionItemsTarget.mentee_id}
+              currentUserId={user.id}
+              role="mentor"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>

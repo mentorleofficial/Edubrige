@@ -9,6 +9,8 @@ export interface MentorSessionRow {
   scheduled_at: string;
   duration_minutes: number;
   status: SessionStatus;
+  title: string;
+  topic: string;
   notes: string | null;
   mentee_notes: string;
   meeting_url: string;
@@ -25,7 +27,7 @@ async function fetchMentorSessions(userId: string): Promise<MentorSessionRow[]> 
   const { data, error } = await supabase
     .from("sessions")
     .select(
-      "id, scheduled_at, duration_minutes, status, notes, mentee_notes, meeting_url, cancellation_reason, mentee_id, cancelled_at, mentee:users!sessions_mentee_id_fkey(full_name, avatar_url)"
+      "id, scheduled_at, duration_minutes, status, title, topic, notes, mentee_notes, meeting_url, cancellation_reason, mentee_id, cancelled_at, mentee:users!sessions_mentee_id_fkey(full_name, avatar_url)"
     )
     .eq("mentor_id", userId)
     .order("scheduled_at", { ascending: false });
@@ -121,10 +123,22 @@ export function useUpdateSessionStatus(userId?: string) {
 export function useUpdateSessionDetails(userId?: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; notes: string; meeting_url: string }) => {
+    mutationFn: async (input: {
+      id: string;
+      notes: string;
+      meeting_url: string;
+      title?: string;
+      topic?: string;
+    }) => {
+      const patch: Record<string, unknown> = {
+        notes: input.notes,
+        meeting_url: input.meeting_url,
+      };
+      if (input.title !== undefined) patch.title = input.title;
+      if (input.topic !== undefined) patch.topic = input.topic;
       const { error } = await supabase
         .from("sessions")
-        .update({ notes: input.notes, meeting_url: input.meeting_url } as never)
+        .update(patch as never)
         .eq("id", input.id);
       if (error) throw error;
       return input;
@@ -137,7 +151,13 @@ export function useUpdateSessionDetails(userId?: string) {
           mentorSessionsKey(userId),
           prev.map((s) =>
             s.id === input.id
-              ? { ...s, notes: input.notes, meeting_url: input.meeting_url }
+              ? {
+                  ...s,
+                  notes: input.notes,
+                  meeting_url: input.meeting_url,
+                  title: input.title ?? s.title,
+                  topic: input.topic ?? s.topic,
+                }
               : s
           )
         );

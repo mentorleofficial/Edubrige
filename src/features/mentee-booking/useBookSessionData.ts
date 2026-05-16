@@ -115,6 +115,8 @@ export interface BookSessionInput {
   scheduledAt: Date;
   durationMinutes: number;
   notes: string;
+  title: string;
+  topic?: string;
   rescheduleId?: string | null;
 }
 export interface BookSessionResult {
@@ -134,6 +136,8 @@ export function useBookSession() {
           scheduled_at: input.scheduledAt.toISOString(),
           duration_minutes: input.durationMinutes,
           mentee_notes: input.notes,
+          title: input.title,
+          topic: input.topic ?? "",
         })
         .select("id")
         .single();
