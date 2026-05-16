@@ -27,9 +27,11 @@ import {
   hasAnyAvailability,
   isSameDay,
 } from "@/features/availability/previewUtils";
-
-interface Slot { id: string; day_of_week: number; start_time: string; end_time: string; }
-interface Override { id: string; date: string; is_unavailable: boolean; start_time: string | null; end_time: string | null; }
+import {
+  useBookSessionStatic,
+  useBookedTimes,
+  useBookSession,
+} from "@/features/mentee-booking/useBookSessionData";
 
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -46,11 +48,22 @@ const BookSession = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const [mentor, setMentor] = useState<any>(null);
-  const [timezone, setTimezone] = useState<string>("UTC");
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [overrides, setOverrides] = useState<Override[]>([]);
-  const [bookedTimes, setBookedTimes] = useState<Set<string>>(new Set());
+  const { data: staticData } = useBookSessionStatic(mentorId);
+  const { data: bookedTimes = new Set<string>() } = useBookedTimes(mentorId);
+  const bookMutation = useBookSession();
+
+  const mentor = staticData?.mentor ?? null;
+  const slots = staticData?.slots ?? [];
+  const overrides = staticData?.overrides ?? [];
+  const timezone = staticData?.mentorProfile?.timezone ?? "UTC";
+
+  // Guard inactive mentor.
+  useEffect(() => {
+    if (staticData && staticData.mentorProfile && !staticData.mentorProfile.is_active) {
+      toast({ variant: "destructive", title: "Mentor unavailable", description: "This mentor is not currently accepting bookings." });
+      navigate("/mentors");
+    }
+  }, [staticData, toast, navigate]);
 
   const today = useMemo(() => {
     const t = new Date();
@@ -68,35 +81,7 @@ const BookSession = () => {
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [notes, setNotes] = useState("");
-  const [booking, setBooking] = useState(false);
   const [bookedSession, setBookedSession] = useState<{ scheduledAt: Date; meetingUrl: string } | null>(null);
-
-  useEffect(() => {
-    if (!mentorId) return;
-    Promise.all([
-      supabase.from("users").select("id, full_name, avatar_url, email").eq("id", mentorId).single(),
-      supabase.from("mentor_availability").select("*").eq("mentor_id", mentorId).order("day_of_week"),
-      supabase.from("mentor_profiles").select("is_active, timezone").eq("user_id", mentorId).maybeSingle(),
-      supabase.from("mentor_availability_overrides").select("*").eq("mentor_id", mentorId)
-        .gte("date", new Date().toISOString().slice(0, 10)).order("date"),
-      supabase.from("sessions").select("scheduled_at, duration_minutes")
-        .eq("mentor_id", mentorId).eq("status", "booked")
-        .gte("scheduled_at", new Date().toISOString()),
-    ]).then(([mentorRes, slotsRes, mpRes, ovRes, bookedRes]) => {
-      if (!mpRes.data?.is_active) {
-        toast({ variant: "destructive", title: "Mentor unavailable", description: "This mentor is not currently accepting bookings." });
-        navigate("/mentors");
-        return;
-      }
-      setMentor(mentorRes.data);
-      setSlots((slotsRes.data || []) as Slot[]);
-      setTimezone((mpRes.data?.timezone as string) ?? "UTC");
-      setOverrides((ovRes.data || []) as Override[]);
-      const taken = new Set<string>();
-      (bookedRes.data || []).forEach((s: any) => taken.add(new Date(s.scheduled_at).toISOString()));
-      setBookedTimes(taken);
-    });
-  }, [mentorId, navigate, toast]);
 
   const matrix = useMemo(
     () => getMonthMatrix(cursor.getFullYear(), cursor.getMonth()),
@@ -128,87 +113,80 @@ const BookSession = () => {
     setCursor(next);
   };
 
-  const dayRanges = selectedDate ? getRangesForDate(selectedDate, slots, overrides) : [];
-  const daySlotList = sliceIntoSlots(dayRanges, 30);
-  const selectedKind = selectedDate ? getOverrideKind(selectedDate, overrides) : null;
+  // Memo expensive day-level computations so typing in notes textarea does not
+  // recompute the slot list / availability lookups.
+  const dayRanges = useMemo(
+    () => (selectedDate ? getRangesForDate(selectedDate, slots, overrides) : []),
+    [selectedDate, slots, overrides]
+  );
+  const daySlotList = useMemo(() => sliceIntoSlots(dayRanges, 30), [dayRanges]);
+  const selectedKind = useMemo(
+    () => (selectedDate ? getOverrideKind(selectedDate, overrides) : null),
+    [selectedDate, overrides]
+  );
 
-  const slotEndForSelected = (() => {
+  const slotEndForSelected = useMemo(() => {
     if (!selectedDate || !selectedTime) return null;
-    // derive end time = start + 30 minutes (matches sliceIntoSlots step)
     const [h, m] = selectedTime.split(":").map(Number);
     const total = h * 60 + m + 30;
     const eh = Math.floor(total / 60);
     const em = total % 60;
     return `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`;
-  })();
+  }, [selectedDate, selectedTime]);
+
+  const booking = bookMutation.isPending;
 
   const handleBook = async () => {
     if (!selectedDate || !selectedTime || !user || !mentorId) return;
-    setBooking(true);
     const [hours, minutes] = selectedTime.split(":").map(Number);
     const scheduledAt = setMinutes(setHours(selectedDate, hours), minutes);
 
-    const { data: inserted, error } = await supabase.from("sessions").insert({
-      mentor_id: mentorId,
-      mentee_id: user.id,
-      scheduled_at: scheduledAt.toISOString(),
-      duration_minutes: 30,
-      mentee_notes: notes,
-    }).select("id").single();
-
-    if (error) {
-      const friendly = error.message.includes("overlap") || error.code === "23P01" || error.code === "23505"
-        ? "That slot was just taken — please pick another."
-        : error.message;
-      toast({ variant: "destructive", title: "Booking failed", description: friendly });
-      setBooking(false);
-      setConfirmOpen(false);
-      return;
-    }
-
-    // Auto-generate a unique Jitsi meeting URL for this session.
-    const meetingUrl = inserted ? `https://meet.jit.si/mentorle-${inserted.id}` : "";
-    if (inserted && meetingUrl) {
-      await supabase.from("sessions").update({ meeting_url: meetingUrl }).eq("id", inserted.id);
-    }
-
-    if (rescheduleId && inserted) {
-      await supabase.from("sessions").update({
-        status: "cancelled",
-        cancelled_by: user.id,
-        cancelled_at: new Date().toISOString(),
-        cancellation_reason: "Rescheduled",
-      }).eq("id", rescheduleId);
-    }
-
-    // Fire-and-forget booking confirmation emails (Brevo). Do not block the user.
-    if (inserted && meetingUrl && mentor?.email && user.email) {
-      supabase.functions.invoke("send-booking-email", {
-        body: {
-          mentorEmail: mentor.email,
-          mentorName: mentor.full_name || "your mentor",
-          menteeEmail: user.email,
-          menteeName: (user.user_metadata as any)?.full_name || user.email,
-          scheduledAtISO: scheduledAt.toISOString(),
-          durationMinutes: 30,
-          meetingUrl,
-          menteeNotes: notes || undefined,
-        },
-      }).then(({ data, error }) => {
-        if (error || (data as any)?.error || ((data as any)?.errors?.length)) {
-          console.error("send-booking-email failed:", error || data);
-          toast({ variant: "destructive", title: "Booking saved, email not sent", description: "We couldn't send the confirmation email. Use the meeting link on this page." });
-        }
+    try {
+      const { meetingUrl } = await bookMutation.mutateAsync({
+        mentorId,
+        menteeId: user.id,
+        scheduledAt,
+        durationMinutes: 30,
+        notes,
+        rescheduleId,
       });
-    }
 
-    toast({ title: rescheduleId ? "Session rescheduled" : "Session booked!", description: `Scheduled for ${format(scheduledAt, "PPP 'at' p")}` });
-    setBooking(false);
-    setConfirmOpen(false);
-    if (rescheduleId) {
-      navigate("/mentee/sessions");
-    } else {
-      setBookedSession({ scheduledAt, meetingUrl });
+      // Fire-and-forget booking confirmation email
+      if (mentor?.email && user.email) {
+        supabase.functions.invoke("send-booking-email", {
+          body: {
+            mentorEmail: mentor.email,
+            mentorName: mentor.full_name || "your mentor",
+            menteeEmail: user.email,
+            menteeName: (user.user_metadata as Record<string, unknown>)?.full_name || user.email,
+            scheduledAtISO: scheduledAt.toISOString(),
+            durationMinutes: 30,
+            meetingUrl,
+            menteeNotes: notes || undefined,
+          },
+        }).then(({ data, error }) => {
+          const dErr = (data as { error?: unknown; errors?: unknown[] } | null);
+          if (error || dErr?.error || (Array.isArray(dErr?.errors) && dErr.errors.length)) {
+            console.error("send-booking-email failed:", error || data);
+            toast({ variant: "destructive", title: "Booking saved, email not sent", description: "We couldn't send the confirmation email. Use the meeting link on this page." });
+          }
+        });
+      }
+
+      toast({ title: rescheduleId ? "Session rescheduled" : "Session booked!", description: `Scheduled for ${format(scheduledAt, "PPP 'at' p")}` });
+      setConfirmOpen(false);
+      if (rescheduleId) {
+        navigate("/mentee/sessions");
+      } else {
+        setBookedSession({ scheduledAt, meetingUrl });
+      }
+    } catch (e) {
+      const err = e as { message?: string; code?: string };
+      const friendly = err?.message?.includes("overlap") || err?.code === "23P01" || err?.code === "23505"
+        ? "That slot was just taken — please pick another."
+        : err?.message ?? "Booking failed";
+      toast({ variant: "destructive", title: "Booking failed", description: friendly });
+      setConfirmOpen(false);
     }
   };
 
