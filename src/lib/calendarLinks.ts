@@ -71,12 +71,14 @@ export function downloadIcs(e: CalendarEventInput, filename = "session.ics") {
 }
 
 export function buildGoogleCalendarUrl(e: CalendarEventInput): string {
+  const istLine = `Scheduled: ${formatISTDateTime(e.startISO)}`;
+  const details = e.description ? `${istLine}\n\n${e.description}` : istLine;
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: e.title,
     dates: `${toCalDate(e.startISO)}/${toCalDate(addMinutes(e.startISO, e.durationMinutes))}`,
+    details,
   });
-  if (e.description) params.set("details", e.description);
   if (e.location) params.set("location", e.location);
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
