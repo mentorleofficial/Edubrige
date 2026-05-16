@@ -1,72 +1,74 @@
-# Mentor Dashboard Upgrade
+# Admin Dashboard Upgrade
 
-Bring the mentor home view to parity with the new mentee dashboard: an at-a-glance command center for their day, mentees, programs, and reputation.
+Turn the admin home from a flat 6-stat grid into a real operations cockpit covering platform health, growth, engagement, moderation queues, and live activity.
 
 ## New layout
 
 ```text
 +---------------------------------------------------------+
-| Greeting + active/inactive chip + "this week" summary   |
+| KPI strip:                                              |
+|  Users | Mentors | Mentees | Sessions | Hours | Avg ★   |
 +---------------------------------------------------------+
-| Next Session hero (mentee, time, countdown, Join, notes)|
+| Growth chart (last 30 days)     | Action Queue          |
+|  - new signups / day            | - Pending mentor apps |
+|  - sessions booked / day        | - Disabled accounts   |
+|                                 | - Empty programs      |
+|                                 | - Missing branding    |
 +---------------------------------------------------------+
-| Stats row:                                              |
-|  Upcoming | Completed | Hours Mentored | Avg ★ | Mentees|
+| Today / Next 7 days schedule    | Platform Health       |
+|  - today booked count           | - JWT auth enabled    |
+|  - week timeline                | - Avg rating trend    |
+|                                 | - Cancellation rate   |
 +---------------------------------------------------------+
-| Weekly schedule timeline   | Insights & Action Items    |
-| (7-day strip with sessions)| - Sessions needing notes   |
-|                            | - Pending mentee feedback  |
-|                            | - Availability gaps        |
-|                            | - Profile completeness     |
+| Top Mentors (by sessions + ★)   | Recent Feedback       |
 +---------------------------------------------------------+
-| My Mentees (recent / active)                            |
+| Recent Sessions (existing list, polished)               |
 +---------------------------------------------------------+
-| My Programs (existing)                                  |
-+---------------------------------------------------------+
-| Recent Feedback (latest ratings + comments)             |
-+---------------------------------------------------------+
-| Recent Activity feed (booked / cancelled / completed)   |
+| Recent Audit Activity (last 8 entries)                  |
 +---------------------------------------------------------+
 ```
 
 ## Sections
 
-1. **Greeting header** — "Welcome back, {name}" + chip showing sessions this week and hours booked. Inactive mentors keep the existing `InactiveMentorBanner` on top.
-2. **Next Session hero** — large card with mentee avatar/name, scheduled time (relative + absolute), live countdown, Join meeting button (uses `meeting_url`), Add to calendar, and a quick link to add session notes. Empty state: "No upcoming sessions — share your profile" with a copy-link button to the public profile.
-3. **Stats row (5 cards)**:
-   - Upcoming sessions
-   - Completed sessions
-   - Total hours mentored (sum of `duration_minutes` of completed sessions)
-   - Average rating received (`feedback.audience = 'mentor'` on own sessions)
-   - Unique mentees served (distinct `mentee_id` across all sessions)
-4. **Weekly schedule timeline** — next 7 days as a horizontal strip; each day shows session count and time chips. Clicking a day filters the sessions list below it.
-5. **Insights & Action Items**:
-   - Sessions completed in last 14 days with empty `notes` → "Add notes" link
-   - Sessions completed without mentee feedback yet → "Leave private feedback" link
-   - No availability set for the next 14 days → link to `/mentor/availability`
-   - Profile completeness (bio, expertise, qualifications, experiences, resume, avatar) shown as a progress ring; link to `/mentor/profile`
-6. **My Mentees** — up to 6 mentees from `program_mentees` (via mentor's programs) and `mentor_mentee_assignments`, sorted by most recent session; each card shows avatar, name, sessions count, last session date, and link to their sessions.
-7. **My Programs** — keep the existing chip list as is.
-8. **Recent Feedback** — last 3 entries from `feedback` where `audience = 'mentor'` on the mentor's sessions; show rating stars + truncated comment + relative time.
-9. **Recent Activity** — last 5 events derived from `sessions` (booked / cancelled / completed) with timestamps.
+1. **KPI strip (6 cards)** — Total users, mentors, mentees, all-time sessions, total hours delivered, platform average rating. Each card links to its admin page.
+2. **Growth chart** — 30-day stacked area/line using `recharts` showing daily signups (from `users.created_at`) and daily sessions booked (from `sessions.created_at`). Toggle between the two series.
+3. **Action Queue** — counts that need admin attention with deep links:
+   - Pending mentor applications (`mentor_applications.status = 'pending'`)
+   - Disabled users (`users.is_disabled = true`)
+   - Programs with zero mentees or zero mentors
+   - Missing branding fields (no logo, default app name)
+4. **Today / Next 7 days** — today's session count + a 7-day strip mirroring the mentor view (booked counts per day, distinct mentors active).
+5. **Platform Health** — small panel:
+   - JWT auth enabled/disabled chip from `jwt_config.enabled`
+   - 30-day vs prior-30-day average rating delta
+   - 30-day cancellation rate (% of cancelled / (cancelled+completed))
+6. **Top Mentors** — top 5 mentors by completed sessions, with their avg rating; avatar + link.
+7. **Recent Feedback** — last 5 mentor-audience feedback entries with rating + truncated comment.
+8. **Recent Sessions** — keep existing list, add a status filter chip and mentor/mentee avatars.
+9. **Recent Audit Activity** — last 8 `audit_logs` rows showing action, entity_type, actor, time. Link to full audit page.
 
 ## Technical notes
 
-- New folder `src/components/dashboards/mentor/` with sub-components: `NextSessionCard`, `MentorStatsRow`, `WeeklySchedule`, `MentorInsightsPanel`, `MyMenteesPanel`, `RecentFeedbackPanel`, `RecentActivityFeed`. Mirrors the mentee dashboard structure.
-- Single data hook `src/features/mentor-dashboard/useMentorDashboardData.ts` running parallel Supabase queries:
-  - `sessions` for `mentor_id = user.id` (all, ordered by `scheduled_at`) — drives upcoming, completed, hours, next session, weekly timeline, activity feed, needs-notes list.
-  - `feedback` filtered by `session_id IN (mentor's sessions)` and `audience = 'mentor'` — drives avg rating + recent feedback.
-  - `users` join for mentee names/avatars (allowed by existing RLS via `program_mentees` / `mentor_mentee_assignments`).
-  - `mentor_profiles` row for the current user — drives the profile-completeness ring.
-  - `mentor_availability` for the next 14 days — drives the availability-gap insight.
-  - Reuse `useMyPrograms` for the programs card.
-- No DB schema changes; no new RLS policies.
-- Keep semantic Tailwind tokens (`bg-card`, `text-primary`, etc.) and `var(--font-serif)` for headings; match the visual style already established by the mentee dashboard for consistency.
-- Loading skeletons and empty states for each section. Mobile-responsive: stats wrap to 2 cols, weekly strip becomes scrollable, side panels stack.
-- Replace the body of `src/components/dashboards/MentorDashboard.tsx` to compose the new sections; keep `InactiveMentorBanner` behaviour intact (inactive mentors see banner + a slimmed dashboard with only profile completeness + programs + activity).
+- New folder `src/components/dashboards/admin/` with sub-components: `KpiStrip`, `GrowthChart`, `ActionQueue`, `WeekSchedule`, `PlatformHealth`, `TopMentors`, `RecentFeedback`, `RecentSessions`, `RecentAudit`.
+- Single hook `src/features/admin-dashboard/useAdminDashboardData.ts` running parallel Supabase queries with `react-query` (staleTime 30s):
+  - Count queries: total users, mentors, mentees, sessions, completed sessions (for hours), pending applications, disabled users.
+  - `sessions` for the last 30 days (id, scheduled_at, created_at, duration_minutes, status, mentor_id, mentee_id) — drives growth chart, week strip, cancellation rate.
+  - `users` created in last 30 days (id, created_at, role) for signup series.
+  - `feedback` last 30 days + prior 30 days (rating, comment, created_at, session_id, audience) for avg rating delta, platform avg, and recent feedback.
+  - `mentor_applications` count where status='pending'.
+  - `programs` with embedded `program_mentees(count)` and `program_mentors(count)` to find empty programs.
+  - `branding` single row to detect missing logo / default app_name.
+  - `jwt_config` row for JWT enabled chip.
+  - `audit_logs` order by created_at desc limit 8, joined with users for actor name.
+  - Top mentors: aggregate client-side from sessions+feedback (no schema change).
+- Chart uses existing `recharts` (already in `package.json`) and the existing `ui/chart.tsx` wrapper. Keep colors from semantic tokens (`hsl(var(--primary))`, `hsl(var(--accent))`).
+- Replace body of `src/components/dashboards/AdminDashboard.tsx`. Keep links and section spacing consistent with mentor/mentee dashboards (`space-y-6`, semantic tokens, `var(--font-serif)` for section headings only if used elsewhere).
+- Loading skeletons + empty states for each panel. Mobile: KPI strip wraps to 2 cols, two-column rows stack.
+- No DB schema changes, no new RLS policies, no edge functions. All queries rely on existing admin RLS (`has_role(auth.uid(),'admin')`).
 
 ## Out of scope
 
-- Mentor availability editor changes
-- New backend tables, columns, migrations, or edge functions
-- Admin or mentee dashboards
+- New admin pages or routes
+- Schema or migration work
+- Mentor / mentee dashboards (already shipped)
+- Bulk-action UI in the action queue (counts and deep links only)
