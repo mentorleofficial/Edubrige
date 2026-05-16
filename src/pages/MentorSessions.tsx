@@ -1,6 +1,5 @@
-import { useEffect, useState, Fragment } from "react";
+import { useMemo, useState, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,130 +13,69 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, X, UserX, Link2, FileEdit, Video, Star } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import ProgramBadge from "@/components/programs/ProgramBadge";
-import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
-import type { Database } from "@/integrations/supabase/types";
-
-type SessionStatus = Database["public"]["Enums"]["session_status"];
-
-interface SessionRow {
-  id: string;
-  scheduled_at: string;
-  duration_minutes: number;
-  status: SessionStatus;
-  notes: string | null;
-  mentee_notes: string;
-  meeting_url: string;
-  cancellation_reason: string;
-  mentee_id: string;
-  mentee: { full_name: string } | null;
-}
+import {
+  useMentorSessions,
+  useMentorRatedSessions,
+  useUpdateSessionStatus,
+  useUpdateSessionDetails,
+  type MentorSessionRow,
+  type SessionStatus,
+} from "@/features/mentor-sessions/useMentorSessions";
+import {
+  useMentorMentees,
+  selectMenteeProgramMap,
+} from "@/features/mentor-mentees/useMentorMentees";
 
 const MentorSessions = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [sessions, setSessions] = useState<SessionRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [menteePrograms, setMenteePrograms] = useState<Record<string, { name: string; color: string; slug: string }[]>>({});
-  const { data: myPrograms = [] } = useMyPrograms();
-  const [editing, setEditing] = useState<SessionRow | null>(null);
+
+  const { data: sessions = [], isLoading } = useMentorSessions(user?.id);
+  const sessionIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
+  const { data: ratedSessionIds } = useMentorRatedSessions(user?.id, sessionIds);
+  const { data: menteeRows = [] } = useMentorMentees(user?.id);
+  const menteePrograms = useMemo(() => selectMenteeProgramMap(menteeRows), [menteeRows]);
+
+  const updateStatus = useUpdateSessionStatus(user?.id);
+  const updateDetails = useUpdateSessionDetails(user?.id);
+
+  const [editing, setEditing] = useState<MentorSessionRow | null>(null);
   const [editNotes, setEditNotes] = useState("");
   const [editMeetingUrl, setEditMeetingUrl] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [ratedSessionIds, setRatedSessionIds] = useState<Set<string>>(new Set());
 
-  const fetchSessions = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("sessions")
-      .select("id, scheduled_at, duration_minutes, status, notes, mentee_notes, meeting_url, cancellation_reason, mentee_id, mentee:users!sessions_mentee_id_fkey(full_name)")
-      .eq("mentor_id", user.id)
-      .order("scheduled_at", { ascending: false });
-    const list = (data as any) || [];
-    setSessions(list);
-    setLoading(false);
-    if (list.length) {
-      const { data: fb } = await supabase
-        .from("feedback")
-        .select("session_id")
-        .eq("submitted_by", user.id)
-        .eq("audience", "mentee")
-        .in("session_id", list.map((s: SessionRow) => s.id));
-      setRatedSessionIds(new Set((fb || []).map((r: any) => r.session_id)));
-    }
-  };
-
-  useEffect(() => { fetchSessions(); }, [user]);
-
-  useEffect(() => {
-    if (myPrograms.length === 0 || sessions.length === 0) return;
-    (async () => {
-      const menteeIds = Array.from(new Set(sessions.map((s) => s.mentee_id)));
-      const programIds = myPrograms.map((p) => p.id);
-      const { data } = await supabase
-        .from("program_mentees")
-        .select("program_id, mentee_id")
-        .in("program_id", programIds)
-        .in("mentee_id", menteeIds);
-      const byMentee: Record<string, { name: string; color: string; slug: string }[]> = {};
-      const programMap = new Map(myPrograms.map((p) => [p.id, p]));
-      (data || []).forEach((row: any) => {
-        const p = programMap.get(row.program_id);
-        if (!p) return;
-        (byMentee[row.mentee_id] ||= []).push({ name: p.name, color: p.color, slug: p.slug });
-      });
-      setMenteePrograms(byMentee);
-    })();
-  }, [myPrograms, sessions]);
-
-  const updateStatus = async (id: string, status: SessionStatus, reason?: string) => {
-    const patch: any = { status };
-    if (status === "cancelled") {
-      patch.cancelled_by = user?.id;
-      patch.cancelled_at = new Date().toISOString();
-      patch.cancellation_reason = reason || "Cancelled by mentor";
-    }
-    const { error } = await supabase.from("sessions").update(patch).eq("id", id);
-    if (error) toast({ variant: "destructive", title: "Error", description: error.message });
-    else { toast({ title: `Session ${status}` }); fetchSessions(); }
-  };
-
-  const openEdit = (s: SessionRow) => {
+  const openEdit = (s: MentorSessionRow) => {
     setEditing(s);
     setEditNotes(s.notes || "");
     setEditMeetingUrl(s.meeting_url || "");
   };
 
-  const saveEdit = async () => {
+  const saveEdit = () => {
     if (!editing) return;
-    setSaving(true);
-    const { error } = await supabase.from("sessions").update({
-      notes: editNotes,
-      meeting_url: editMeetingUrl,
-    } as any).eq("id", editing.id);
-    setSaving(false);
-    if (error) {
-      toast({ variant: "destructive", title: "Error", description: error.message });
-    } else {
-      toast({ title: "Saved" });
-      setEditing(null);
-      fetchSessions();
-    }
+    updateDetails.mutate(
+      { id: editing.id, notes: editNotes, meeting_url: editMeetingUrl },
+      { onSuccess: () => setEditing(null) }
+    );
   };
 
   const statusColor = (s: SessionStatus) =>
     s === "booked" ? "default" : s === "completed" ? "secondary" : "destructive";
 
-  const now = new Date();
-  const upcoming = sessions.filter((s) => s.status === "booked" && new Date(s.scheduled_at) >= now);
-  const past = sessions.filter((s) => !(s.status === "booked" && new Date(s.scheduled_at) >= now));
+  const { upcoming, past } = useMemo(() => {
+    const now = Date.now();
+    const up: MentorSessionRow[] = [];
+    const ps: MentorSessionRow[] = [];
+    for (const s of sessions) {
+      if (s.status === "booked" && new Date(s.scheduled_at).getTime() >= now) up.push(s);
+      else ps.push(s);
+    }
+    return { upcoming: up, past: ps };
+  }, [sessions]);
 
-  const renderRows = (rows: SessionRow[], isUpcoming: boolean) => {
-    if (loading) return <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>;
+  const renderRows = (rows: MentorSessionRow[], isUpcoming: boolean) => {
+    if (isLoading) return <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>;
     if (rows.length === 0) return <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No sessions</TableCell></TableRow>;
     return rows.map((s) => {
       const progs = menteePrograms[s.mentee_id] || [];
@@ -180,19 +118,19 @@ const MentorSessions = () => {
                       }}
                       filename={`session-${s.id}.ics`}
                     />
-                    <Button variant="ghost" size="sm" onClick={() => updateStatus(s.id, "completed")}>
+                    <Button variant="ghost" size="sm" onClick={() => updateStatus.mutate({ id: s.id, status: "completed" })}>
                       <CheckCircle2 className="mr-1 h-3 w-3" />Complete
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => updateStatus(s.id, "no_show")}>
+                    <Button variant="ghost" size="sm" onClick={() => updateStatus.mutate({ id: s.id, status: "no_show" })}>
                       <UserX className="mr-1 h-3 w-3" />No-show
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => updateStatus(s.id, "cancelled")}>
+                    <Button variant="ghost" size="sm" onClick={() => updateStatus.mutate({ id: s.id, status: "cancelled" })}>
                       <X className="mr-1 h-3 w-3" />Cancel
                     </Button>
                   </>
                 )}
                 {s.status === "completed" && (
-                  ratedSessionIds.has(s.id) ? (
+                  ratedSessionIds?.has(s.id) ? (
                     <Badge variant="secondary" className="text-xs"><Star className="mr-1 h-3 w-3" />Rated</Badge>
                   ) : (
                     <Button variant="ghost" size="sm" onClick={() => navigate(`/session/${s.id}/feedback`)}>
@@ -276,8 +214,8 @@ const MentorSessions = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)} disabled={saving}>Cancel</Button>
-            <Button onClick={saveEdit} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+            <Button variant="outline" onClick={() => setEditing(null)} disabled={updateDetails.isPending}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={updateDetails.isPending}>{updateDetails.isPending ? "Saving…" : "Save"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
