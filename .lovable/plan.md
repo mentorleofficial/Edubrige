@@ -1,98 +1,117 @@
-# Mentee-side performance & stability optimization
+# Remaining Features Plan — Mentorle × EduBridge
 
-Goal: make the mentee experience feel as instant as the mentor side. Eliminate duplicate fetches, share cache between dashboard / sessions / book-session, kill loading flickers when navigating, and tighten render perf on the busiest pages (BookSession 513 lines, MenteeSessions 269 lines).
+Scope: deliver the gaps between the current build and the integration spec. Grouped by priority so we can ship in safe waves.
 
-We follow the same recipe that worked for the mentor side: React Query everywhere, shared cache keys, optimistic mutations, network hygiene.
+---
 
-## Scope (this chunk)
+## Wave 1 — Session Core Gaps (Mentor + Mentee)
 
-In:
-- `src/pages/MenteeSessions.tsx`
-- `src/pages/BookSession.tsx`
-- `src/pages/MenteePrograms.tsx`
-- `src/pages/MenteeProgramDetail.tsx`
-- `src/pages/MenteeProfile.tsx`
-- `src/components/dashboards/MenteeDashboard.tsx` + `src/components/dashboards/mentee/*`
-- `src/features/mentee-dashboard/useMenteeDashboardData.ts`
-- `src/features/mentee-onboarding/hooks/useMenteeProfileStatus.ts`
+Goal: complete the session workflow that mentors/mentees touch every day.
 
-Out (separate chunks): admin pages, public mentor pages, edge functions, DB schema, realtime.
+### 1.1 Session Title & Topic
+- Add `title` (text) and `topic` (text) to `sessions`.
+- Mentee booking form: required Title, optional Topic.
+- Mentor session detail: edit Title/Topic.
+- Display on mentor/mentee/admin session lists, calendar tooltips, emails.
 
-## What we will change and why
+### 1.2 Action Items (tasks/follow-ups)
+- New table `session_action_items`: `session_id`, `mentor_id`, `mentee_id`, `title`, `description`, `due_date`, `status` (open/done), `completed_at`.
+- RLS: mentor of session can CRUD; mentee of session can read + mark done; admin full.
+- Mentor session view: "Action Items" panel — add/edit/delete.
+- Mentee session view + new "My Tasks" tab on mentee dashboard: list, mark complete.
+- Dashboard count widgets ("Open tasks") on both sides.
 
-### 1. Convert mentee pages to React Query
+### 1.3 Session Notes Polish
+- `notes` already exists — surface a clean "Mentor Notes" editor (rich text, autosave) on mentor side; read-only render for mentee after session ends.
 
-Today `MenteeSessions`, `MenteeProfile`, and `BookSession` use `useState + useEffect + supabase` directly. Result: every navigation triggers a full network round-trip, no cache sharing with the dashboard, and a spinner flashes every visit.
+---
 
-- New `useMenteeSessions(userId)` — fetches sessions + a derived `ratedSessionIds` query keyed on session ids. Cancel becomes `useMutation` with optimistic update + invalidate `["mentee", "sessions", userId]`. Mentor→program map (`mentorPrograms`) becomes a `useMemo` over a cached `program_mentees`/`program_mentors` query instead of a second `useEffect`.
-- New `useMenteeProfile(userId)` — single query for `users` + `mentee_profiles` joined client-side; `saveProfile` mutation with cache update so the page no longer re-fetches on every save.
-- New `useBookSessionData(mentorId)` — single hook bundling the 5 parallel queries currently in `BookSession`'s `useEffect` (mentor, availability, mentor profile, overrides, booked sessions). Booked-times query keyed separately so it can be invalidated after a successful booking without re-fetching mentor data.
-- New `useMenteeProgramDetail(slug)` to replace the manual fetch in `MenteeProgramDetail`.
-- `useMenteeProfileStatus` already uses React Query — verify the key matches what `MenteeOnboardingGuard` expects so we don't bounce mentees to /onboarding for one frame after they complete it.
+## Wave 2 — Compliance & Privacy (Spec §13)
 
-### 2. Share the sessions cache with the dashboard
+### 2.1 Consent Management
+- New table `user_consents`: `user_id`, `policy_version`, `accepted_at`, `ip_address`, `user_agent`, `withdrawn_at`.
+- Privacy notice + consent checkbox in mentee onboarding and mentor application.
+- Block app usage until current `policy_version` accepted; banner to re-accept on version bump.
+- Admin setting: current privacy policy version + URL.
 
-`MenteeDashboard` calls `useMenteeDashboardData` which fetches `sessions` + `feedback` + `recommended_mentors`. `MenteeSessions` re-fetches the same `sessions` rows.
+### 2.2 User Rights Center
+- New `/account/privacy` page for all roles:
+  - Download my data (JSON export via edge function).
+  - Request correction (opens profile edit).
+  - Request deletion (creates `data_deletion_requests` row, admin reviews).
+  - Withdraw consent (sets `withdrawn_at`, disables account, notifies admin).
+- Admin page `AdminPrivacyRequests` to action deletion/withdrawal requests.
 
-- Extract the sessions query into `useMenteeSessions` with key `["mentee", "sessions", userId]`.
-- `useMenteeDashboardData` composes it (same pattern as mentor side) — opening Sessions after Dashboard is instant.
-- Same treatment for `feedback`: extracted into `useMenteeFeedback(userId)` and reused by `InsightsPanel` / `RecentActivity` instead of being threaded down through props.
+### 2.3 Data Retention
+- Admin setting: retention windows (sessions, audit logs, inactive users).
+- Scheduled edge function `retention-sweep` (daily) anonymises/deletes per policy and writes audit logs.
 
-### 3. Render-perf cleanups
+### 2.4 Audit Log Coverage
+- Ensure consent grant/withdraw, deletion request, retention sweep, mentor approval/reject, role changes, branding/JWT updates all hit `audit_logs`.
 
-- `MenteeDashboard` renders 6 child panels even while `isLoading`. Move the skeleton branch above the `useMemo` and wrap dashboard children in `React.memo` so a cancel mutation only re-renders the affected panel.
-- `BookSession` (513 lines) — extract the calendar grid, time picker, and confirm dialog into separate memoized components. The current monolith re-runs the slot-computation `useMemo` on every keystroke in the notes textarea.
-- `MenteeSessions` `mentorPrograms` map → `useMemo` over cached query data.
-- `MenteeProfile` — split the form into section subcomponents so editing one field doesn't re-render dropzones and chip inputs.
+---
 
-### 4. Network hygiene
+## Wave 3 — Mentor Engagement
 
-- `BookSession` currently fires the booked-sessions query with no upper bound; scope to `scheduled_at >= now() - 1d` and `<= cursor + 60d` so it stays small.
-- Guard `MenteeSessions`'s `select(...).in('session_id', list)` against an empty list (PostgREST 400 on empty mentee accounts).
-- Drop the redundant `select("program_id")` on `program_mentors` — fold into the first query.
-- All mentee queries inherit the global `staleTime: 60_000` + `refetchOnWindowFocus: false` defaults.
+### 3.1 Badges (Bronze / Silver / Gold)
+- New tables: `badges` (code, name, tier, criteria_json, icon_url) and `mentor_badges` (mentor_id, badge_id, awarded_at).
+- Edge function `evaluate-mentor-badges` runs after each completed session + nightly: awards based on completed sessions count, avg rating, mentee count.
+- Display badges on mentor dashboard, MentorProfile, and public `PublicMentorProfile`.
 
-### 5. Booking flow stability
+### 3.2 Leaderboard
+- New view/materialized view `mentor_leaderboard` (mentor_id, completed_sessions_30d, avg_rating_30d, score).
+- `/mentor/leaderboard` page (visible to mentors + admins): top mentors, your rank, deltas.
+- Admin toggle: leaderboard visibility on/off.
 
-- After a successful booking in `BookSession`, invalidate `["mentee", "sessions", userId]` and `["booked-times", mentorId]` so the user's dashboard and sessions page reflect the new booking without a manual refresh.
-- Disable the Confirm button while the `send-booking-email` invoke is in-flight to prevent double-bookings on slow networks (currently `booking` is reset before the email call resolves).
+### 3.3 Social Sharing (static)
+- Share buttons (LinkedIn, X, copy link) on `PublicMentorProfile` and on badge-award toast/modal.
+- Pre-filled share text uses mentor name + tagline.
 
-### 6. Code-split heavy pages
+### 3.4 Mentor Community Link
+- Branding/admin setting: `mentor_community_url`.
+- Sidebar link "Mentor Community" for mentors when set.
 
-- `BookSession` is already lazy at the route level — additionally `lazy()` the confirm dialog and the success state so the calendar paints faster on cold open.
-- `MenteeOnboarding` (369 lines) — lazy the step components so the wizard's first paint is just the shell.
+---
 
-## Out of scope (call out for later chunks)
-- Admin and public-mentor pages
-- Edge function changes (send-booking-email stays as-is)
-- DB indexes, RLS changes
-- Realtime subscriptions for sessions
+## Wave 4 — EduBridge Integration & White-Label
 
-## Technical notes
+### 4.1 Outbound Data Exchange
+- Admin setting: `edubridge_webhook_url` + signing secret.
+- Edge function `sync-to-edubridge` posts session lifecycle events (created/completed/cancelled) and feedback aggregates.
+- Retry table `outbound_events` with status (pending/sent/failed).
 
-```text
-Before:                          After:
-useEffect → supabase.fetch       useQuery(['mentee','sessions',uid])
-useState(loading)                ↳ cached, dedup'd, shared with dashboard
-manual refresh()                 useMutation + invalidate
+### 4.2 White-Label Audit
+- Sweep UI for "Mentorle" strings — replace with branding `app_name`.
+- Ensure login/auth screens, emails, meta tags, and favicon honour branding.
 
-BookSession:                     BookSession:
-  5 parallel fetches in one      useBookSessionData split into
-  useEffect, re-runs on remount  mentor/availability/booked-times keys
-  booking=false before email     booking stays true until email resolves
-```
+### 4.3 Approval Notification Email
+- Brevo template + edge function call on `mentor_applications.status` change (approved/rejected/changes_requested).
 
-New hooks under `src/features/mentee-*`:
-- `mentee-sessions/useMenteeSessions.ts`
-- `mentee-profile/useMenteeProfile.ts`
-- `mentee-booking/useBookSessionData.ts` + `useBookSession.ts` (mutation)
-- `mentee-programs/useMenteeProgramDetail.ts`
+---
 
-Files touched (estimate): ~9 edited, ~5 new hooks. No new dependencies. No DB or edge-function changes.
+## Wave 5 — Analytics & Reporting
 
-## Success criteria
-- Navigating Dashboard → My Sessions → Book Session → Dashboard shows no spinners after the first load.
-- Cancelling a session updates the UI instantly; dashboard stats reflect the change without a manual refresh.
-- No PostgREST 400s in the network panel for an empty mentee account.
-- BookSession notes textarea typing no longer triggers slot recompute.
-- After booking, both `/sessions` and dashboard show the new session without a hard refresh.
+- Admin Analytics page with: sessions scheduled vs completed (line), feedback score distribution, top programs, leaderboard snapshot.
+- CSV export per chart.
+- Reuse existing dashboard data hooks where possible.
+
+---
+
+## Technical Notes
+
+- All new tables: RLS-on by default, policies modelled on existing `has_role`/`is_program_member` patterns.
+- New edge functions: `evaluate-mentor-badges`, `retention-sweep`, `sync-to-edubridge`, `export-user-data`, `mentor-application-decision-email`.
+- All time-based validations via triggers (not CHECK constraints).
+- Frontend: keep React Query cache-key conventions established in earlier optimisation passes.
+- No new third-party deps anticipated except a lightweight rich-text editor for session notes (e.g. `@tiptap/react`) — confirm before adding.
+
+## Out of Scope (per spec §14 Excluded)
+
+- Attendance tracking
+- Deep engagement analytics
+- Automated social sharing
+- Impact measurement metrics
+
+## Suggested Order
+
+Wave 1 → Wave 2 → Wave 3 → Wave 4 → Wave 5. Each wave is independently shippable.
