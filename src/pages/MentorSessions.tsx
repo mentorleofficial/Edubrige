@@ -156,15 +156,19 @@ const MentorSessions = () => {
                     </Button>
                   )
                 )}
+                <Button variant="ghost" size="sm" onClick={() => setActionItemsTarget(s)}>
+                  <ListTodo className="mr-1 h-3 w-3" />Action items
+                </Button>
                 <Button variant="ghost" size="sm" onClick={() => openEdit(s)}>
-                  <FileEdit className="mr-1 h-3 w-3" />Notes/Link
+                  <FileEdit className="mr-1 h-3 w-3" />Edit
                 </Button>
               </div>
             </TableCell>
           </TableRow>
           {hasDetails && (
             <TableRow className="bg-muted/30">
-              <TableCell colSpan={6} className="py-3 space-y-2 text-sm">
+              <TableCell colSpan={7} className="py-3 space-y-2 text-sm">
+                {s.topic && <div><span className="font-medium">Topic:</span> {s.topic}</div>}
                 {s.meeting_url && (
                   <div className="flex items-center gap-2">
                     <Link2 className="h-3 w-3 text-primary" />
