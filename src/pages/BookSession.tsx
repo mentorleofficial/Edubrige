@@ -17,7 +17,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, ChevronRight, CheckCircle, Globe, Info, Video, Copy } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
-import { format, setHours, setMinutes } from "date-fns";
+import { format } from "date-fns";
+import { fromZonedTime } from "date-fns-tz";
+import { APP_TZ, formatISTDateTime, formatIST } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 import {
   getMonthMatrix,
