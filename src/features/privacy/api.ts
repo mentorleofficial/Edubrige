@@ -189,7 +189,12 @@ export function useUpdateDsr() {
       admin_notes?: string;
       handled_by?: string;
     }) => {
-      const patch: Record<string, unknown> = {
+      const patch: {
+        status: DsrStatus;
+        admin_notes: string;
+        handled_at?: string;
+        handled_by?: string | null;
+      } = {
         status: input.status,
         admin_notes: input.admin_notes ?? "",
       };
