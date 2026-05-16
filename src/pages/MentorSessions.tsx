@@ -224,9 +224,17 @@ const MentorSessions = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Session details</DialogTitle>
-            <DialogDescription>Add a meeting link and your private notes.</DialogDescription>
+            <DialogDescription>Update the session title, topic, meeting link, and your private notes.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Session title" />
+            </div>
+            <div className="space-y-2">
+              <Label>Topic</Label>
+              <Input value={editTopic} onChange={(e) => setEditTopic(e.target.value)} placeholder="Topic / focus area" />
+            </div>
             <div className="space-y-2">
               <Label>Meeting link</Label>
               <Input value={editMeetingUrl} onChange={(e) => setEditMeetingUrl(e.target.value)} placeholder="https://meet…" />
@@ -240,6 +248,29 @@ const MentorSessions = () => {
             <Button variant="outline" onClick={() => setEditing(null)} disabled={updateDetails.isPending}>Cancel</Button>
             <Button onClick={saveEdit} disabled={updateDetails.isPending}>{updateDetails.isPending ? "Saving…" : "Save"}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!actionItemsTarget} onOpenChange={(o) => !o && setActionItemsTarget(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {actionItemsTarget?.title || "Action items"}
+              {actionItemsTarget?.mentee?.full_name ? ` · ${actionItemsTarget.mentee.full_name}` : ""}
+            </DialogTitle>
+            <DialogDescription>
+              Assign follow-up tasks to your mentee. They'll see them on their dashboard.
+            </DialogDescription>
+          </DialogHeader>
+          {actionItemsTarget && user && (
+            <SessionActionItemsPanel
+              sessionId={actionItemsTarget.id}
+              mentorId={user.id}
+              menteeId={actionItemsTarget.mentee_id}
+              currentUserId={user.id}
+              role="mentor"
+            />
+          )}
         </DialogContent>
       </Dialog>
     </AppLayout>
