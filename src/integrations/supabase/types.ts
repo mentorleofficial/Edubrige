@@ -55,6 +55,45 @@ export type Database = {
           },
         ]
       }
+      badges: {
+        Row: {
+          code: string
+          created_at: string
+          criteria: Json
+          description: string
+          icon_url: string
+          id: string
+          is_active: boolean
+          name: string
+          tier: Database["public"]["Enums"]["badge_tier"]
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          criteria?: Json
+          description?: string
+          icon_url?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          tier: Database["public"]["Enums"]["badge_tier"]
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          criteria?: Json
+          description?: string
+          icon_url?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          tier?: Database["public"]["Enums"]["badge_tier"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       branding: {
         Row: {
           accent_color: string
@@ -62,8 +101,10 @@ export type Database = {
           body_font: string
           heading_font: string
           id: string
+          leaderboard_enabled: boolean
           login_bg_url: string | null
           logo_url: string | null
+          mentor_community_url: string
           primary_color: string
           secondary_color: string
           sidebar_background: string
@@ -77,8 +118,10 @@ export type Database = {
           body_font?: string
           heading_font?: string
           id?: string
+          leaderboard_enabled?: boolean
           login_bg_url?: string | null
           logo_url?: string | null
+          mentor_community_url?: string
           primary_color?: string
           secondary_color?: string
           sidebar_background?: string
@@ -92,8 +135,10 @@ export type Database = {
           body_font?: string
           heading_font?: string
           id?: string
+          leaderboard_enabled?: boolean
           login_bg_url?: string | null
           logo_url?: string | null
+          mentor_community_url?: string
           primary_color?: string
           secondary_color?: string
           sidebar_background?: string
@@ -461,6 +506,65 @@ export type Database = {
           is_unavailable?: boolean
           mentor_id?: string
           start_time?: string | null
+        }
+        Relationships: []
+      }
+      mentor_badges: {
+        Row: {
+          awarded_at: string
+          awarded_reason: string
+          badge_id: string
+          id: string
+          mentor_id: string
+        }
+        Insert: {
+          awarded_at?: string
+          awarded_reason?: string
+          badge_id: string
+          id?: string
+          mentor_id: string
+        }
+        Update: {
+          awarded_at?: string
+          awarded_reason?: string
+          badge_id?: string
+          id?: string
+          mentor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentor_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mentor_leaderboard_stats: {
+        Row: {
+          avg_rating_30d: number
+          completed_sessions_30d: number
+          computed_at: string
+          mentee_count_30d: number
+          mentor_id: string
+          score: number
+        }
+        Insert: {
+          avg_rating_30d?: number
+          completed_sessions_30d?: number
+          computed_at?: string
+          mentee_count_30d?: number
+          mentor_id: string
+          score?: number
+        }
+        Update: {
+          avg_rating_30d?: number
+          completed_sessions_30d?: number
+          computed_at?: string
+          mentee_count_30d?: number
+          mentor_id?: string
+          score?: number
         }
         Relationships: []
       }
@@ -1035,6 +1139,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "mentor" | "mentee"
       application_status: "pending" | "approved" | "rejected"
+      badge_tier: "bronze" | "silver" | "gold"
       dsr_kind: "export" | "correction" | "deletion" | "withdrawal"
       dsr_status: "pending" | "in_review" | "completed" | "rejected"
       feedback_audience: "mentor" | "mentee" | "admin_private"
@@ -1168,6 +1273,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "mentor", "mentee"],
       application_status: ["pending", "approved", "rejected"],
+      badge_tier: ["bronze", "silver", "gold"],
       dsr_kind: ["export", "correction", "deletion", "withdrawal"],
       dsr_status: ["pending", "in_review", "completed", "rejected"],
       feedback_audience: ["mentor", "mentee", "admin_private"],
