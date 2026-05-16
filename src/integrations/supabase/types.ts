@@ -99,6 +99,8 @@ export type Database = {
           accent_color: string
           app_name: string
           body_font: string
+          edubridge_enabled: boolean
+          edubridge_webhook_url: string
           heading_font: string
           id: string
           leaderboard_enabled: boolean
@@ -116,6 +118,8 @@ export type Database = {
           accent_color?: string
           app_name?: string
           body_font?: string
+          edubridge_enabled?: boolean
+          edubridge_webhook_url?: string
           heading_font?: string
           id?: string
           leaderboard_enabled?: boolean
@@ -133,6 +137,8 @@ export type Database = {
           accent_color?: string
           app_name?: string
           body_font?: string
+          edubridge_enabled?: boolean
+          edubridge_webhook_url?: string
           heading_font?: string
           id?: string
           leaderboard_enabled?: boolean
@@ -683,6 +689,45 @@ export type Database = {
           },
         ]
       }
+      outbound_events: {
+        Row: {
+          attempts: number
+          created_at: string
+          event_type: string
+          id: string
+          last_error: string
+          payload: Json
+          sent_at: string | null
+          status: Database["public"]["Enums"]["outbound_event_status"]
+          target_url: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          event_type: string
+          id?: string
+          last_error?: string
+          payload?: Json
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["outbound_event_status"]
+          target_url?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          event_type?: string
+          id?: string
+          last_error?: string
+          payload?: Json
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["outbound_event_status"]
+          target_url?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       privacy_policy: {
         Row: {
           created_at: string
@@ -1143,6 +1188,7 @@ export type Database = {
       dsr_kind: "export" | "correction" | "deletion" | "withdrawal"
       dsr_status: "pending" | "in_review" | "completed" | "rejected"
       feedback_audience: "mentor" | "mentee" | "admin_private"
+      outbound_event_status: "pending" | "sent" | "failed"
       session_status: "booked" | "completed" | "cancelled" | "no_show"
     }
     CompositeTypes: {
@@ -1277,6 +1323,7 @@ export const Constants = {
       dsr_kind: ["export", "correction", "deletion", "withdrawal"],
       dsr_status: ["pending", "in_review", "completed", "rejected"],
       feedback_audience: ["mentor", "mentee", "admin_private"],
+      outbound_event_status: ["pending", "sent", "failed"],
       session_status: ["booked", "completed", "cancelled", "no_show"],
     },
   },
