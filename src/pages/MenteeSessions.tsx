@@ -59,6 +59,7 @@ const MenteeSessions = () => {
   const cancelMutation = useCancelMenteeSession(user?.id);
   const [cancelTarget, setCancelTarget] = useState<MenteeSessionRow | null>(null);
   const [cancelReason, setCancelReason] = useState("");
+  const [actionItemsTarget, setActionItemsTarget] = useState<MenteeSessionRow | null>(null);
 
   const now = new Date();
   const upcoming = sessions.filter((s) => s.status === "booked" && new Date(s.scheduled_at) >= now);
