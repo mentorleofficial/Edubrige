@@ -10,19 +10,21 @@ import { useToast } from "@/hooks/use-toast";
 import AvatarUploader from "@/features/mentor-profile/components/AvatarUploader";
 import ChipInput from "@/features/mentee-onboarding/components/ChipInput";
 import {
-  fetchMenteeProfile,
   upsertMenteeProfile,
   uploadMenteeAvatar,
 } from "@/features/mentee-onboarding/api";
-import { useInvalidateMenteeProfile } from "@/features/mentee-onboarding/hooks/useMenteeProfileStatus";
+import {
+  useMenteeProfile,
+  useInvalidateMenteeProfile,
+} from "@/features/mentee-onboarding/hooks/useMenteeProfileStatus";
 import { Loader2 } from "lucide-react";
 
 const MenteeProfile = () => {
   const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const invalidate = useInvalidateMenteeProfile();
+  const { data, isLoading } = useMenteeProfile(user?.id);
 
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -35,23 +37,23 @@ const MenteeProfile = () => {
   const [goals, setGoals] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
   const [areas, setAreas] = useState<string[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    fetchMenteeProfile(user.id)
-      .then((d) => {
-        setFullName(d.full_name);
-        setAvatarUrl(d.avatar_url);
-        setHeadline(d.headline);
-        setBio(d.bio);
-        setOrgUnit(d.organization_unit);
-        setLinkedin(d.linkedin_url);
-        setGoals(d.goals);
-        setInterests(d.interests);
-        setAreas(d.preferred_mentor_areas);
-      })
-      .finally(() => setLoading(false));
-  }, [user]);
+    if (!data || hydrated) return;
+    setFullName(data.full_name);
+    setAvatarUrl(data.avatar_url);
+    setHeadline(data.headline);
+    setBio(data.bio);
+    setOrgUnit(data.organization_unit);
+    setLinkedin(data.linkedin_url);
+    setGoals(data.goals);
+    setInterests(data.interests);
+    setAreas(data.preferred_mentor_areas);
+    setHydrated(true);
+  }, [data, hydrated]);
+
+  const loading = isLoading && !hydrated;
 
   const initials = (fullName || profile?.email || "U")
     .split(" ").map((s) => s.charAt(0)).slice(0, 2).join("").toUpperCase();

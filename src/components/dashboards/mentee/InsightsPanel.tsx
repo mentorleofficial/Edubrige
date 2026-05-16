@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sparkles, MessageSquareWarning, FolderKanban, TrendingUp } from "lucide-react";
@@ -96,4 +97,4 @@ const InsightsPanel = ({ sessions, feedback, programsCount }: Props) => {
   );
 };
 
-export default InsightsPanel;
+export default /* @__PURE__ */ memo(InsightsPanel);

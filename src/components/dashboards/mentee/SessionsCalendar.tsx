@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -84,4 +84,4 @@ const SessionsCalendar = ({ sessions }: { sessions: DashSession[] }) => {
   );
 };
 
-export default SessionsCalendar;
+export default /* @__PURE__ */ memo(SessionsCalendar);

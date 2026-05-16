@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock, CheckCircle2, Hourglass, Star } from "lucide-react";
 
@@ -41,4 +42,4 @@ const StatsRow = ({ upcoming, completed, hours, avgRating }: Props) => (
   </div>
 );
 
-export default StatsRow;
+export default /* @__PURE__ */ memo(StatsRow);

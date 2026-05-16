@@ -1,16 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  fetchMenteeSessions,
+  menteeSessionsKey,
+  type MenteeSessionRow,
+} from "@/features/mentee-sessions/useMenteeSessions";
 
-export type DashSession = {
-  id: string;
-  scheduled_at: string;
-  duration_minutes: number;
-  status: "booked" | "completed" | "cancelled";
-  mentor_id: string;
-  meeting_url: string;
-  cancelled_at: string | null;
-  mentor: { full_name: string; avatar_url: string | null } | null;
-};
+// Re-export shapes that dashboard child components consume.
+export type DashSession = MenteeSessionRow;
 
 export type DashFeedback = {
   id: string;
@@ -37,20 +34,26 @@ export type DashData = {
   recommended: RecommendedMentor[];
 };
 
-export const useMenteeDashboardData = (userId?: string) =>
-  useQuery<DashData>({
+export const useMenteeDashboardData = (userId?: string) => {
+  const qc = useQueryClient();
+
+  return useQuery<DashData>({
     queryKey: ["mentee-dashboard", userId],
     enabled: !!userId,
     staleTime: 30_000,
     queryFn: async () => {
-      const [sessRes, fbRes, profRes, mentorsRes] = await Promise.all([
-        supabase
-          .from("sessions")
-          .select(
-            "id, scheduled_at, duration_minutes, status, mentor_id, meeting_url, cancelled_at, mentor:users!sessions_mentor_id_fkey(full_name, avatar_url)"
-          )
-          .eq("mentee_id", userId!)
-          .order("scheduled_at", { ascending: true }),
+      // Reuse the sessions cache shared with the My Sessions page.
+      const cached = qc.getQueryData<MenteeSessionRow[]>(menteeSessionsKey(userId));
+      const sessionsPromise = cached
+        ? Promise.resolve(cached)
+        : qc.fetchQuery({
+            queryKey: menteeSessionsKey(userId),
+            staleTime: 60_000,
+            queryFn: () => fetchMenteeSessions(userId!),
+          });
+
+      const [sessions, fbRes, profRes, mentorsRes] = await Promise.all([
+        sessionsPromise,
         supabase
           .from("feedback")
           .select("id, session_id, rating, created_at")
@@ -74,14 +77,24 @@ export const useMenteeDashboardData = (userId?: string) =>
           const overlap = exp.filter((e) => lcAreas.includes(e)).length;
           return { m, overlap };
         })
-        .sort((a, b) => b.overlap - a.overlap || (b.m.years_experience ?? 0) - (a.m.years_experience ?? 0));
+        .sort(
+          (a, b) =>
+            b.overlap - a.overlap ||
+            (b.m.years_experience ?? 0) - (a.m.years_experience ?? 0)
+        );
       const recommended = scored.map((s) => s.m).slice(0, 4);
 
+      // Ascending order for "next session" calculations.
+      const ascSessions = [...sessions].sort((a, b) =>
+        a.scheduled_at.localeCompare(b.scheduled_at)
+      );
+
       return {
-        sessions: (sessRes.data as DashSession[] | null) ?? [],
+        sessions: ascSessions,
         feedback: (fbRes.data as DashFeedback[] | null) ?? [],
         preferredAreas,
         recommended,
       };
     },
   });
+};

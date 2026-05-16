@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenteeProfileStatus } from "@/features/mentee-onboarding/hooks/useMenteeProfileStatus";
@@ -21,20 +21,6 @@ const MenteeDashboard = () => {
   const { isComplete, loading: onbLoading } = useMenteeProfileStatus(user?.id);
   const { data, isLoading } = useMenteeDashboardData(user?.id);
   const { data: programs = [] } = useMyPrograms();
-
-  const computed = useMemo(() => {
-    const sessions = data?.sessions ?? [];
-    const now = Date.now();
-    const upcoming = sessions.filter(
-      (s) => s.status === "booked" && new Date(s.scheduled_at).getTime() >= now
-    );
-    const completed = sessions.filter((s) => s.status === "completed");
-    const hours = completed.reduce((sum, s) => sum + (s.duration_minutes || 0), 0) / 60;
-    const ratings = (data?.feedback ?? []).map((f) => f.rating);
-    const avg = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
-    const next = upcoming.sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))[0] ?? null;
-    return { upcomingCount: upcoming.length, completedCount: completed.length, hours, avg, next };
-  }, [data]);
 
   if (!onbLoading && !isComplete) {
     return (
@@ -68,6 +54,20 @@ const MenteeDashboard = () => {
       </div>
     );
   }
+
+  const computed = (() => {
+    const sessions = data.sessions;
+    const now = Date.now();
+    const upcoming = sessions.filter(
+      (s) => s.status === "booked" && new Date(s.scheduled_at).getTime() >= now
+    );
+    const completed = sessions.filter((s) => s.status === "completed");
+    const hours = completed.reduce((sum, s) => sum + (s.duration_minutes || 0), 0) / 60;
+    const ratings = data.feedback.map((f) => f.rating);
+    const avg = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
+    const next = upcoming.sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))[0] ?? null;
+    return { upcomingCount: upcoming.length, completedCount: completed.length, hours, avg, next };
+  })();
 
   const firstName = profile?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
 
