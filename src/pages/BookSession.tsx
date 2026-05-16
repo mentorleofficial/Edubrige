@@ -133,7 +133,11 @@ const BookSession = () => {
     () => (selectedDate ? getRangesForDate(selectedDate, slots, overrides) : []),
     [selectedDate, slots, overrides]
   );
-  const daySlotList = useMemo(() => sliceIntoSlots(dayRanges, 30), [dayRanges]);
+  const daySlotList = useMemo(
+    () => sliceIntoSlots(dayRanges, 30).filter((t) => !(selectedDate && isPastSlot(selectedDate, t))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dayRanges, selectedDate]
+  );
   const selectedKind = useMemo(
     () => (selectedDate ? getOverrideKind(selectedDate, overrides) : null),
     [selectedDate, overrides]
