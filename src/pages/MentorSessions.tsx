@@ -46,17 +46,28 @@ const MentorSessions = () => {
   const [editing, setEditing] = useState<MentorSessionRow | null>(null);
   const [editNotes, setEditNotes] = useState("");
   const [editMeetingUrl, setEditMeetingUrl] = useState("");
+  const [editTitle, setEditTitle] = useState("");
+  const [editTopic, setEditTopic] = useState("");
+  const [actionItemsTarget, setActionItemsTarget] = useState<MentorSessionRow | null>(null);
 
   const openEdit = (s: MentorSessionRow) => {
     setEditing(s);
     setEditNotes(s.notes || "");
     setEditMeetingUrl(s.meeting_url || "");
+    setEditTitle(s.title || "");
+    setEditTopic(s.topic || "");
   };
 
   const saveEdit = () => {
     if (!editing) return;
     updateDetails.mutate(
-      { id: editing.id, notes: editNotes, meeting_url: editMeetingUrl },
+      {
+        id: editing.id,
+        notes: editNotes,
+        meeting_url: editMeetingUrl,
+        title: editTitle,
+        topic: editTopic,
+      },
       { onSuccess: () => setEditing(null) }
     );
   };
