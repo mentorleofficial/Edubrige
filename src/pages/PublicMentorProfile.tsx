@@ -248,6 +248,25 @@ const PublicMentorProfile = () => {
           </CardContent>
         </Card>
 
+        {/* Badges + Share */}
+        {(mentorBadges.length > 0 || true) && (
+          <Card>
+            <CardContent className="py-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {mentorBadges.length > 0 ? (
+                  mentorBadges.map((mb) => <BadgeChip key={mb.id} badge={mb.badge} />)
+                ) : (
+                  <span className="text-xs text-muted-foreground">No badges yet</span>
+                )}
+              </div>
+              <SocialShareButtons
+                url={typeof window !== "undefined" ? window.location.href : ""}
+                text={`Check out ${mentor.full_name}${mentor.headline ? ` — ${mentor.headline}` : ""} on ${branding.app_name}`}
+              />
+            </CardContent>
+          </Card>
+        )}
+
         {/* About */}
         {mentor.bio && (
           <Card>
