@@ -10,10 +10,10 @@ const Dashboard = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
+        {/* <div>
           <h1 className="text-3xl font-bold">Welcome back, {profile?.full_name?.split(" ")[0] || "User"}</h1>
           <p className="text-muted-foreground mt-1">Here's what's happening today.</p>
-        </div>
+        </div> */}
         {profile?.role === "admin" && <AdminDashboard />}
         {profile?.role === "mentor" && <MentorDashboard />}
         {profile?.role === "mentee" && <MenteeDashboard />}
