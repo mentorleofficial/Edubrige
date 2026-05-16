@@ -12,13 +12,15 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { signIn, session, loading } = useAuth();
+  const { signIn, session, profile, loading } = useAuth();
   const branding = useBranding();
   const navigate = useNavigate();
   const { toast } = useToast();
 
   // If already signed in, skip the login screen entirely.
-  if (!loading && session) {
+  // Wait for the profile to resolve so the destination route matches the role
+  // and we don't bounce through /dashboard while RoleGuard is still hydrating.
+  if (session && (profile || !loading)) {
     return <Navigate to="/dashboard" replace />;
   }
 

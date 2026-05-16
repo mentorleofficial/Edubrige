@@ -1,17 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  mentorSessionsKey,
+  type MentorSessionRow,
+} from "@/features/mentor-sessions/useMentorSessions";
 
-export type MentorDashSession = {
-  id: string;
-  scheduled_at: string;
-  duration_minutes: number;
-  status: "booked" | "completed" | "cancelled";
-  mentee_id: string;
-  meeting_url: string;
-  cancelled_at: string | null;
-  notes: string | null;
-  mentee: { full_name: string; avatar_url: string | null } | null;
-};
+export type MentorDashSession = MentorSessionRow;
 
 export type MentorDashFeedback = {
   id: string;
@@ -32,11 +26,6 @@ export type MentorProfileRow = {
   avatar_url: string | null;
 };
 
-export type MentorAvailabilityRow = {
-  id: string;
-  day_of_week: number;
-};
-
 export type MentorDashData = {
   sessions: MentorDashSession[];
   feedback: MentorDashFeedback[];
@@ -44,20 +33,38 @@ export type MentorDashData = {
   availabilityCount: number;
 };
 
-export const useMentorDashboardData = (userId?: string) =>
-  useQuery<MentorDashData>({
-    queryKey: ["mentor-dashboard", userId],
+export const useMentorDashboardData = (userId?: string) => {
+  const qc = useQueryClient();
+
+  return useQuery<MentorDashData>({
+    queryKey: ["mentor", "dashboard", userId],
     enabled: !!userId,
     staleTime: 30_000,
     queryFn: async () => {
-      const [sessRes, mpRes, avRes, userRes] = await Promise.all([
-        supabase
-          .from("sessions")
-          .select(
-            "id, scheduled_at, duration_minutes, status, mentee_id, meeting_url, cancelled_at, notes, mentee:users!sessions_mentee_id_fkey(full_name, avatar_url)"
-          )
-          .eq("mentor_id", userId!)
-          .order("scheduled_at", { ascending: true }),
+      // Sessions — reuse the shared cache key so MentorSessions page and
+      // MyMenteesPanel hit the same in-flight request / cached data.
+      const cachedSessions = qc.getQueryData<MentorSessionRow[]>(
+        mentorSessionsKey(userId)
+      );
+      const sessions: MentorSessionRow[] =
+        cachedSessions ??
+        (await qc.fetchQuery({
+          queryKey: mentorSessionsKey(userId),
+          staleTime: 60_000,
+          queryFn: async () => {
+            const { data, error } = await supabase
+              .from("sessions")
+              .select(
+                "id, scheduled_at, duration_minutes, status, notes, mentee_notes, meeting_url, cancellation_reason, mentee_id, cancelled_at, mentee:users!sessions_mentee_id_fkey(full_name, avatar_url)"
+              )
+              .eq("mentor_id", userId!)
+              .order("scheduled_at", { ascending: false });
+            if (error) throw error;
+            return (data as unknown as MentorSessionRow[]) ?? [];
+          },
+        }));
+
+      const [mpRes, avRes, userRes] = await Promise.all([
         supabase
           .from("mentor_profiles")
           .select("bio, expertise, qualifications, experiences, resume_url, headline")
@@ -70,9 +77,7 @@ export const useMentorDashboardData = (userId?: string) =>
         supabase.from("users").select("avatar_url").eq("id", userId!).maybeSingle(),
       ]);
 
-      const sessions = (sessRes.data as MentorDashSession[] | null) ?? [];
       const sessionIds = sessions.map((s) => s.id);
-
       let feedback: MentorDashFeedback[] = [];
       if (sessionIds.length > 0) {
         const fbRes = await supabase
@@ -84,7 +89,10 @@ export const useMentorDashboardData = (userId?: string) =>
       }
 
       const profile: MentorProfileRow | null = mpRes.data
-        ? { ...(mpRes.data as Omit<MentorProfileRow, "avatar_url">), avatar_url: userRes.data?.avatar_url ?? null }
+        ? {
+            ...(mpRes.data as Omit<MentorProfileRow, "avatar_url">),
+            avatar_url: userRes.data?.avatar_url ?? null,
+          }
         : null;
 
       return {
@@ -95,3 +103,4 @@ export const useMentorDashboardData = (userId?: string) =>
       };
     },
   });
+};
