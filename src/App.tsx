@@ -56,6 +56,9 @@ const App = () => (
               <Suspense fallback={<RouteFallback />}>
                 <Routes>
                   <Route path="/" element={<Navigate to="/login" replace />} />
+                  <Route path="/admin" element={<Navigate to="/admin/applications" replace />} />
+                  <Route path="/mentor" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="/mentee" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/login" element={<Login />} />
                   <Route path="/become-a-mentor" element={<MentorLanding />} />
                   <Route path="/mentors/:mentorId" element={<PublicMentorProfile />} />
