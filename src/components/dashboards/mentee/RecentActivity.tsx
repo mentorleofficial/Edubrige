@@ -97,4 +97,4 @@ const RecentActivity = ({ sessions, feedback }: Props) => {
   );
 };
 
-export default RecentActivity;
+export default /* @__PURE__ */ memo(RecentActivity);

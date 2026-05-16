@@ -104,4 +104,4 @@ const NextSessionCard = ({ session }: { session: DashSession | null }) => {
   );
 };
 
-export default NextSessionCard;
+export default /* @__PURE__ */ memo(NextSessionCard);

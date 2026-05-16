@@ -56,4 +56,4 @@ const RecommendedMentors = ({ mentors }: { mentors: RecommendedMentor[] }) => {
   );
 };
 
-export default RecommendedMentors;
+export default /* @__PURE__ */ memo(RecommendedMentors);

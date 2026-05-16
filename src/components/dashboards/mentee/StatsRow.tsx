@@ -41,4 +41,4 @@ const StatsRow = ({ upcoming, completed, hours, avgRating }: Props) => (
   </div>
 );
 
-export default StatsRow;
+export default /* @__PURE__ */ memo(StatsRow);

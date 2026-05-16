@@ -96,4 +96,4 @@ const InsightsPanel = ({ sessions, feedback, programsCount }: Props) => {
   );
 };
 
-export default InsightsPanel;
+export default /* @__PURE__ */ memo(InsightsPanel);

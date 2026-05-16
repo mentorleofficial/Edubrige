@@ -84,4 +84,4 @@ const SessionsCalendar = ({ sessions }: { sessions: DashSession[] }) => {
   );
 };
 
-export default SessionsCalendar;
+export default /* @__PURE__ */ memo(SessionsCalendar);
