@@ -185,7 +185,7 @@ const BookSession = () => {
         });
       }
 
-      toast({ title: rescheduleId ? "Session rescheduled" : "Session booked!", description: `Scheduled for ${format(scheduledAt, "PPP 'at' p")}` });
+      toast({ title: rescheduleId ? "Session rescheduled" : "Session booked!", description: `Scheduled for ${formatISTDateTime(scheduledAt)}` });
       setConfirmOpen(false);
       if (rescheduleId) {
         navigate("/mentee/sessions");
