@@ -103,6 +103,15 @@ const AdminApplications = () => {
       .from("mentor_applications")
       .update({ status: "rejected", reviewed_by: user.id, reviewed_at: new Date().toISOString() })
       .in("id", ids);
+    if (!error) {
+      // Send decision emails in parallel; ignore individual failures
+      await Promise.allSettled(ids.map((id) =>
+        supabase.functions.invoke("mentor-application-decision-email", {
+          body: { application_id: id, decision: "rejected", notes: "" },
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+        })
+      ));
+    }
     setBulkBusy(null);
     if (error) toast({ variant: "destructive", title: "Bulk reject failed", description: error.message });
     else { toast({ title: `Rejected ${ids.length} application${ids.length === 1 ? "" : "s"}` }); await fetchApps(); }
