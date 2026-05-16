@@ -10,6 +10,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import BadgeChip from "@/components/badges/BadgeChip";
+import SocialShareButtons from "@/components/SocialShareButtons";
+import { useMentorBadges } from "@/features/badges/api";
 import {
   Briefcase,
   GraduationCap,
@@ -78,6 +82,7 @@ const PublicMentorProfile = () => {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [rating, setRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
+  const { data: mentorBadges = [] } = useMentorBadges(mentor?.user_id);
 
   useEffect(() => {
     const fetch = async () => {
@@ -177,6 +182,7 @@ const PublicMentorProfile = () => {
   const description = mentor.headline || mentor.bio.slice(0, 155) || `Mentor with ${mentor.years_experience}+ years of experience.`;
 
   return (
+    <TooltipProvider>
     <div className="min-h-screen bg-muted/20">
       <Helmet>
         <title>{title}</title>
@@ -241,6 +247,25 @@ const PublicMentorProfile = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Badges + Share */}
+        {(mentorBadges.length > 0 || true) && (
+          <Card>
+            <CardContent className="py-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                {mentorBadges.length > 0 ? (
+                  mentorBadges.map((mb) => <BadgeChip key={mb.id} badge={mb.badge} />)
+                ) : (
+                  <span className="text-xs text-muted-foreground">No badges yet</span>
+                )}
+              </div>
+              <SocialShareButtons
+                url={typeof window !== "undefined" ? window.location.href : ""}
+                text={`Check out ${mentor.full_name}${mentor.headline ? ` — ${mentor.headline}` : ""} on ${branding.app_name}`}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* About */}
         {mentor.bio && (
@@ -334,6 +359,7 @@ const PublicMentorProfile = () => {
         </div>
       </div>
     </div>
+    </TooltipProvider>
   );
 };
 

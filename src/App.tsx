@@ -42,6 +42,7 @@ const JwtCallback = lazy(() => import("@/pages/JwtCallback"));
 const PublicMentorProfile = lazy(() => import("@/pages/PublicMentorProfile"));
 const AccountPrivacy = lazy(() => import("@/pages/AccountPrivacy"));
 const AdminPrivacyRequests = lazy(() => import("@/pages/AdminPrivacyRequests"));
+const MentorLeaderboard = lazy(() => import("@/pages/MentorLeaderboard"));
 
 const App = () => (
   <ErrorBoundary>
@@ -79,6 +80,7 @@ const App = () => (
                   <Route path="/mentor/profile" element={<RoleGuard allowedRoles={["mentor"]}><MentorProfile /></RoleGuard>} />
                   <Route path="/mentor/availability" element={<RoleGuard allowedRoles={["mentor"]} requireActiveMentor><MentorAvailability /></RoleGuard>} />
                   <Route path="/mentor/sessions" element={<RoleGuard allowedRoles={["mentor"]} requireActiveMentor><MentorSessions /></RoleGuard>} />
+                  <Route path="/mentor/leaderboard" element={<RoleGuard allowedRoles={["mentor", "admin"]}><MentorLeaderboard /></RoleGuard>} />
                   <Route path="/onboarding/mentee" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboarding /></RoleGuard>} />
                   <Route path="/mentee/profile" element={<RoleGuard allowedRoles={["mentee"]}><MenteeProfile /></RoleGuard>} />
                   <Route path="/mentee/sessions" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><MenteeSessions /></MenteeOnboardingGuard></RoleGuard>} />

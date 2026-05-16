@@ -14,6 +14,8 @@ interface BrandingConfig {
   sidebar_primary: string;
   body_font: string;
   heading_font: string;
+  mentor_community_url: string;
+  leaderboard_enabled: boolean;
 }
 
 const defaultBranding: BrandingConfig = {
@@ -28,6 +30,8 @@ const defaultBranding: BrandingConfig = {
   sidebar_primary: "199 89% 48%",
   body_font: "DM Sans",
   heading_font: "DM Serif Display",
+  mentor_community_url: "",
+  leaderboard_enabled: true,
 };
 
 const BrandingContext = createContext<BrandingConfig>(defaultBranding);
@@ -70,6 +74,8 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           sidebar_primary: (data as any).sidebar_primary ?? defaultBranding.sidebar_primary,
           body_font: (data as any).body_font ?? defaultBranding.body_font,
           heading_font: (data as any).heading_font ?? defaultBranding.heading_font,
+          mentor_community_url: (data as any).mentor_community_url ?? "",
+          leaderboard_enabled: (data as any).leaderboard_enabled ?? true,
         };
         setBranding(config);
         applyBrandingToDom(config);

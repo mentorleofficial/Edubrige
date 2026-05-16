@@ -25,6 +25,8 @@ interface BrandingRow {
   sidebar_primary: string;
   body_font: string;
   heading_font: string;
+  mentor_community_url: string;
+  leaderboard_enabled: boolean;
 }
 
 const DEFAULTS = {
@@ -184,6 +186,8 @@ const BrandingSettings = () => {
         sidebar_primary: draft.sidebar_primary,
         body_font: draft.body_font,
         heading_font: draft.heading_font,
+        mentor_community_url: draft.mentor_community_url,
+        leaderboard_enabled: draft.leaderboard_enabled,
       })
       .eq("id", draft.id);
     setSaving(false);
@@ -462,7 +466,40 @@ const BrandingSettings = () => {
           </CardContent>
         </Card>
 
-        {/* Save bar */}
+        {/* Engagement */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Mentor engagement</CardTitle>
+            <CardDescription>Optional community link shown to mentors, and leaderboard visibility.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>Mentor community URL</Label>
+              <Input
+                placeholder="https://community.example.com"
+                value={draft.mentor_community_url}
+                onChange={(e) => update({ mentor_community_url: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                When set, a "Mentor Community" link appears in the mentor sidebar.
+              </p>
+            </div>
+            <div className="flex items-center justify-between rounded-md border border-border p-3">
+              <div>
+                <Label className="text-sm">Show leaderboard to mentors</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Admins can always view the leaderboard.
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                className="h-5 w-5 accent-primary cursor-pointer"
+                checked={draft.leaderboard_enabled}
+                onChange={(e) => update({ leaderboard_enabled: e.target.checked })}
+              />
+            </div>
+          </CardContent>
+        </Card>
         <div className="sticky bottom-0 z-10 flex items-center justify-end gap-2 rounded-lg border border-border bg-card/95 backdrop-blur p-3 shadow-sm">
           <span className="mr-auto text-xs text-muted-foreground">
             {dirty ? "Unsaved changes" : "All changes saved"}
