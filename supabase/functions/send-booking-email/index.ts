@@ -62,17 +62,20 @@ const buildGoogleCalendarUrl = (p: {
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 };
 
+// All emails show times in IST (Asia/Kolkata) regardless of recipient locale.
 const formatDateTime = (iso: string) => {
   const d = new Date(iso);
-  return d.toLocaleString("en-US", {
+  const formatted = new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    timeZoneName: "short",
-  });
+    hour12: true,
+  }).format(d);
+  return `${formatted} IST`;
 };
 
 const buildEmailHtml = (opts: {

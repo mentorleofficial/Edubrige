@@ -1,4 +1,5 @@
 // Helpers for "Add to Calendar" — universal .ics download and Google Calendar quick-add link.
+import { formatISTDateTime } from "@/lib/datetime";
 
 export interface CalendarEventInput {
   title: string;
@@ -35,6 +36,8 @@ export function buildIcsContent(e: CalendarEventInput): string {
   const dtStart = toCalDate(e.startISO);
   const dtEnd = toCalDate(addMinutes(e.startISO, e.durationMinutes));
   const dtStamp = toCalDate(new Date().toISOString());
+  const istLine = `Scheduled: ${formatISTDateTime(e.startISO)}`;
+  const fullDescription = e.description ? `${istLine}\n\n${e.description}` : istLine;
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -47,7 +50,7 @@ export function buildIcsContent(e: CalendarEventInput): string {
     `DTSTART:${dtStart}`,
     `DTEND:${dtEnd}`,
     `SUMMARY:${escapeIcs(e.title)}`,
-    e.description ? `DESCRIPTION:${escapeIcs(e.description)}` : "",
+    `DESCRIPTION:${escapeIcs(fullDescription)}`,
     e.location ? `LOCATION:${escapeIcs(e.location)}` : "",
     "END:VEVENT",
     "END:VCALENDAR",
@@ -68,12 +71,14 @@ export function downloadIcs(e: CalendarEventInput, filename = "session.ics") {
 }
 
 export function buildGoogleCalendarUrl(e: CalendarEventInput): string {
+  const istLine = `Scheduled: ${formatISTDateTime(e.startISO)}`;
+  const details = e.description ? `${istLine}\n\n${e.description}` : istLine;
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: e.title,
     dates: `${toCalDate(e.startISO)}/${toCalDate(addMinutes(e.startISO, e.durationMinutes))}`,
+    details,
   });
-  if (e.description) params.set("details", e.description);
   if (e.location) params.set("location", e.location);
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }

@@ -1,14 +1,11 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, Globe } from "lucide-react";
 import type { WeeklySlot, DateOverride } from "@/features/availability/api/availability";
-import { DAYS_FULL, TIMEZONES, normalizeHHMM, detectTimezone } from "@/features/availability/timeUtils";
-import { Button } from "@/components/ui/button";
+import { DAYS_FULL, normalizeHHMM } from "@/features/availability/timeUtils";
 import { DayRow } from "@/features/availability/components/DayRow";
 import { OverrideList } from "@/features/availability/components/OverrideList";
 import { AvailabilityPreview } from "@/features/availability/components/AvailabilityPreview";
@@ -23,10 +20,9 @@ const MentorAvailability = () => {
   const { data, isLoading, isFetching } = useMentorAvailability(user?.id);
   const slots = data?.slots ?? [];
   const overrides = data?.overrides ?? [];
-  const timezone = data?.timezone ?? "UTC";
+  const timezone = "Asia/Kolkata";
 
   const m = useAvailabilityMutations(user?.id);
-  const autoDetectedRef = useRef(false);
 
   const anyPending =
     m.addSlot.isPending ||
@@ -34,7 +30,6 @@ const MentorAvailability = () => {
     m.deleteSlot.isPending ||
     m.deleteSlotsForDay.isPending ||
     m.copySlotsToDays.isPending ||
-    m.updateTimezone.isPending ||
     m.addOverride.isPending ||
     m.deleteOverride.isPending;
 
@@ -57,22 +52,6 @@ const MentorAvailability = () => {
     }
     return map;
   }, [slots]);
-
-  const onTimezoneChange = (tz: string) =>
-    m.updateTimezone.mutate(tz, { onError: handleError });
-
-  // Auto-detect mentor's timezone on first load if it's still the default UTC.
-  useEffect(() => {
-    if (isLoading || !user || autoDetectedRef.current) return;
-    if (timezone === "UTC") {
-      const detected = detectTimezone();
-      if (detected && detected !== "UTC") {
-        autoDetectedRef.current = true;
-        onTimezoneChange(detected);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, timezone, user]);
 
   const onAdd = (day: number, start: string, end: string) =>
     m.addSlot.mutate(
@@ -143,32 +122,12 @@ const MentorAvailability = () => {
                   <CardTitle className="text-base">Timezone</CardTitle>
                 </div>
                 <CardDescription>
-                  Times below are shown in this timezone. Mentees see your slots converted to theirs.
+                  All times are shown and stored in India Standard Time (IST). Mentees see your slots in IST too.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Label className="sr-only">Timezone</Label>
-                <div className="flex items-center gap-2 max-w-md">
-                  <Select value={timezone} onValueChange={onTimezoneChange}>
-                    <SelectTrigger className="flex-1">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[300px]">
-                      {TIMEZONES.map((tz) => (
-                        <SelectItem key={tz} value={tz}>
-                          {tz}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onTimezoneChange(detectTimezone())}
-                  >
-                    Detect
-                  </Button>
+                <div className="inline-flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium">
+                  Asia/Kolkata · IST (UTC+5:30)
                 </div>
               </CardContent>
             </Card>

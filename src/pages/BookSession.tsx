@@ -17,7 +17,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, ChevronRight, CheckCircle, Globe, Info, Video, Copy } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
-import { format, setHours, setMinutes } from "date-fns";
+import { fromZonedTime } from "date-fns-tz";
+import { APP_TZ, formatISTDateTime, formatIST } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 import {
   getMonthMatrix,
@@ -91,10 +92,16 @@ const BookSession = () => {
     [cursor]
   );
 
-  const isoForSlot = (date: Date, hhmm: string) => {
-    const [h, m] = hhmm.split(":").map(Number);
-    return setMinutes(setHours(date, h), m).toISOString();
+  // Interpret the picked date/time as an IST wall-clock time, regardless of browser tz.
+  const toISTDate = (date: Date, hhmm: string): Date => {
+    const y = date.getFullYear();
+    const mo = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const local = `${y}-${mo}-${d}T${hhmm}:00`;
+    return fromZonedTime(local, APP_TZ);
   };
+
+  const isoForSlot = (date: Date, hhmm: string) => toISTDate(date, hhmm).toISOString();
 
   const isSlotTaken = (date: Date, hhmm: string) => bookedTimes.has(isoForSlot(date, hhmm));
 
@@ -141,8 +148,7 @@ const BookSession = () => {
 
   const handleBook = async () => {
     if (!selectedDate || !selectedTime || !user || !mentorId) return;
-    const [hours, minutes] = selectedTime.split(":").map(Number);
-    const scheduledAt = setMinutes(setHours(selectedDate, hours), minutes);
+    const scheduledAt = toISTDate(selectedDate, selectedTime);
 
     try {
       const { meetingUrl } = await bookMutation.mutateAsync({
@@ -178,7 +184,7 @@ const BookSession = () => {
         });
       }
 
-      toast({ title: rescheduleId ? "Session rescheduled" : "Session booked!", description: `Scheduled for ${format(scheduledAt, "PPP 'at' p")}` });
+      toast({ title: rescheduleId ? "Session rescheduled" : "Session booked!", description: `Scheduled for ${formatISTDateTime(scheduledAt)}` });
       setConfirmOpen(false);
       if (rescheduleId) {
         navigate("/mentee/sessions");
@@ -210,7 +216,7 @@ const BookSession = () => {
               <CardTitle className="text-2xl">Session booked!</CardTitle>
               <p className="text-muted-foreground text-sm pt-1">
                 with <strong>{mentor.full_name}</strong> on{" "}
-                {format(scheduledAt, "PPP 'at' p")}
+                {formatISTDateTime(scheduledAt)}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -245,7 +251,7 @@ const BookSession = () => {
                     startISO: scheduledAt.toISOString(),
                     durationMinutes: 30,
                   }}
-                  filename={`mentorle-session-${format(scheduledAt, "yyyy-MM-dd-HHmm")}.ics`}
+                  filename={`mentorle-session-${formatIST(scheduledAt, "yyyy-MM-dd-HHmm")}.ics`}
                 />
               </div>
 
@@ -294,8 +300,8 @@ const BookSession = () => {
         </div>
 
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Globe className="h-3 w-3" /> Times shown in mentor's timezone:{" "}
-          <span className="font-medium">{timezone}</span>
+          <Globe className="h-3 w-3" /> All times shown in{" "}
+          <span className="font-medium">India Standard Time (IST)</span>
         </p>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
@@ -506,7 +512,7 @@ const BookSession = () => {
               <AlertDialogDescription>
                 {selectedDate && selectedTime && (
                   <>Book a session with <strong>{mentor.full_name}</strong> on{" "}
-                  <strong>{format(selectedDate, "PPP")} at {formatSlotLabel(selectedTime)}</strong>
+                  <strong>{formatIST(selectedDate, "d MMM yyyy")} at {formatSlotLabel(selectedTime)} IST</strong>
                   {slotEndForSelected && <> – {formatSlotLabel(slotEndForSelected)}</>}?</>
                 )}
               </AlertDialogDescription>
