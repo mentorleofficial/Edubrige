@@ -99,12 +99,12 @@ const AdminApplications = () => {
     const ids = eligibleIds("reject");
     if (!ids.length || !user) return;
     setBulkBusy("reject");
+    const { data: { session } } = await supabase.auth.getSession();
     const { error } = await supabase
       .from("mentor_applications")
       .update({ status: "rejected", reviewed_by: user.id, reviewed_at: new Date().toISOString() })
       .in("id", ids);
     if (!error) {
-      // Send decision emails in parallel; ignore individual failures
       await Promise.allSettled(ids.map((id) =>
         supabase.functions.invoke("mentor-application-decision-email", {
           body: { application_id: id, decision: "rejected", notes: "" },
