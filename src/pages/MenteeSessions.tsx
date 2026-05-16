@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,114 +14,73 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Fragment } from "react";
 import { MessageSquare, X, RefreshCw, ExternalLink, Copy, Video, Star } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import ProgramBadge from "@/components/programs/ProgramBadge";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
-import type { Database } from "@/integrations/supabase/types";
-
-type SessionStatus = Database["public"]["Enums"]["session_status"];
-
-interface SessionRow {
-  id: string;
-  scheduled_at: string;
-  duration_minutes: number;
-  status: SessionStatus;
-  mentor_id: string;
-  mentee_notes: string;
-  notes: string | null;
-  meeting_url: string;
-  cancellation_reason: string;
-  mentor: { full_name: string } | null;
-}
+import {
+  useMenteeSessions,
+  useMenteeRatedSessions,
+  useMenteeMentorPrograms,
+  useCancelMenteeSession,
+  type MenteeSessionRow,
+} from "@/features/mentee-sessions/useMenteeSessions";
 
 const MenteeSessions = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [sessions, setSessions] = useState<SessionRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [mentorPrograms, setMentorPrograms] = useState<Record<string, { name: string; color: string; slug: string }[]>>({});
+
+  const { data: sessions = [], isLoading } = useMenteeSessions(user?.id);
+  const sessionIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
+  const { data: ratedSessionIds = new Set<string>() } = useMenteeRatedSessions(user?.id, sessionIds);
   const { data: myPrograms = [] } = useMyPrograms();
-  const [cancelTarget, setCancelTarget] = useState<SessionRow | null>(null);
+
+  const mentorIds = useMemo(
+    () => Array.from(new Set(sessions.map((s) => s.mentor_id))),
+    [sessions]
+  );
+  const programIds = useMemo(() => myPrograms.map((p) => p.id), [myPrograms]);
+  const { data: mentorProgramRows = [] } = useMenteeMentorPrograms(programIds, mentorIds);
+
+  const mentorPrograms = useMemo(() => {
+    const byMentor: Record<string, { name: string; color: string; slug: string }[]> = {};
+    const programMap = new Map(myPrograms.map((p) => [p.id, p]));
+    mentorProgramRows.forEach((row) => {
+      const p = programMap.get(row.program_id);
+      if (!p) return;
+      (byMentor[row.mentor_id] ||= []).push({ name: p.name, color: p.color, slug: p.slug });
+    });
+    return byMentor;
+  }, [myPrograms, mentorProgramRows]);
+
+  const cancelMutation = useCancelMenteeSession(user?.id);
+  const [cancelTarget, setCancelTarget] = useState<MenteeSessionRow | null>(null);
   const [cancelReason, setCancelReason] = useState("");
-  const [cancelling, setCancelling] = useState(false);
-  const [ratedSessionIds, setRatedSessionIds] = useState<Set<string>>(new Set());
-
-  const fetchSessions = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("sessions")
-      .select("id, scheduled_at, duration_minutes, status, mentor_id, mentee_notes, notes, meeting_url, cancellation_reason, mentor:users!sessions_mentor_id_fkey(full_name)")
-      .eq("mentee_id", user.id)
-      .order("scheduled_at", { ascending: false });
-    const list = (data as any) || [];
-    setSessions(list);
-    setLoading(false);
-    if (list.length) {
-      const { data: fb } = await supabase
-        .from("feedback")
-        .select("session_id")
-        .eq("submitted_by", user.id)
-        .eq("audience", "mentor")
-        .in("session_id", list.map((s: SessionRow) => s.id));
-      setRatedSessionIds(new Set((fb || []).map((r: any) => r.session_id)));
-    }
-  };
-
-  useEffect(() => { fetchSessions(); }, [user]);
-
-  useEffect(() => {
-    if (myPrograms.length === 0 || sessions.length === 0) return;
-    (async () => {
-      const mentorIds = Array.from(new Set(sessions.map((s) => s.mentor_id)));
-      const programIds = myPrograms.map((p) => p.id);
-      const { data } = await supabase
-        .from("program_mentors")
-        .select("program_id, mentor_id")
-        .in("program_id", programIds)
-        .in("mentor_id", mentorIds);
-      const byMentor: Record<string, { name: string; color: string; slug: string }[]> = {};
-      const programMap = new Map(myPrograms.map((p) => [p.id, p]));
-      (data || []).forEach((row: any) => {
-        const p = programMap.get(row.program_id);
-        if (!p) return;
-        (byMentor[row.mentor_id] ||= []).push({ name: p.name, color: p.color, slug: p.slug });
-      });
-      setMentorPrograms(byMentor);
-    })();
-  }, [myPrograms, sessions]);
-
-  const statusColor = (s: SessionStatus) =>
-    s === "booked" ? "default" : s === "completed" ? "secondary" : "destructive";
 
   const now = new Date();
   const upcoming = sessions.filter((s) => s.status === "booked" && new Date(s.scheduled_at) >= now);
   const past = sessions.filter((s) => !(s.status === "booked" && new Date(s.scheduled_at) >= now));
 
-  const handleCancel = async () => {
-    if (!cancelTarget || !user) return;
-    setCancelling(true);
-    const { error } = await supabase.from("sessions").update({
-      status: "cancelled",
-      cancelled_by: user.id,
-      cancelled_at: new Date().toISOString(),
-      cancellation_reason: cancelReason || "Cancelled by mentee",
-    } as any).eq("id", cancelTarget.id);
-    setCancelling(false);
-    if (error) {
-      toast({ variant: "destructive", title: "Error", description: error.message });
-    } else {
-      toast({ title: "Session cancelled" });
-      setCancelTarget(null);
-      setCancelReason("");
-      fetchSessions();
-    }
+  const statusColor = (s: MenteeSessionRow["status"]) =>
+    s === "booked" ? "default" : s === "completed" ? "secondary" : "destructive";
+
+  const handleCancel = () => {
+    if (!cancelTarget) return;
+    cancelMutation.mutate(
+      { id: cancelTarget.id, reason: cancelReason },
+      {
+        onSuccess: () => {
+          toast({ title: "Session cancelled" });
+          setCancelTarget(null);
+          setCancelReason("");
+        },
+      }
+    );
   };
 
-  const renderRows = (rows: SessionRow[], isUpcoming: boolean) => {
-    if (loading) return <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>;
+  const renderRows = (rows: MenteeSessionRow[], isUpcoming: boolean) => {
+    if (isLoading) return <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>;
     if (rows.length === 0) return <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No sessions</TableCell></TableRow>;
     return rows.map((s) => {
       const progs = mentorPrograms[s.mentor_id] || [];
@@ -255,9 +213,9 @@ const MenteeSessions = () => {
             <Textarea rows={2} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Let your mentor know why…" />
           </div>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={cancelling}>Keep it</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCancel} disabled={cancelling}>
-              {cancelling ? "Cancelling…" : "Cancel session"}
+            <AlertDialogCancel disabled={cancelMutation.isPending}>Keep it</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancel} disabled={cancelMutation.isPending}>
+              {cancelMutation.isPending ? "Cancelling…" : "Cancel session"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
