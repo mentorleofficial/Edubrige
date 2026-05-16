@@ -217,7 +217,7 @@ const BookSession = () => {
               <CardTitle className="text-2xl">Session booked!</CardTitle>
               <p className="text-muted-foreground text-sm pt-1">
                 with <strong>{mentor.full_name}</strong> on{" "}
-                {format(scheduledAt, "PPP 'at' p")}
+                {formatISTDateTime(scheduledAt)}
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
