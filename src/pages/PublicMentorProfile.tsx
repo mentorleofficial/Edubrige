@@ -182,6 +182,7 @@ const PublicMentorProfile = () => {
   const description = mentor.headline || mentor.bio.slice(0, 155) || `Mentor with ${mentor.years_experience}+ years of experience.`;
 
   return (
+    <TooltipProvider>
     <div className="min-h-screen bg-muted/20">
       <Helmet>
         <title>{title}</title>
@@ -339,6 +340,7 @@ const PublicMentorProfile = () => {
         </div>
       </div>
     </div>
+    </TooltipProvider>
   );
 };
 
