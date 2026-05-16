@@ -19,6 +19,8 @@ import {
   Star,
   Shield,
   ShieldCheck,
+  Trophy,
+  ExternalLink,
 } from "lucide-react";
 import {
   Sidebar,
@@ -59,6 +61,7 @@ const AppSidebar = () => {
     { title: "Programs", icon: FolderKanban, path: "/admin/programs" },
     { title: "Sessions", icon: BookOpen, path: "/admin/sessions" },
     { title: "Feedback", icon: Star, path: "/admin/feedback" },
+    { title: "Leaderboard", icon: Trophy, path: "/mentor/leaderboard" },
     { title: "Settings", icon: Settings, path: "/admin/settings" },
     { title: "Privacy Requests", icon: ShieldCheck, path: "/admin/privacy-requests" },
     { title: "Audit Logs", icon: ClipboardList, path: "/admin/audit-logs" },
@@ -71,6 +74,12 @@ const AppSidebar = () => {
     { title: "Programs", icon: FolderKanban, path: "/mentor/programs" },
     { title: "My Mentees", icon: UsersRound, path: "/mentor/mentees" },
     { title: "Sessions", icon: BookOpen, path: "/mentor/sessions" },
+    ...(branding.leaderboard_enabled
+      ? [{ title: "Leaderboard", icon: Trophy, path: "/mentor/leaderboard" }]
+      : []),
+    ...(branding.mentor_community_url
+      ? [{ title: "Mentor Community", icon: ExternalLink, path: "__community__", href: branding.mentor_community_url }]
+      : []),
   ];
   const mentorItemsInactive = [
     { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
@@ -118,7 +127,10 @@ const AppSidebar = () => {
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     isActive={location.pathname === item.path}
-                    onClick={() => navigate(item.path)}
+                    onClick={() => {
+                      if (item.href) window.open(item.href, "_blank", "noopener,noreferrer");
+                      else navigate(item.path);
+                    }}
                     className="gap-3"
                   >
                     <item.icon className="h-4 w-4" />
