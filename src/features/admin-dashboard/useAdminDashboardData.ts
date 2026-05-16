@@ -162,6 +162,25 @@ export const useAdminDashboardData = () =>
         });
       }
 
+      const auditRows = (auditRes.data as AdminAuditRow[] | null) ?? [];
+      const actorIds = Array.from(
+        new Set(auditRows.map((r) => r.user_id).filter((v): v is string => !!v))
+      );
+      const actorMap: Record<string, string> = {};
+      if (actorIds.length > 0) {
+        const ares = await supabase
+          .from("users")
+          .select("id, full_name")
+          .in("id", actorIds);
+        ((ares.data as { id: string; full_name: string }[] | null) ?? []).forEach((u) => {
+          actorMap[u.id] = u.full_name;
+        });
+      }
+      const audit = auditRows.map((r) => ({
+        ...r,
+        actor_name: r.user_id ? actorMap[r.user_id] ?? null : null,
+      }));
+
       const programs: AdminProgramLite[] = (
         (programsRes.data as
           | { id: string; name: string; slug: string; program_mentors: { count: number }[]; program_mentees: { count: number }[] }[]
