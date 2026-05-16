@@ -1,45 +1,29 @@
-# Production Routing Fix Plan
+# Login RLS Function Permission Fix Plan
 
 ## Goal
 
-Make refresh/deep links work in production for client-side routes such as `/dashboard`, `/admin/settings`, `/mentor/sessions`, and other React Router pages.
+Restore login by fixing the database permission error that blocks the app from reading the signed-in user's profile.
 
 ## What I found
 
-- The app uses `BrowserRouter`, which is correct for clean production URLs.
-- Routes like `/dashboard` and `/admin/settings` exist in `src/App.tsx`.
-- A `vercel.json` file already exists, but I will harden it for Vercel SPA hosting and make the production fallback explicit.
-- The exact path `/admin` is not currently defined; only nested admin routes exist, such as `/admin/users`, `/admin/settings`, `/admin/applications`.
+- Login succeeds at Supabase Auth, but profile loading fails immediately afterward.
+- The failing `/users` request includes a valid authenticated token.
+- Supabase returns: `permission denied for function is_program_mentor`.
+- A previous security migration revoked execute access from helper functions used inside RLS policies, including `is_program_mentor`, `is_program_member`, `can_mentee_book_mentor`, and `has_role`.
+- Because `users` RLS policies call these helper functions, Postgres rejects the profile query and the app signs the user out.
 
 ## Changes to make
 
-1. Update Vercel routing configuration
-   - Ensure all non-file page navigations are served by `/index.html`.
-   - Keep static asset caching intact for `/assets/*`.
-   - Preserve production security headers.
+1. Add a Supabase migration to restore safe execute permissions for RLS helper functions
+   - Grant `authenticated` execute access to helper functions used by authenticated RLS policies.
+   - Keep these functions as `SECURITY DEFINER` with pinned `search_path`.
+   - Keep anonymous access restricted unless needed for a public-facing policy.
 
-2. Add missing top-level redirects in the app router
-   - `/admin` redirects to a valid admin page, likely `/admin/applications`.
-   - `/mentor` redirects to `/mentor/sessions` or dashboard.
-   - `/mentee` redirects to `/mentee/sessions` or dashboard.
-
-3. Verify production-readiness configuration
-   - Confirm Vite builds with root-relative assets.
-   - Confirm no basename/subdirectory routing issue exists.
-   - Confirm published Lovable visibility is public.
+2. Validate the login path
+   - Confirm the helper functions can be executed by authenticated users.
+   - Confirm the user's own `users` row can be read under RLS.
+   - Confirm login no longer signs out after profile fetch.
 
 ## Expected result
 
-Refreshing or directly opening production URLs like these should load the app instead of showing a hosting 404:
-
-```text
-/dashboard
-/admin
-/admin/settings
-/mentor/sessions
-/mentee/sessions
-```
-
-## Deployment note
-
-After implementation, redeploy/update the frontend on the production host. Backend changes deploy automatically, but frontend routing/config changes require a new production deployment.
+After the migration is approved and applied, login should complete normally and authenticated pages like `/dashboard` and `/admin` should load instead of returning to `/login`.
