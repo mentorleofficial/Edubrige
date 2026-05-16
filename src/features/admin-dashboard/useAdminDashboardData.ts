@@ -136,7 +136,7 @@ export const useAdminDashboardData = () =>
         supabase.from("jwt_config").select("enabled").limit(1).maybeSingle(),
         supabase
           .from("audit_logs")
-          .select("id, action, entity_type, created_at, user_id, actor:users!audit_logs_user_id_fkey(full_name)")
+          .select("id, action, entity_type, created_at, user_id")
           .order("created_at", { ascending: false })
           .limit(8),
       ]);
