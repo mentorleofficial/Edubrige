@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { ClipboardList } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { AdminAuditRow } from "@/features/admin-dashboard/useAdminDashboardData";
+import { formatISTDate } from "@/lib/datetime";
 
 const relTime = (ms: number) => {
   const diff = Date.now() - ms;
@@ -12,7 +13,7 @@ const relTime = (ms: number) => {
   if (h < 24) return `${h}h ago`;
   const d = Math.floor(h / 24);
   if (d < 30) return `${d}d ago`;
-  return new Date(ms).toLocaleDateString();
+  return formatISTDate(ms);
 };
 
 const RecentAudit = ({ rows }: { rows: AdminAuditRow[] }) => (

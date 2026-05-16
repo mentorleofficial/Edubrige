@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { formatISTDateTime } from "@/lib/datetime";
 
 interface Row {
   id: string;
@@ -55,7 +56,7 @@ const RecentSessions = () => {
                     {s.mentor?.full_name || "—"} → {s.mentee?.full_name || "—"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(s.scheduled_at).toLocaleString()}
+                    {formatISTDateTime(s.scheduled_at)}
                   </p>
                 </div>
                 <Badge variant={statusVariant(s.status)}>{s.status}</Badge>

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Calendar, Users } from "lucide-react";
 import type { ProgramWithCounts } from "@/features/programs/api";
+import { formatISTDate } from "@/lib/datetime";
 
 type Props = {
   program: ProgramWithCounts;
@@ -41,8 +42,8 @@ const ProgramCard = ({ program, basePath, cta }: Props) => {
           {program.starts_on ? (
             <span className="inline-flex items-center gap-1">
               <Calendar className="h-3.5 w-3.5" />
-              {new Date(program.starts_on).toLocaleDateString()}
-              {program.ends_on ? ` – ${new Date(program.ends_on).toLocaleDateString()}` : ""}
+              {formatISTDate(program.starts_on)}
+              {program.ends_on ? ` – ${formatISTDate(program.ends_on)}` : ""}
             </span>
           ) : null}
         </div>

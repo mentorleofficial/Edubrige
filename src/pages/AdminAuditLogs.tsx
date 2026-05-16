@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Search } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import { formatISTDateTime } from "@/lib/datetime";
 
 type AuditLog = Database["public"]["Tables"]["audit_logs"]["Row"];
 
@@ -64,7 +65,7 @@ const AdminAuditLogs = () => {
                       <TableCell><Badge variant="outline">{l.action}</Badge></TableCell>
                       <TableCell>{l.entity_type}</TableCell>
                       <TableCell className="font-mono text-xs text-muted-foreground">{l.entity_id?.slice(0, 8) || "—"}</TableCell>
-                      <TableCell className="text-muted-foreground">{new Date(l.created_at).toLocaleString()}</TableCell>
+                      <TableCell className="text-muted-foreground">{formatISTDateTime(l.created_at)}</TableCell>
                     </TableRow>
                   ))
                 )}

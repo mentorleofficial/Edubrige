@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { CalendarDays } from "lucide-react";
 import type { DashSession } from "@/features/mentee-dashboard/useMenteeDashboardData";
 import { cn } from "@/lib/utils";
+import { formatISTDate, formatISTTime } from "@/lib/datetime";
 
 const sameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
@@ -47,7 +48,7 @@ const SessionsCalendar = ({ sessions }: { sessions: DashSession[] }) => {
         <div className="flex-1 min-w-0">
           <div className="mb-2 text-sm font-medium">
             {selected
-              ? selected.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })
+              ? formatISTDate(selected)
               : "Pick a day"}
           </div>
           {daysSessions.length === 0 ? (
@@ -64,10 +65,7 @@ const SessionsCalendar = ({ sessions }: { sessions: DashSession[] }) => {
                       {s.mentor?.full_name || "Mentor"}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {new Date(s.scheduled_at).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}{" "}
+                      {formatISTTime(s.scheduled_at)}{" "}
                       · {s.duration_minutes}m
                     </div>
                   </div>

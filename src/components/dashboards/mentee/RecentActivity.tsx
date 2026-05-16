@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, CalendarPlus, CheckCircle2, XCircle, Star } from "lucide-react";
 import type { DashSession, DashFeedback } from "@/features/mentee-dashboard/useMenteeDashboardData";
+import { formatISTDate } from "@/lib/datetime";
 
 interface Props {
   sessions: DashSession[];
@@ -23,7 +24,7 @@ const relTime = (ms: number) => {
   if (h < 24) return `${h}h ago`;
   const d = Math.floor(h / 24);
   if (d < 30) return `${d}d ago`;
-  return new Date(ms).toLocaleDateString();
+  return formatISTDate(ms);
 };
 
 const RecentActivity = ({ sessions, feedback }: Props) => {

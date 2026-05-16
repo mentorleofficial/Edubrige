@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
+import { formatISTDateTime } from "@/lib/datetime";
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { CheckCircle2, X, UserX, Link2, FileEdit, Video, Star, ListTodo } from "lucide-react";
@@ -108,7 +109,7 @@ const MentorSessions = () => {
                   : progs.map((p) => <ProgramBadge key={p.slug} name={p.name} color={p.color} to={`/mentor/programs/${p.slug}`} />)}
               </div>
             </TableCell>
-            <TableCell>{new Date(s.scheduled_at).toLocaleString()}</TableCell>
+            <TableCell>{formatISTDateTime(s.scheduled_at)}</TableCell>
             <TableCell>{s.duration_minutes} min</TableCell>
             <TableCell><Badge variant={statusColor(s.status)}>{s.status}</Badge></TableCell>
             <TableCell>

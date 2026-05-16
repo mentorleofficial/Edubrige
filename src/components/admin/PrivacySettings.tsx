@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
+import { formatISTDate, formatISTDateTime } from "@/lib/datetime";
   useCurrentPolicy,
   useAllPolicies,
   useUpsertPolicy,
@@ -117,7 +118,7 @@ const PrivacySettings = () => {
                   <li key={p.id} className="flex items-center gap-2">
                     <Badge variant={p.is_current ? "default" : "outline"}>v{p.version}</Badge>
                     <span className="text-muted-foreground text-xs">
-                      {new Date(p.effective_from).toLocaleDateString()}
+                      {formatISTDate(p.effective_from)}
                     </span>
                     {p.url && (
                       <a href={p.url} target="_blank" rel="noreferrer" className="text-xs underline">
@@ -139,7 +140,7 @@ const PrivacySettings = () => {
             Windows used by the retention sweep (set up a scheduled job to enforce).
             {retention?.last_sweep_at && (
               <span className="block mt-1">
-                Last sweep: {new Date(retention.last_sweep_at).toLocaleString()}
+                Last sweep: {formatISTDateTime(retention.last_sweep_at)}
               </span>
             )}
           </CardDescription>

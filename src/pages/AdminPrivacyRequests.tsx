@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
+import { formatISTDateTime } from "@/lib/datetime";
   Dialog,
   DialogContent,
   DialogHeader,
@@ -92,7 +93,7 @@ const AdminPrivacyRequests = () => {
                       </TableCell>
                       <TableCell className="capitalize text-sm">{r.kind}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(r.created_at).toLocaleString()}
+                        {formatISTDateTime(r.created_at)}
                       </TableCell>
                       <TableCell>
                         <Badge variant={STATUS_VARIANT[r.status] ?? "secondary"}>{r.status}</Badge>

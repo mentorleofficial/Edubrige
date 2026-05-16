@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Send } from "lucide-react";
+import { formatISTDateTime } from "@/lib/datetime";
 
 interface OutboundEvent {
   id: string;
@@ -139,7 +140,7 @@ const EdubridgeSettings = () => {
                     </Badge>
                   </TableCell>
                   <TableCell>{e.attempts}</TableCell>
-                  <TableCell className="text-muted-foreground text-xs">{new Date(e.created_at).toLocaleString()}</TableCell>
+                  <TableCell className="text-muted-foreground text-xs">{formatISTDateTime(e.created_at)}</TableCell>
                   <TableCell className="text-xs text-muted-foreground max-w-[280px] truncate" title={e.last_error}>
                     {e.last_error || "—"}
                   </TableCell>

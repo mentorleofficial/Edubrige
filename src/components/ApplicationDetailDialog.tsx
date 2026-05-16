@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { ExternalLink, FileText, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import { formatISTDate } from "@/lib/datetime";
 
 type Application = Database["public"]["Tables"]["mentor_applications"]["Row"];
 
@@ -99,7 +100,7 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
             <div><span className="text-muted-foreground">Email:</span> {application.email}</div>
             <div><span className="text-muted-foreground">Phone:</span> {application.phone || "—"}</div>
             <div><span className="text-muted-foreground">Years:</span> {application.years_experience}</div>
-            <div><span className="text-muted-foreground">Submitted:</span> {new Date(application.created_at).toLocaleDateString()}</div>
+            <div><span className="text-muted-foreground">Submitted:</span> {formatISTDate(application.created_at)}</div>
           </div>
 
           <div>

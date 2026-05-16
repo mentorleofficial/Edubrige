@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { UsersRound } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { MentorDashSession } from "@/features/mentor-dashboard/useMentorDashboardData";
+import { formatISTDate } from "@/lib/datetime";
 
 const MyMenteesPanel = ({ sessions }: { sessions: MentorDashSession[] }) => {
   const map = new Map<
@@ -56,7 +57,7 @@ const MyMenteesPanel = ({ sessions }: { sessions: MentorDashSession[] }) => {
                   <div className="truncate text-sm font-semibold">{m.name}</div>
                   <div className="text-xs text-muted-foreground">
                     {m.count} session{m.count > 1 ? "s" : ""} · last{" "}
-                    {new Date(m.last).toLocaleDateString()}
+                    {formatISTDate(m.last)}
                   </div>
                 </div>
               </div>

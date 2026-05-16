@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarRange } from "lucide-react";
 import type { MentorDashSession } from "@/features/mentor-dashboard/useMentorDashboardData";
+import { formatISTDate, formatISTDateTime } from "@/lib/datetime";
 
 const dayLabel = (d: Date) =>
-  d.toLocaleDateString([], { weekday: "short" });
+  formatISTDate(d);
 
 const WeeklySchedule = ({ sessions }: { sessions: MentorDashSession[] }) => {
   const now = new Date();
@@ -68,7 +69,7 @@ const WeeklySchedule = ({ sessions }: { sessions: MentorDashSession[] }) => {
                 <div className="flex flex-col">
                   <span className="font-medium">{s.mentee?.full_name || "Mentee"}</span>
                   <span className="text-xs text-muted-foreground">
-                    {start.toLocaleString([], { weekday: "short", hour: "numeric", minute: "2-digit" })}
+                    {formatISTDateTime(start)}
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground">{s.duration_minutes}m</span>

@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
+import { formatISTDateTime } from "@/lib/datetime";
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -104,7 +105,7 @@ const MenteeSessions = () => {
                   : progs.map((p) => <ProgramBadge key={p.slug} name={p.name} color={p.color} to={`/mentee/programs/${p.slug}`} />)}
               </div>
             </TableCell>
-            <TableCell>{new Date(s.scheduled_at).toLocaleString()}</TableCell>
+            <TableCell>{formatISTDateTime(s.scheduled_at)}</TableCell>
             <TableCell>{s.duration_minutes} min</TableCell>
             <TableCell><Badge variant={statusColor(s.status)}>{s.status}</Badge></TableCell>
             <TableCell>

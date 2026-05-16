@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Star } from "lucide-react";
 import type { MentorDashFeedback } from "@/features/mentor-dashboard/useMentorDashboardData";
+import { formatISTDate } from "@/lib/datetime";
 
 const relTime = (ms: number) => {
   const diff = Date.now() - ms;
@@ -10,7 +11,7 @@ const relTime = (ms: number) => {
   if (h < 24) return `${h}h ago`;
   const d = Math.floor(h / 24);
   if (d < 30) return `${d}d ago`;
-  return new Date(ms).toLocaleDateString();
+  return formatISTDate(ms);
 };
 
 const RecentFeedbackPanel = ({ feedback }: { feedback: MentorDashFeedback[] }) => {
