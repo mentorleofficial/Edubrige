@@ -46,7 +46,7 @@ export type AdminAuditRow = {
   entity_type: string;
   created_at: string;
   user_id: string | null;
-  actor: { full_name: string | null } | null;
+  actor_name?: string | null;
 };
 
 export type AdminDashData = {
