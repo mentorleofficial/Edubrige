@@ -211,7 +211,7 @@ export const useAdminDashboardData = () =>
         mentorsById,
         branding: brandingRes.data as { app_name: string; logo_url: string | null } | null,
         jwtEnabled: !!(jwtRes.data as { enabled: boolean } | null)?.enabled,
-        audit: (auditRes.data as AdminAuditRow[] | null) ?? [],
+        audit,
       };
     },
   });
