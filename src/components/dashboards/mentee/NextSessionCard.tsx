@@ -5,7 +5,7 @@ import { Video, ExternalLink, CalendarDays } from "lucide-react";
 import { Link } from "react-router-dom";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import type { DashSession } from "@/features/mentee-dashboard/useMenteeDashboardData";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 const fmtCountdown = (ms: number) => {
   if (ms <= 0) return "Starting now";

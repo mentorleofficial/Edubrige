@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, CalendarPlus, CheckCircle2, XCircle, Star } from "lucide-react";
 import type { DashSession, DashFeedback } from "@/features/mentee-dashboard/useMenteeDashboardData";
