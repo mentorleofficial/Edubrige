@@ -1,3 +1,4 @@
+import { formatISTDateTime } from "@/lib/datetime";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
@@ -7,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import {
   Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle,
@@ -204,7 +205,7 @@ const AdminSessions = () => {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />
-                        {new Date(s.scheduled_at).toLocaleString()}
+                        {formatISTDateTime(s.scheduled_at)}
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{s.mentor?.full_name || "—"}</TableCell>
@@ -239,7 +240,7 @@ const AdminSessions = () => {
             <>
               <SheetHeader>
                 <SheetTitle>Session details</SheetTitle>
-                <SheetDescription>{new Date(detail.scheduled_at).toLocaleString()} · {detail.duration_minutes} min</SheetDescription>
+                <SheetDescription>{formatISTDateTime(detail.scheduled_at)} · {detail.duration_minutes} min</SheetDescription>
               </SheetHeader>
               <div className="space-y-4 mt-6 text-sm">
                 <div className="grid grid-cols-2 gap-3">

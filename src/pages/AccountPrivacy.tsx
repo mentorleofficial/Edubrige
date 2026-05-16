@@ -1,3 +1,4 @@
+import { formatISTDate, formatISTDateTime } from "@/lib/datetime";
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -7,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  useCurrentPolicy,
+useCurrentPolicy,
   useMyLatestConsent,
   useMyDsrs,
   useCreateDsr,
@@ -106,10 +107,10 @@ const AccountPrivacy = () => {
             {consent ? (
               <div className="text-sm">
                 You accepted v{consent.policy_version} on{" "}
-                {new Date(consent.accepted_at).toLocaleString()}
+                {formatISTDateTime(consent.accepted_at)}
                 {consent.withdrawn_at && (
                   <Badge variant="destructive" className="ml-2">
-                    Withdrawn {new Date(consent.withdrawn_at).toLocaleDateString()}
+                    Withdrawn {formatISTDate(consent.withdrawn_at)}
                   </Badge>
                 )}
               </div>
@@ -204,7 +205,7 @@ const AccountPrivacy = () => {
                     <div>
                       <div className="text-sm font-medium capitalize">{r.kind}</div>
                       <div className="text-xs text-muted-foreground">
-                        {new Date(r.created_at).toLocaleString()}
+                        {formatISTDateTime(r.created_at)}
                       </div>
                       {r.message && <div className="text-xs mt-1">{r.message}</div>}
                       {r.admin_notes && (

@@ -1,3 +1,4 @@
+import { formatISTDateTime } from "@/lib/datetime";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -6,7 +7,6 @@ import { Link } from "react-router-dom";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import type { DashSession } from "@/features/mentee-dashboard/useMenteeDashboardData";
 import { memo, useEffect, useState } from "react";
-
 const fmtCountdown = (ms: number) => {
   if (ms <= 0) return "Starting now";
   const m = Math.floor(ms / 60000);
@@ -66,7 +66,7 @@ const NextSessionCard = ({ session }: { session: DashSession | null }) => {
             </h3>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <CalendarDays className="h-4 w-4" />
-              <span>{start.toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</span>
+              <span>{formatISTDateTime(start)}</span>
               <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                 {fmtCountdown(start.getTime() - now)}
               </span>

@@ -1,3 +1,4 @@
+import { formatISTDate } from "@/lib/datetime";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -13,7 +14,6 @@ import { useToast } from "@/hooks/use-toast";
 import ApplicationDetailDialog from "@/components/ApplicationDetailDialog";
 import { CheckCircle2, XCircle, Loader2, Search } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
-
 type Application = Database["public"]["Tables"]["mentor_applications"]["Row"];
 type Status = "pending" | "approved" | "rejected" | "all";
 
@@ -200,7 +200,7 @@ const AdminApplications = () => {
                           {a.expertise.length > 3 && <span className="text-xs text-muted-foreground">+{a.expertise.length - 3}</span>}
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground" onClick={() => { setSelected(a); setOpen(true); }}>{new Date(a.created_at).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-muted-foreground" onClick={() => { setSelected(a); setOpen(true); }}>{formatISTDate(a.created_at)}</TableCell>
                       <TableCell onClick={() => { setSelected(a); setOpen(true); }}><Badge variant={variant(a.status)}>{a.status}</Badge></TableCell>
                     </TableRow>
                   ))

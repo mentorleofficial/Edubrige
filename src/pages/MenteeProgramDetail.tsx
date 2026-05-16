@@ -1,3 +1,4 @@
+import { formatISTDate } from "@/lib/datetime";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
@@ -9,7 +10,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Calendar, Users, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchMenteeProgramOverview } from "@/features/programs/api";
-
 const initials = (n: string) =>
   n.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase() || "?";
 
@@ -105,8 +105,8 @@ const MenteeProgramDetail = () => {
               {program.starts_on && (
                 <span className="inline-flex items-center gap-1.5">
                   <Calendar className="h-4 w-4" />
-                  {new Date(program.starts_on).toLocaleDateString()}
-                  {program.ends_on ? ` – ${new Date(program.ends_on).toLocaleDateString()}` : ""}
+                  {formatISTDate(program.starts_on)}
+                  {program.ends_on ? ` – ${formatISTDate(program.ends_on)}` : ""}
                 </span>
               )}
             </div>

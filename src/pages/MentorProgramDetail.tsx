@@ -1,3 +1,4 @@
+import { formatISTDate } from "@/lib/datetime";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
@@ -91,8 +92,8 @@ const MentorProgramDetail = () => {
               {program.starts_on && (
                 <span className="inline-flex items-center gap-1.5">
                   <Calendar className="h-4 w-4" />
-                  {new Date(program.starts_on).toLocaleDateString()}
-                  {program.ends_on ? ` – ${new Date(program.ends_on).toLocaleDateString()}` : ""}
+                  {formatISTDate(program.starts_on)}
+                  {program.ends_on ? ` – ${formatISTDate(program.ends_on)}` : ""}
                 </span>
               )}
             </div>

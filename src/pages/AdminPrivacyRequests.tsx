@@ -1,3 +1,4 @@
+import { formatISTDateTime } from "@/lib/datetime";
 import { useState } from "react";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog,
+Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -92,7 +93,7 @@ const AdminPrivacyRequests = () => {
                       </TableCell>
                       <TableCell className="capitalize text-sm">{r.kind}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {new Date(r.created_at).toLocaleString()}
+                        {formatISTDateTime(r.created_at)}
                       </TableCell>
                       <TableCell>
                         <Badge variant={STATUS_VARIANT[r.status] ?? "secondary"}>{r.status}</Badge>

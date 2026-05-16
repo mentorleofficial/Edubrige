@@ -1,8 +1,8 @@
+import { formatISTDate } from "@/lib/datetime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarRange } from "lucide-react";
 import type { AdminSessionRow } from "@/features/admin-dashboard/useAdminDashboardData";
-
-const dayLabel = (d: Date) => d.toLocaleDateString([], { weekday: "short" });
+const dayLabel = (d: Date) => formatISTDate(d);
 
 const WeekSchedule = ({ sessions }: { sessions: AdminSessionRow[] }) => {
   const now = new Date();

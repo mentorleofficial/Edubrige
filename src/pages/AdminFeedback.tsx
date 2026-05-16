@@ -1,3 +1,4 @@
+import { formatISTDate, formatISTDateTime } from "@/lib/datetime";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
@@ -7,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Star } from "lucide-react";
-
 type Audience = "mentor" | "mentee" | "admin_private";
 
 interface FeedbackRow {
@@ -151,10 +151,10 @@ const AdminFeedback = () => {
                   <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No feedback yet</TableCell></TableRow>
                 ) : filtered.map((r) => (
                   <TableRow key={r.id}>
-                    <TableCell className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{formatISTDate(r.created_at)}</TableCell>
                     <TableCell className="text-sm">
                       <div>{r.session?.mentor?.full_name || "—"} ↔ {r.session?.mentee?.full_name || "—"}</div>
-                      <div className="text-xs text-muted-foreground">{r.session ? new Date(r.session.scheduled_at).toLocaleString() : ""}</div>
+                      <div className="text-xs text-muted-foreground">{r.session ? formatISTDateTime(r.session.scheduled_at) : ""}</div>
                     </TableCell>
                     <TableCell className="text-sm">{r.submitter?.full_name || "—"}</TableCell>
                     <TableCell><Badge variant="outline" className="text-xs">{audienceLabel[r.audience]}</Badge></TableCell>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { format } from "date-fns";
+import { formatISTDate } from "@/lib/datetime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -174,10 +174,10 @@ export default function SessionActionItemsPanel({
                     className="h-7 w-auto text-xs"
                   />
                 ) : item.due_date ? (
-                  <span>Due {format(new Date(item.due_date), "PP")}</span>
+                  <span>Due {formatISTDate(item.due_date)}</span>
                 ) : null}
                 {item.status === "done" && item.completed_at && (
-                  <span>· Done {format(new Date(item.completed_at), "PP")}</span>
+                  <span>· Done {formatISTDate(item.completed_at)}</span>
                 )}
               </div>
             </div>
