@@ -17,10 +17,10 @@ const Login = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // If already signed in, skip the login screen entirely.
-  // Wait for the profile to resolve so the destination route matches the role
-  // and we don't bounce through /dashboard while RoleGuard is still hydrating.
-  if (session && (profile || !loading)) {
+  // Only redirect once we have BOTH a session AND a resolved profile.
+  // If we have a session but no profile (e.g. RLS 403 or missing users row),
+  // staying on /login avoids an infinite loop with RoleGuard.
+  if (session && profile) {
     return <Navigate to="/dashboard" replace />;
   }
 
