@@ -25,6 +25,8 @@ interface BrandingRow {
   sidebar_primary: string;
   body_font: string;
   heading_font: string;
+  mentor_community_url: string;
+  leaderboard_enabled: boolean;
 }
 
 const DEFAULTS = {
@@ -184,6 +186,8 @@ const BrandingSettings = () => {
         sidebar_primary: draft.sidebar_primary,
         body_font: draft.body_font,
         heading_font: draft.heading_font,
+        mentor_community_url: draft.mentor_community_url,
+        leaderboard_enabled: draft.leaderboard_enabled,
       })
       .eq("id", draft.id);
     setSaving(false);
