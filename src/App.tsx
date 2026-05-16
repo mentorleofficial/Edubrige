@@ -40,6 +40,8 @@ const SessionFeedback = lazy(() => import("@/pages/SessionFeedback"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 const JwtCallback = lazy(() => import("@/pages/JwtCallback"));
 const PublicMentorProfile = lazy(() => import("@/pages/PublicMentorProfile"));
+const AccountPrivacy = lazy(() => import("@/pages/AccountPrivacy"));
+const AdminPrivacyRequests = lazy(() => import("@/pages/AdminPrivacyRequests"));
 
 const App = () => (
   <ErrorBoundary>
@@ -71,6 +73,8 @@ const App = () => (
                   <Route path="/admin/sessions" element={<RoleGuard allowedRoles={["admin"]}><AdminSessions /></RoleGuard>} />
                   <Route path="/admin/feedback" element={<RoleGuard allowedRoles={["admin"]}><AdminFeedback /></RoleGuard>} />
                   <Route path="/admin/audit-logs" element={<RoleGuard allowedRoles={["admin"]}><AdminAuditLogs /></RoleGuard>} />
+                  <Route path="/admin/privacy-requests" element={<RoleGuard allowedRoles={["admin"]}><AdminPrivacyRequests /></RoleGuard>} />
+                  <Route path="/account/privacy" element={<RoleGuard allowedRoles={["admin", "mentor", "mentee"]}><AccountPrivacy /></RoleGuard>} />
                   <Route path="/mentors" element={<RoleGuard allowedRoles={["mentee", "admin"]}><MenteeOnboardingGuard><MentorDirectory /></MenteeOnboardingGuard></RoleGuard>} />
                   <Route path="/mentor/profile" element={<RoleGuard allowedRoles={["mentor"]}><MentorProfile /></RoleGuard>} />
                   <Route path="/mentor/availability" element={<RoleGuard allowedRoles={["mentor"]} requireActiveMentor><MentorAvailability /></RoleGuard>} />

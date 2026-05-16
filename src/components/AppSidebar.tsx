@@ -17,6 +17,8 @@ import {
   FolderKanban,
   UsersRound,
   Star,
+  Shield,
+  ShieldCheck,
 } from "lucide-react";
 import {
   Sidebar,
@@ -58,6 +60,7 @@ const AppSidebar = () => {
     { title: "Sessions", icon: BookOpen, path: "/admin/sessions" },
     { title: "Feedback", icon: Star, path: "/admin/feedback" },
     { title: "Settings", icon: Settings, path: "/admin/settings" },
+    { title: "Privacy Requests", icon: ShieldCheck, path: "/admin/privacy-requests" },
     { title: "Audit Logs", icon: ClipboardList, path: "/admin/audit-logs" },
   ];
 
@@ -80,6 +83,7 @@ const AppSidebar = () => {
     { title: "Programs", icon: FolderKanban, path: "/mentee/programs" },
     { title: "Find Mentors", icon: GraduationCap, path: "/mentors" },
     { title: "My Sessions", icon: BookOpen, path: "/mentee/sessions" },
+    { title: "Privacy & My Data", icon: Shield, path: "/account/privacy" },
   ];
 
   const items =

@@ -103,6 +103,78 @@ export type Database = {
         }
         Relationships: []
       }
+      data_retention_settings: {
+        Row: {
+          audit_logs_retention_days: number
+          created_at: string
+          id: string
+          inactive_user_retention_days: number
+          last_sweep_at: string | null
+          sessions_retention_days: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          audit_logs_retention_days?: number
+          created_at?: string
+          id?: string
+          inactive_user_retention_days?: number
+          last_sweep_at?: string | null
+          sessions_retention_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          audit_logs_retention_days?: number
+          created_at?: string
+          id?: string
+          inactive_user_retention_days?: number
+          last_sweep_at?: string | null
+          sessions_retention_days?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      data_subject_requests: {
+        Row: {
+          admin_notes: string
+          created_at: string
+          handled_at: string | null
+          handled_by: string | null
+          id: string
+          kind: Database["public"]["Enums"]["dsr_kind"]
+          message: string
+          status: Database["public"]["Enums"]["dsr_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string
+          created_at?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["dsr_kind"]
+          message?: string
+          status?: Database["public"]["Enums"]["dsr_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string
+          created_at?: string
+          handled_at?: string | null
+          handled_by?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["dsr_kind"]
+          message?: string
+          status?: Database["public"]["Enums"]["dsr_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       feedback: {
         Row: {
           audience: Database["public"]["Enums"]["feedback_audience"]
@@ -507,6 +579,42 @@ export type Database = {
           },
         ]
       }
+      privacy_policy: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          id: string
+          is_current: boolean
+          summary: string
+          updated_at: string
+          url: string
+          version: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          id?: string
+          is_current?: boolean
+          summary?: string
+          updated_at?: string
+          url?: string
+          version: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          id?: string
+          is_current?: boolean
+          summary?: string
+          updated_at?: string
+          url?: string
+          version?: string
+        }
+        Relationships: []
+      }
       program_mentees: {
         Row: {
           assigned_at: string
@@ -767,6 +875,39 @@ export type Database = {
           },
         ]
       }
+      user_consents: {
+        Row: {
+          accepted_at: string
+          created_at: string
+          id: string
+          ip_address: string
+          policy_version: string
+          user_agent: string
+          user_id: string
+          withdrawn_at: string | null
+        }
+        Insert: {
+          accepted_at?: string
+          created_at?: string
+          id?: string
+          ip_address?: string
+          policy_version: string
+          user_agent?: string
+          user_id: string
+          withdrawn_at?: string | null
+        }
+        Update: {
+          accepted_at?: string
+          created_at?: string
+          id?: string
+          ip_address?: string
+          policy_version?: string
+          user_agent?: string
+          user_id?: string
+          withdrawn_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           email: string | null
@@ -894,6 +1035,8 @@ export type Database = {
     Enums: {
       app_role: "admin" | "mentor" | "mentee"
       application_status: "pending" | "approved" | "rejected"
+      dsr_kind: "export" | "correction" | "deletion" | "withdrawal"
+      dsr_status: "pending" | "in_review" | "completed" | "rejected"
       feedback_audience: "mentor" | "mentee" | "admin_private"
       session_status: "booked" | "completed" | "cancelled" | "no_show"
     }
@@ -1025,6 +1168,8 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "mentor", "mentee"],
       application_status: ["pending", "approved", "rejected"],
+      dsr_kind: ["export", "correction", "deletion", "withdrawal"],
+      dsr_status: ["pending", "in_review", "completed", "rejected"],
       feedback_audience: ["mentor", "mentee", "admin_private"],
       session_status: ["booked", "completed", "cancelled", "no_show"],
     },

@@ -1,6 +1,7 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/AppSidebar";
 import ApprovalCelebrationModal from "@/features/mentor-approval/ApprovalCelebrationModal";
+import ConsentBanner from "@/components/ConsentBanner";
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -11,6 +12,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
           <div className="flex items-center gap-2 border-b px-6 py-3">
             <SidebarTrigger />
           </div>
+          <ConsentBanner />
           <div className="p-6">{children}</div>
         </main>
       </div>
