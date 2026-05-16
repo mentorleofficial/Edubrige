@@ -43,8 +43,11 @@ export const useMentorDashboardData = (userId?: string) => {
     queryFn: async () => {
       // Sessions — reuse the shared cache key so MentorSessions page and
       // MyMenteesPanel hit the same in-flight request / cached data.
-      const sessionsPromise =
-        qc.getQueryData<MentorSessionRow[]>(mentorSessionsKey(userId)) ??
+      const cachedSessions = qc.getQueryData<MentorSessionRow[]>(
+        mentorSessionsKey(userId)
+      );
+      const sessions: MentorSessionRow[] =
+        cachedSessions ??
         (await qc.fetchQuery({
           queryKey: mentorSessionsKey(userId),
           staleTime: 60_000,
@@ -60,10 +63,6 @@ export const useMentorDashboardData = (userId?: string) => {
             return (data as unknown as MentorSessionRow[]) ?? [];
           },
         }));
-
-      const sessions: MentorSessionRow[] = Array.isArray(sessionsPromise)
-        ? sessionsPromise
-        : await sessionsPromise;
 
       const [mpRes, avRes, userRes] = await Promise.all([
         supabase
