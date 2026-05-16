@@ -93,10 +93,16 @@ const BookSession = () => {
     [cursor]
   );
 
-  const isoForSlot = (date: Date, hhmm: string) => {
-    const [h, m] = hhmm.split(":").map(Number);
-    return setMinutes(setHours(date, h), m).toISOString();
+  // Interpret the picked date/time as an IST wall-clock time, regardless of browser tz.
+  const toISTDate = (date: Date, hhmm: string): Date => {
+    const y = date.getFullYear();
+    const mo = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const local = `${y}-${mo}-${d}T${hhmm}:00`;
+    return fromZonedTime(local, APP_TZ);
   };
+
+  const isoForSlot = (date: Date, hhmm: string) => toISTDate(date, hhmm).toISOString();
 
   const isSlotTaken = (date: Date, hhmm: string) => bookedTimes.has(isoForSlot(date, hhmm));
 
