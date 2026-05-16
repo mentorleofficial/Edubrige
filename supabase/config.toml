@@ -13,3 +13,9 @@ verify_jwt = false
 
 [functions.send-booking-email]
 verify_jwt = false
+
+[functions.sync-to-edubridge]
+verify_jwt = false
+
+[functions.mentor-application-decision-email]
+verify_jwt = false
