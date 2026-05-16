@@ -105,9 +105,13 @@ const BookSession = () => {
 
   const isSlotTaken = (date: Date, hhmm: string) => bookedTimes.has(isoForSlot(date, hhmm));
 
+  // Treat slots starting within the next 5 minutes (or already passed) as unbookable.
+  const isPastSlot = (date: Date, hhmm: string) =>
+    toISTDate(date, hhmm).getTime() <= Date.now() + 5 * 60 * 1000;
+
   const isDayFullyBooked = (date: Date) => {
     const ranges = getRangesForDate(date, slots, overrides);
-    const list = sliceIntoSlots(ranges, 30);
+    const list = sliceIntoSlots(ranges, 30).filter((t) => !isPastSlot(date, t));
     if (list.length === 0) return false;
     return list.every((t) => isSlotTaken(date, t));
   };
@@ -129,7 +133,11 @@ const BookSession = () => {
     () => (selectedDate ? getRangesForDate(selectedDate, slots, overrides) : []),
     [selectedDate, slots, overrides]
   );
-  const daySlotList = useMemo(() => sliceIntoSlots(dayRanges, 30), [dayRanges]);
+  const daySlotList = useMemo(
+    () => sliceIntoSlots(dayRanges, 30).filter((t) => !(selectedDate && isPastSlot(selectedDate, t))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [dayRanges, selectedDate]
+  );
   const selectedKind = useMemo(
     () => (selectedDate ? getOverrideKind(selectedDate, overrides) : null),
     [selectedDate, overrides]
