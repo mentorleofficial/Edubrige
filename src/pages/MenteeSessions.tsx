@@ -1,25 +1,53 @@
-import { formatISTDateTime } from "@/lib/datetime";
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
-AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { MessageSquare, X, RefreshCw, ExternalLink, Copy, Video, Star, ListTodo } from "lucide-react";
+import {
+  MessageSquare,
+  X,
+  RefreshCw,
+  Video,
+  Star,
+  ListTodo,
+  Calendar as CalendarIcon,
+  Inbox,
+} from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
-import ProgramBadge from "@/components/programs/ProgramBadge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import SessionActionItemsPanel from "@/components/sessions/SessionActionItemsPanel";
+import SessionHeroCard from "@/components/sessions/SessionHeroCard";
+import SessionListCard, {
+  type OverflowAction,
+  type SessionCardData,
+} from "@/components/sessions/SessionListCard";
+import SessionsToolbar, {
+  type SortMode,
+  type ProgramOption,
+} from "@/components/sessions/SessionsToolbar";
+import SessionSectionHeader from "@/components/sessions/SessionSectionHeader";
+import SessionCardSkeleton from "@/components/sessions/SessionCardSkeleton";
+import { upcomingGroup, monthYearIST } from "@/lib/relativeTime";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import {
   useMenteeSessions,
@@ -28,6 +56,29 @@ import {
   useCancelMenteeSession,
   type MenteeSessionRow,
 } from "@/features/mentee-sessions/useMenteeSessions";
+import type { SessionStatus } from "@/features/mentor-sessions/useMentorSessions";
+
+function toCardData(
+  s: MenteeSessionRow,
+  programs: SessionCardData["programs"]
+): SessionCardData {
+  return {
+    id: s.id,
+    counterpartyName: s.mentor?.full_name || "Unknown mentor",
+    counterpartyAvatar: s.mentor?.avatar_url ?? null,
+    title: s.title,
+    topic: s.topic,
+    scheduledAt: s.scheduled_at,
+    durationMinutes: s.duration_minutes,
+    status: s.status,
+    programs,
+    programLinkBase: "/mentee/programs",
+    meetingUrl: s.meeting_url,
+    notes: s.notes,
+    menteeNotes: s.mentee_notes,
+    cancellationReason: s.cancellation_reason,
+  };
+}
 
 const MenteeSessions = () => {
   const { user } = useAuth();
@@ -36,7 +87,10 @@ const MenteeSessions = () => {
 
   const { data: sessions = [], isLoading } = useMenteeSessions(user?.id);
   const sessionIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
-  const { data: ratedSessionIds = new Set<string>() } = useMenteeRatedSessions(user?.id, sessionIds);
+  const { data: ratedSessionIds = new Set<string>() } = useMenteeRatedSessions(
+    user?.id,
+    sessionIds
+  );
   const { data: myPrograms = [] } = useMyPrograms();
 
   const mentorIds = useMemo(
@@ -44,15 +98,26 @@ const MenteeSessions = () => {
     [sessions]
   );
   const programIds = useMemo(() => myPrograms.map((p) => p.id), [myPrograms]);
-  const { data: mentorProgramRows = [] } = useMenteeMentorPrograms(programIds, mentorIds);
+  const { data: mentorProgramRows = [] } = useMenteeMentorPrograms(
+    programIds,
+    mentorIds
+  );
 
   const mentorPrograms = useMemo(() => {
-    const byMentor: Record<string, { name: string; color: string; slug: string }[]> = {};
+    const byMentor: Record<
+      string,
+      { id: string; name: string; color: string; slug: string }[]
+    > = {};
     const programMap = new Map(myPrograms.map((p) => [p.id, p]));
     mentorProgramRows.forEach((row) => {
       const p = programMap.get(row.program_id);
       if (!p) return;
-      (byMentor[row.mentor_id] ||= []).push({ name: p.name, color: p.color, slug: p.slug });
+      (byMentor[row.mentor_id] ||= []).push({
+        id: p.id,
+        name: p.name,
+        color: p.color,
+        slug: p.slug,
+      });
     });
     return byMentor;
   }, [myPrograms, mentorProgramRows]);
@@ -62,12 +127,62 @@ const MenteeSessions = () => {
   const [cancelReason, setCancelReason] = useState("");
   const [actionItemsTarget, setActionItemsTarget] = useState<MenteeSessionRow | null>(null);
 
-  const now = new Date();
-  const upcoming = sessions.filter((s) => s.status === "booked" && new Date(s.scheduled_at) >= now);
-  const past = sessions.filter((s) => !(s.status === "booked" && new Date(s.scheduled_at) >= now));
+  // Filters
+  const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
+  const [search, setSearch] = useState("");
+  const [programFilter, setProgramFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<SessionStatus | "all">("all");
+  const [sort, setSort] = useState<SortMode>("soonest");
 
-  const statusColor = (s: MenteeSessionRow["status"]) =>
-    s === "booked" ? "default" : s === "completed" ? "secondary" : "destructive";
+  const programOptions: ProgramOption[] = useMemo(
+    () => myPrograms.map((p) => ({ id: p.id, name: p.name })),
+    [myPrograms]
+  );
+
+  const now = Date.now();
+  const { upcoming, past, nextSession } = useMemo(() => {
+    const up: MenteeSessionRow[] = [];
+    const ps: MenteeSessionRow[] = [];
+    for (const s of sessions) {
+      if (s.status === "booked" && new Date(s.scheduled_at).getTime() >= now) up.push(s);
+      else ps.push(s);
+    }
+    up.sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+    return { upcoming: up, past: ps, nextSession: up[0] ?? null };
+  }, [sessions, now]);
+
+  const filterFn = (rows: MenteeSessionRow[]) => {
+    const q = search.trim().toLowerCase();
+    return rows.filter((s) => {
+      if (programFilter !== "all") {
+        const progs = mentorPrograms[s.mentor_id] || [];
+        if (!progs.some((p) => p.id === programFilter)) return false;
+      }
+      if (statusFilter !== "all" && s.status !== statusFilter) return false;
+      if (q) {
+        const hay = [
+          s.mentor?.full_name,
+          s.title,
+          s.topic,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  };
+
+  const sortFn = (rows: MenteeSessionRow[]) =>
+    [...rows].sort((a, b) => {
+      const da = new Date(a.scheduled_at).getTime();
+      const db = new Date(b.scheduled_at).getTime();
+      return sort === "soonest" ? da - db : db - da;
+    });
+
+  const filteredUpcoming = useMemo(() => sortFn(filterFn(upcoming)), [upcoming, search, programFilter, statusFilter, sort, mentorPrograms]);
+  const filteredPast = useMemo(() => sortFn(filterFn(past)), [past, search, programFilter, statusFilter, sort, mentorPrograms]);
 
   const handleCancel = () => {
     if (!cancelTarget) return;
@@ -83,135 +198,304 @@ const MenteeSessions = () => {
     );
   };
 
-  const renderRows = (rows: MenteeSessionRow[], isUpcoming: boolean) => {
-    if (isLoading) return <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>;
-    if (rows.length === 0) return <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No sessions</TableCell></TableRow>;
-    return rows.map((s) => {
-      const progs = mentorPrograms[s.mentor_id] || [];
-      const hasDetails = !!(s.mentee_notes || s.notes || s.meeting_url || s.cancellation_reason || s.topic);
-      return (
-        <Fragment key={s.id}>
-          <TableRow>
-            <TableCell className="font-medium">{s.mentor?.full_name || "Unknown"}</TableCell>
-            <TableCell>
-              <div className="flex flex-col">
-                <span className="font-medium text-sm">{s.title || <span className="text-muted-foreground italic">Untitled</span>}</span>
-                {s.topic && <span className="text-xs text-muted-foreground truncate max-w-[18rem]">{s.topic}</span>}
-              </div>
-            </TableCell>
-            <TableCell>
-              <div className="flex flex-wrap gap-1">
-                {progs.length === 0 ? <span className="text-xs text-muted-foreground">—</span>
-                  : progs.map((p) => <ProgramBadge key={p.slug} name={p.name} color={p.color} to={`/mentee/programs/${p.slug}`} />)}
-              </div>
-            </TableCell>
-            <TableCell>{formatISTDateTime(s.scheduled_at)}</TableCell>
-            <TableCell>{s.duration_minutes} min</TableCell>
-            <TableCell><Badge variant={statusColor(s.status)}>{s.status}</Badge></TableCell>
-            <TableCell>
-              <div className="flex items-center gap-1 flex-wrap">
-                {isUpcoming && s.meeting_url && (
-                  <Button asChild size="sm">
-                    <a href={s.meeting_url} target="_blank" rel="noreferrer">
-                      <Video className="mr-1 h-3 w-3" />Join now
-                    </a>
-                  </Button>
-                )}
-                {isUpcoming && (
-                  <>
-                    <AddToCalendarMenu
-                      event={{
-                        title: `Mentorship session with ${s.mentor?.full_name || "your mentor"}`,
-                        description: [
-                          s.meeting_url ? `Meeting link: ${s.meeting_url}` : "",
-                          s.mentee_notes ? `Notes: ${s.mentee_notes}` : "",
-                        ].filter(Boolean).join("\n"),
-                        location: s.meeting_url || undefined,
-                        startISO: s.scheduled_at,
-                        durationMinutes: s.duration_minutes,
-                      }}
-                      filename={`session-${s.id}.ics`}
-                    />
-                    <Button variant="ghost" size="sm" onClick={() => navigate(`/book/${s.mentor_id}?reschedule=${s.id}`)}>
-                      <RefreshCw className="mr-1 h-3 w-3" />Reschedule
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setCancelTarget(s)}>
-                      <X className="mr-1 h-3 w-3" />Cancel
-                    </Button>
-                  </>
-                )}
-                {s.status === "completed" && (
-                  ratedSessionIds.has(s.id) ? (
-                    <Badge variant="secondary" className="text-xs"><Star className="mr-1 h-3 w-3" />Rated</Badge>
-                  ) : (
-                    <Button variant="default" size="sm" onClick={() => navigate(`/session/${s.id}/feedback`)}>
-                      <MessageSquare className="mr-1 h-3 w-3" />Rate session
-                    </Button>
-                  )
-                )}
-                <Button variant="ghost" size="sm" onClick={() => setActionItemsTarget(s)}>
-                  <ListTodo className="mr-1 h-3 w-3" />Tasks
-                </Button>
-              </div>
-            </TableCell>
-          </TableRow>
-          {hasDetails && (
-            <TableRow className="bg-muted/30">
-              <TableCell colSpan={7} className="py-3 space-y-2 text-sm">
-                {s.topic && <div><span className="font-medium">Topic:</span> {s.topic}</div>}
-                {s.meeting_url && (
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Meeting link:</span>
-                    <a href={s.meeting_url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">
-                      {s.meeting_url} <ExternalLink className="h-3 w-3" />
-                    </a>
-                    <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(s.meeting_url); toast({ title: "Copied" }); }}>
-                      <Copy className="h-3 w-3" />
-                    </Button>
-                  </div>
-                )}
-                {s.mentee_notes && <div><span className="font-medium">Your notes:</span> {s.mentee_notes}</div>}
-                {s.notes && <div><span className="font-medium">Mentor notes:</span> {s.notes}</div>}
-                {s.cancellation_reason && <div className="text-destructive"><span className="font-medium">Cancellation:</span> {s.cancellation_reason}</div>}
-              </TableCell>
-            </TableRow>
-          )}
-        </Fragment>
+  const buildCardActions = (s: MenteeSessionRow, isUpcoming: boolean) => {
+    const data = toCardData(s, mentorPrograms[s.mentor_id] || []);
+    const primary: React.ReactNode[] = [];
+    const overflow: OverflowAction[] = [];
+
+    if (isUpcoming && s.meeting_url) {
+      primary.push(
+        <Button asChild size="sm" key="join">
+          <a href={s.meeting_url} target="_blank" rel="noreferrer">
+            <Video className="mr-1 h-3.5 w-3.5" /> Join now
+          </a>
+        </Button>
       );
+    }
+
+    if (isUpcoming) {
+      primary.push(
+        <AddToCalendarMenu
+          key="cal"
+          event={{
+            title: `Mentorship session with ${s.mentor?.full_name || "your mentor"}`,
+            description: [
+              s.meeting_url ? `Meeting link: ${s.meeting_url}` : "",
+              s.mentee_notes ? `Notes: ${s.mentee_notes}` : "",
+            ]
+              .filter(Boolean)
+              .join("\n"),
+            location: s.meeting_url || undefined,
+            startISO: s.scheduled_at,
+            durationMinutes: s.duration_minutes,
+          }}
+          filename={`session-${s.id}.ics`}
+        />
+      );
+
+      overflow.push({
+        label: "Reschedule",
+        icon: <RefreshCw className="h-3.5 w-3.5" />,
+        onClick: () => navigate(`/book/${s.mentor_id}?reschedule=${s.id}`),
+      });
+      overflow.push({
+        label: "Cancel session",
+        icon: <X className="h-3.5 w-3.5" />,
+        onClick: () => setCancelTarget(s),
+        destructive: true,
+      });
+    }
+
+    if (s.status === "completed") {
+      if (ratedSessionIds.has(s.id)) {
+        primary.push(
+          <span
+            key="rated"
+            className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-2 py-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400"
+          >
+            <Star className="h-3 w-3" /> Rated
+          </span>
+        );
+      } else {
+        primary.push(
+          <Button
+            key="rate"
+            size="sm"
+            onClick={() => navigate(`/session/${s.id}/feedback`)}
+          >
+            <MessageSquare className="mr-1 h-3.5 w-3.5" /> Rate session
+          </Button>
+        );
+      }
+    }
+
+    overflow.push({
+      label: "View tasks",
+      icon: <ListTodo className="h-3.5 w-3.5" />,
+      onClick: () => setActionItemsTarget(s),
     });
+
+    return { data, primary, overflow };
   };
+
+  const renderGroupedUpcoming = (rows: MenteeSessionRow[]) => {
+    const groups: Record<"today" | "week" | "later", MenteeSessionRow[]> = {
+      today: [],
+      week: [],
+      later: [],
+    };
+    rows.forEach((s) => groups[upcomingGroup(s.scheduled_at)].push(s));
+    const labels: Record<keyof typeof groups, string> = {
+      today: "Today",
+      week: "This week",
+      later: "Later",
+    };
+    return (
+      <div className="space-y-5">
+        {(["today", "week", "later"] as const).map((key) =>
+          groups[key].length === 0 ? null : (
+            <section key={key}>
+              <SessionSectionHeader title={labels[key]} count={groups[key].length} />
+              <div className="space-y-2">
+                {groups[key].map((s) => {
+                  const { data, primary, overflow } = buildCardActions(s, true);
+                  return (
+                    <SessionListCard
+                      key={s.id}
+                      data={data}
+                      isUpcoming
+                      primaryActions={<>{primary}</>}
+                      overflowActions={overflow}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+          )
+        )}
+      </div>
+    );
+  };
+
+  const renderGroupedPast = (rows: MenteeSessionRow[]) => {
+    const groups = new Map<string, MenteeSessionRow[]>();
+    rows.forEach((s) => {
+      const k = monthYearIST(s.scheduled_at);
+      const arr = groups.get(k) ?? [];
+      arr.push(s);
+      groups.set(k, arr);
+    });
+    return (
+      <div className="space-y-5">
+        {Array.from(groups.entries()).map(([month, items]) => (
+          <section key={month}>
+            <SessionSectionHeader title={month} count={items.length} />
+            <div className="space-y-2">
+              {items.map((s) => {
+                const { data, primary, overflow } = buildCardActions(s, false);
+                return (
+                  <SessionListCard
+                    key={s.id}
+                    data={data}
+                    isUpcoming={false}
+                    primaryActions={<>{primary}</>}
+                    overflowActions={overflow}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        ))}
+      </div>
+    );
+  };
+
+  const renderEmpty = (which: "upcoming" | "past") => (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed bg-card py-12 text-center">
+      <Inbox className="h-8 w-8 text-muted-foreground" />
+      <div>
+        <p className="font-medium">
+          {which === "upcoming" ? "No upcoming sessions" : "Nothing here yet"}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {which === "upcoming"
+            ? "Book a session with a mentor to get started."
+            : "Your past sessions will show up here."}
+        </p>
+      </div>
+      {which === "upcoming" && (
+        <Button onClick={() => navigate("/mentors")}>
+          <CalendarIcon className="mr-1 h-4 w-4" /> Find a mentor
+        </Button>
+      )}
+    </div>
+  );
+
+  // Hero
+  const heroData = nextSession
+    ? toCardData(nextSession, mentorPrograms[nextSession.mentor_id] || [])
+    : null;
+
+  const heroPrimary = nextSession && (
+    <>
+      {nextSession.meeting_url ? (
+        <Button asChild size="lg">
+          <a href={nextSession.meeting_url} target="_blank" rel="noreferrer">
+            <Video className="mr-2 h-4 w-4" /> Join now
+          </a>
+        </Button>
+      ) : (
+        <Button size="lg" variant="secondary" disabled>
+          <Video className="mr-2 h-4 w-4" /> Waiting for link
+        </Button>
+      )}
+      <AddToCalendarMenu
+        event={{
+          title: `Mentorship session with ${nextSession.mentor?.full_name || "your mentor"}`,
+          description: nextSession.meeting_url ? `Meeting link: ${nextSession.meeting_url}` : "",
+          location: nextSession.meeting_url || undefined,
+          startISO: nextSession.scheduled_at,
+          durationMinutes: nextSession.duration_minutes,
+        }}
+        filename={`session-${nextSession.id}.ics`}
+      />
+    </>
+  );
+
+  const heroSecondary = nextSession && (
+    <div className="flex flex-wrap gap-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate(`/book/${nextSession.mentor_id}?reschedule=${nextSession.id}`)}
+      >
+        <RefreshCw className="mr-1 h-3.5 w-3.5" /> Reschedule
+      </Button>
+      <Button variant="ghost" size="sm" onClick={() => setCancelTarget(nextSession)}>
+        <X className="mr-1 h-3.5 w-3.5" /> Cancel
+      </Button>
+    </div>
+  );
+
+  const hasFilters = !!search || programFilter !== "all" || statusFilter !== "all";
+  const resultRows = tab === "upcoming" ? filteredUpcoming : filteredPast;
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">My Sessions</h1>
-        <Tabs defaultValue="upcoming">
+        <div>
+          <h1 className="text-3xl font-bold">My Sessions</h1>
+          <p className="text-sm text-muted-foreground">
+            Join, reschedule, and review every session in one place.
+          </p>
+        </div>
+
+        <SessionHeroCard
+          data={heroData}
+          counterpartyLabel="Mentor"
+          emptyTitle="No upcoming sessions"
+          emptyDescription="Book a session with one of your mentors to get going."
+          emptyCtaLabel="Find a mentor"
+          emptyCtaTo="/mentors"
+          primaryActions={heroPrimary}
+          secondaryActions={heroSecondary}
+        />
+
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "upcoming" | "past")}>
           <TabsList>
             <TabsTrigger value="upcoming">Upcoming ({upcoming.length})</TabsTrigger>
             <TabsTrigger value="past">Past ({past.length})</TabsTrigger>
           </TabsList>
-          {(["upcoming", "past"] as const).map((tab) => (
-            <TabsContent key={tab} value={tab} className="mt-4">
-              <Card>
-                <CardContent className="p-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Mentor</TableHead>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Program</TableHead>
-                        <TableHead>Date & Time</TableHead>
-                        <TableHead>Duration</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>{renderRows(tab === "upcoming" ? upcoming : past, tab === "upcoming")}</TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
+
+          <div className="mt-4 space-y-4">
+            <SessionsToolbar
+              search={search}
+              onSearchChange={setSearch}
+              programOptions={programOptions}
+              programFilter={programFilter}
+              onProgramFilterChange={setProgramFilter}
+              showStatusFilter={tab === "past"}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              sort={sort}
+              onSortChange={setSort}
+              resultCount={resultRows.length}
+              hasFilters={hasFilters}
+              onClear={() => {
+                setSearch("");
+                setProgramFilter("all");
+                setStatusFilter("all");
+              }}
+            />
+
+            <TabsContent value="upcoming" className="m-0">
+              {isLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <SessionCardSkeleton key={i} />
+                  ))}
+                </div>
+              ) : filteredUpcoming.length === 0 ? (
+                renderEmpty("upcoming")
+              ) : (
+                renderGroupedUpcoming(filteredUpcoming)
+              )}
             </TabsContent>
-          ))}
+
+            <TabsContent value="past" className="m-0">
+              {isLoading ? (
+                <div className="space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <SessionCardSkeleton key={i} />
+                  ))}
+                </div>
+              ) : filteredPast.length === 0 ? (
+                renderEmpty("past")
+              ) : (
+                renderGroupedPast(filteredPast)
+              )}
+            </TabsContent>
+          </div>
         </Tabs>
       </div>
 
@@ -225,7 +509,12 @@ const MenteeSessions = () => {
           </AlertDialogHeader>
           <div className="space-y-2">
             <Label>Reason (optional)</Label>
-            <Textarea rows={2} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Let your mentor know why…" />
+            <Textarea
+              rows={2}
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="Let your mentor know why…"
+            />
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={cancelMutation.isPending}>Keep it</AlertDialogCancel>
@@ -241,7 +530,9 @@ const MenteeSessions = () => {
           <DialogHeader>
             <DialogTitle>
               {actionItemsTarget?.title || "Action items"}
-              {actionItemsTarget?.mentor?.full_name ? ` · ${actionItemsTarget.mentor.full_name}` : ""}
+              {actionItemsTarget?.mentor?.full_name
+                ? ` · ${actionItemsTarget.mentor.full_name}`
+                : ""}
             </DialogTitle>
             <DialogDescription>
               Follow-up tasks shared by your mentor. Check them off as you complete them.
