@@ -103,9 +103,15 @@ Deno.serve(async (req) => {
         expertise: app.expertise,
         years_experience: app.years_experience,
         linkedin_url: app.linkedin_url ?? "",
+        portfolio_url: app.portfolio_url ?? "",
+        phone: app.phone ?? "",
+        resume_url: app.resume_url ?? "",
         is_active: true,
         approval_acknowledged_at: null,
         slug: mentorSlug,
+        current_organization: app.current_organization ?? "",
+        current_role: app.current_role ?? "",
+        professional_status: app.professional_status ?? "",
       },
       { onConflict: "user_id" }
     );

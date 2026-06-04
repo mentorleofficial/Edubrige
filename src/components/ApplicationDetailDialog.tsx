@@ -29,10 +29,24 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
 
   const loadResume = async () => {
     if (!application?.resume_url) return;
-    const { data } = await supabase.storage.from("mentor-resumes").createSignedUrl(application.resume_url, 300);
-    if (data?.signedUrl) {
-      setResumeUrl(data.signedUrl);
-      window.open(data.signedUrl, "_blank");
+    const newWindow = window.open("", "_blank");
+    if (!newWindow) {
+      toast({ variant: "destructive", title: "Popup blocked", description: "Please allow popups for this site." });
+      return;
+    }
+    try {
+      const { data, error } = await supabase.storage.from("mentor-resumes").createSignedUrl(application.resume_url, 300);
+      if (error) throw error;
+      if (data?.signedUrl) {
+        setResumeUrl(data.signedUrl);
+        newWindow.location.href = data.signedUrl;
+      } else {
+        newWindow.close();
+        toast({ variant: "destructive", title: "Could not open resume", description: "Signed URL is empty." });
+      }
+    } catch (err: any) {
+      newWindow.close();
+      toast({ variant: "destructive", title: "Could not open resume", description: err.message });
     }
   };
 
@@ -100,6 +114,15 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
             <div><span className="text-muted-foreground">Phone:</span> {application.phone || "—"}</div>
             <div><span className="text-muted-foreground">Years:</span> {application.years_experience}</div>
             <div><span className="text-muted-foreground">Submitted:</span> {formatISTDate(application.created_at)}</div>
+            {application.professional_status && (
+              <div><span className="text-muted-foreground">Professional Status:</span> {application.professional_status}</div>
+            )}
+            {application.current_organization && (
+              <div><span className="text-muted-foreground">Organization/Institution:</span> {application.current_organization}</div>
+            )}
+            {application.current_role && (
+              <div><span className="text-muted-foreground">Role/Designation:</span> {application.current_role}</div>
+            )}
           </div>
 
           <div>

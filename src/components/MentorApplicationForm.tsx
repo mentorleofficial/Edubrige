@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link, useNavigate } from "react-router-dom";
@@ -12,6 +12,13 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   CheckCircle2,
   X,
@@ -30,27 +37,67 @@ import { cn } from "@/lib/utils";
 const urlOrEmpty = z
   .string()
   .trim()
-  .transform((v) => v.replace(/\/+$/, ""))
+  .transform((v) => {
+    if (!v) return "";
+    let clean = v.replace(/\/+$/, "");
+    if (!/^https?:\/\//i.test(clean)) {
+      clean = `https://${clean}`;
+    }
+    return clean;
+  })
   .pipe(z.string().url("Must be a valid URL").or(z.literal("")));
 
 const phoneRegex = /^[+\d][\d\s\-().]{6,19}$/;
 
-const schema = z.object({
-  full_name: z.string().trim().min(2, "Required").max(100)
-    .refine((v) => !["admin", "mentor", "mentee"].includes(v.toLowerCase()), "Please enter your real name"),
-  email: z.string().trim().email("Invalid email").max(255),
-  password: z.string().min(8, "Password must be at least 8 characters").max(72),
-  phone: z.string().trim().regex(phoneRegex, "Enter a valid phone number").or(z.literal("")),
-  linkedin_url: urlOrEmpty.refine(
-    (v) => !v || /linkedin\.com\/(in|pub)\//i.test(v),
-    "Must be a linkedin.com/in/… or /pub/… URL"
-  ),
-  portfolio_url: urlOrEmpty,
-  twitter_url: urlOrEmpty,
-  github_url: urlOrEmpty,
-  bio: z.string().trim().min(50, "Bio must be at least 50 characters").max(2000),
-  years_experience: z.coerce.number({ invalid_type_error: "Required" }).int().min(0, "Must be 0+").max(60, "Max 60"),
-});
+const schema = z
+  .object({
+    full_name: z.string().trim().min(2, "Required").max(100)
+      .refine((v) => !["admin", "mentor", "mentee"].includes(v.toLowerCase()), "Please enter your real name"),
+    email: z.string().trim().email("Invalid email").max(255),
+    password: z.string().min(8, "Password must be at least 8 characters").max(72),
+    phone: z.string().trim().regex(phoneRegex, "Enter a valid phone number").or(z.literal("")),
+    linkedin_url: urlOrEmpty.refine(
+      (v) => !v || /linkedin\.com\/(in|pub)\//i.test(v),
+      "Must be a linkedin.com/in/… or /pub/… URL"
+    ),
+    portfolio_url: urlOrEmpty,
+    twitter_url: urlOrEmpty,
+    github_url: urlOrEmpty,
+    bio: z.string().trim().min(50, "Bio must be at least 50 characters").max(2000),
+    years_experience: z.coerce.number({ invalid_type_error: "Required" }).int().min(0, "Must be 0+").max(60, "Max 60"),
+    professional_status: z.string().min(1, "Please select your professional status"),
+    current_organization: z.string().trim().max(150).or(z.literal("")),
+    current_role: z.string().trim().max(150).or(z.literal("")),
+  })
+  .superRefine((data, ctx) => {
+    const status = data.professional_status;
+    const orgRequired = ["Employed", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education"].includes(status);
+    const roleRequired = ["Employed", "Self-Employed / Consultant", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education", "Other"].includes(status);
+
+    if (orgRequired && !data.current_organization?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["current_organization"],
+        message: status === "Entrepreneur" 
+          ? "Venture / Company Name is required" 
+          : status.includes("Student") || status.includes("Faculty") || status.includes("Research")
+          ? "Institution Name is required"
+          : "Current Company / Organization is required",
+      });
+    }
+
+    if (roleRequired && !data.current_role?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["current_role"],
+        message: status === "Student / Higher Education"
+          ? "Degree / Program is required"
+          : status === "Research Scholar"
+          ? "Field of Research is required"
+          : "Designation / Role is required",
+      });
+    }
+  });
 
 type FormValues = z.infer<typeof schema>;
 type Stage = "wizard" | "otp" | "done";
@@ -106,8 +153,23 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
       github_url: "",
       bio: "",
       years_experience: undefined as unknown as number,
+      professional_status: "",
+      current_organization: "",
+      current_role: "",
     },
   });
+
+  const status = form.watch("professional_status");
+  useEffect(() => {
+    if (!status) return;
+    const orgRequired = ["Employed", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education"].includes(status);
+    const orgOptional = ["Self-Employed / Consultant", "Career Break", "Other"].includes(status);
+    const showOrg = orgRequired || orgOptional;
+    const roleRequired = ["Employed", "Self-Employed / Consultant", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education", "Other"].includes(status);
+
+    if (!showOrg) form.setValue("current_organization", "");
+    if (!roleRequired) form.setValue("current_role", "");
+  }, [status, form]);
 
   // resend cooldown
   useEffect(() => {
@@ -153,13 +215,32 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
 
   const validateStep = async (idx: number): Promise<boolean> => {
     if (idx === 0) {
-      return form.trigger(["full_name", "email", "password", "phone"]);
+      const ok = await form.trigger(["full_name", "email", "password", "phone"]);
+      if (!ok) return false;
+
+      const email = form.getValues("email");
+      try {
+        const { data: exists, error } = await supabase.rpc("check_email_exists", { email_to_check: email });
+        if (error) throw error;
+        if (exists) {
+          form.setError("email", { type: "manual", message: "This email is already registered. Please log in." });
+          return false;
+        }
+      } catch (err: any) {
+        console.error("Error checking email existence", err);
+        form.setError("email", { 
+          type: "manual", 
+          message: `Email check failed: ${err.message || 'Database function missing'}. Please ensure SQL migrations are applied.` 
+        });
+        return false;
+      }
+      return true;
     }
     if (idx === 1) {
       return form.trigger(["bio", "linkedin_url", "portfolio_url", "twitter_url", "github_url"]);
     }
     if (idx === 2) {
-      const ok = await form.trigger(["years_experience"]);
+      const ok = await form.trigger(["years_experience", "professional_status", "current_organization", "current_role"]);
       let valid = ok;
       if (expertise.length === 0) {
         setExpertiseError("Add at least one expertise tag");
@@ -200,6 +281,18 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
     const values = form.getValues();
     setSubmitting(true);
     try {
+      // Check if email already exists before uploading resume
+      const { data: exists, error: checkErr } = await supabase.rpc("check_email_exists", { email_to_check: values.email });
+      if (checkErr) throw checkErr;
+      if (exists) {
+        toast({
+          variant: "destructive",
+          title: "Email already registered",
+          description: "An account with this email exists. Please log in instead.",
+        });
+        return;
+      }
+
       const ext = resume!.name.split(".").pop();
       const uploadId = (crypto as any)?.randomUUID
         ? (crypto as any).randomUUID()
@@ -270,6 +363,9 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
         expertise,
         years_experience: pending.values.years_experience,
         resume_url: pending.resumePath,
+        professional_status: pending.values.professional_status || null,
+        current_organization: pending.values.current_organization || null,
+        current_role: pending.values.current_role || null,
       });
       if (insErr) console.error("application insert failed", insErr);
 
@@ -280,7 +376,13 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
           expertise,
           years_experience: pending.values.years_experience,
           linkedin_url: pending.values.linkedin_url || "",
+          portfolio_url: pending.values.portfolio_url || "",
+          phone: pending.values.phone || "",
+          resume_url: pending.resumePath || "",
           is_active: false,
+          professional_status: pending.values.professional_status || "",
+          current_organization: pending.values.current_organization || "",
+          current_role: pending.values.current_role || "",
         },
         { onConflict: "user_id" }
       );
@@ -466,21 +568,21 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>LinkedIn</Label>
-                <Input type="url" placeholder="https://linkedin.com/in/…" {...form.register("linkedin_url")} />
+                <Input type="text" placeholder="https://linkedin.com/in/…" {...form.register("linkedin_url")} />
                 {errs.linkedin_url && <p className="text-xs text-destructive">{errs.linkedin_url.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label>Portfolio / Website</Label>
-                <Input type="url" placeholder="https://…" {...form.register("portfolio_url")} />
+                <Input type="text" placeholder="https://…" {...form.register("portfolio_url")} />
                 {errs.portfolio_url && <p className="text-xs text-destructive">{errs.portfolio_url.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label>Twitter / X</Label>
-                <Input type="url" placeholder="https://twitter.com/…" {...form.register("twitter_url")} />
+                <Input type="text" placeholder="https://twitter.com/…" {...form.register("twitter_url")} />
               </div>
               <div className="space-y-1.5">
                 <Label>GitHub</Label>
-                <Input type="url" placeholder="https://github.com/…" {...form.register("github_url")} />
+                <Input type="text" placeholder="https://github.com/…" {...form.register("github_url")} />
               </div>
             </div>
           </div>
@@ -488,25 +590,131 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
 
         {stage === "wizard" && stepIdx === 2 && (
           <div className="space-y-5">
-            <div className="space-y-1.5">
-              <Label>
-                Years of experience <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                type="number"
-                min={0}
-                max={60}
-                placeholder="e.g. 5"
-                {...form.register("years_experience")}
-                ref={(el) => {
-                  form.register("years_experience").ref(el);
-                  (firstFieldRef as any).current = el;
-                }}
-              />
-              {errs.years_experience && (
-                <p className="text-xs text-destructive">{errs.years_experience.message}</p>
-              )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label>
+                  Professional Status <span className="text-destructive">*</span>
+                </Label>
+                <Controller
+                  control={form.control}
+                  name="professional_status"
+                  render={({ field }) => (
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Employed">Employed</SelectItem>
+                        <SelectItem value="Self-Employed / Consultant">Self-Employed / Consultant</SelectItem>
+                        <SelectItem value="Entrepreneur">Entrepreneur</SelectItem>
+                        <SelectItem value="Faculty / Academician">Faculty / Academician</SelectItem>
+                        <SelectItem value="Research Scholar">Research Scholar</SelectItem>
+                        <SelectItem value="Retired Professional">Retired Professional</SelectItem>
+                        <SelectItem value="Student / Higher Education">Student / Higher Education</SelectItem>
+                        <SelectItem value="Career Break">Career Break</SelectItem>
+                        <SelectItem value="Other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errs.professional_status && (
+                  <p className="text-xs text-destructive">{errs.professional_status.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>
+                  Years of experience <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={60}
+                  placeholder="e.g. 5"
+                  {...form.register("years_experience")}
+                  ref={(el) => {
+                    form.register("years_experience").ref(el);
+                    (firstFieldRef as any).current = el;
+                  }}
+                />
+                {errs.years_experience && (
+                  <p className="text-xs text-destructive">{errs.years_experience.message}</p>
+                )}
+              </div>
             </div>
+
+            {status && (
+              <div className="grid gap-4 sm:grid-cols-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                {(() => {
+                  const orgRequired = ["Employed", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education"].includes(status);
+                  const orgOptional = ["Self-Employed / Consultant", "Career Break", "Other"].includes(status);
+                  const showOrg = orgRequired || orgOptional;
+                  
+                  const roleRequired = ["Employed", "Self-Employed / Consultant", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education", "Other"].includes(status);
+                  
+                  const getFieldLabels = (s: string) => {
+                    switch (s) {
+                      case "Employed":
+                        return { org: "Current Company / Organization", role: "Current Designation / Role" };
+                      case "Self-Employed / Consultant":
+                        return { org: "Practice / Business Name (Optional)", role: "Designation / Role" };
+                      case "Entrepreneur":
+                        return { org: "Venture / Company Name", role: "Role / Title" };
+                      case "Faculty / Academician":
+                        return { org: "Institution Name", role: "Designation" };
+                      case "Research Scholar":
+                        return { org: "Institution / University Name", role: "Field of Research" };
+                      case "Retired Professional":
+                        return { org: "Last Organization", role: "Last Designation" };
+                      case "Student / Higher Education":
+                        return { org: "Institution Name", role: "Degree / Program" };
+                      case "Career Break":
+                        return { org: "Last Organization (Optional)", role: "Last Designation (Optional)" };
+                      case "Other":
+                      default:
+                        return { org: "Organization / Affiliation (Optional)", role: "Designation / Description" };
+                    }
+                  };
+
+                  return (
+                    <>
+                      {showOrg && (
+                        <div className="space-y-1.5">
+                          <Label>
+                            {getFieldLabels(status).org}{" "}
+                            {orgRequired && <span className="text-destructive">*</span>}
+                          </Label>
+                          <Input
+                            placeholder="e.g. Acme Corp"
+                            {...form.register("current_organization")}
+                          />
+                          {errs.current_organization && (
+                            <p className="text-xs text-destructive">
+                              {errs.current_organization.message}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {roleRequired && (
+                        <div className="space-y-1.5">
+                          <Label>
+                            {getFieldLabels(status).role}{" "}
+                            <span className="text-destructive">*</span>
+                          </Label>
+                          <Input
+                            placeholder="e.g. Lead Engineer"
+                            {...form.register("current_role")}
+                          />
+                          {errs.current_role && (
+                            <p className="text-xs text-destructive">{errs.current_role.message}</p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label>
@@ -650,6 +858,17 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
               >
                 {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend code"}
               </button>
+              {" • "}
+              <button
+                type="button"
+                onClick={() => {
+                  setStage("wizard");
+                  setStepIdx(0);
+                }}
+                className="text-primary hover:underline"
+              >
+                Edit email
+              </button>
             </div>
           </div>
         )}
@@ -661,7 +880,7 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
           type="button"
           variant="ghost"
           onClick={goBack}
-          disabled={stepIdx === 0 || submitting || verifying || stage === "otp"}
+          disabled={stepIdx === 0 || submitting || verifying}
         >
           <ArrowLeft className="h-4 w-4" />
           Back

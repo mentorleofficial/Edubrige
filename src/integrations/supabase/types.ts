@@ -406,6 +406,9 @@ export type Database = {
           status: Database["public"]["Enums"]["application_status"]
           updated_at: string
           years_experience: number
+          professional_status: string | null
+          current_organization: string | null
+          current_role: string | null
         }
         Insert: {
           admin_notes?: string | null
@@ -425,6 +428,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["application_status"]
           updated_at?: string
           years_experience?: number
+          professional_status?: string | null
+          current_organization?: string | null
+          current_role?: string | null
         }
         Update: {
           admin_notes?: string | null
@@ -444,6 +450,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["application_status"]
           updated_at?: string
           years_experience?: number
+          professional_status?: string | null
+          current_organization?: string | null
+          current_role?: string | null
         }
         Relationships: []
       }
@@ -634,6 +643,7 @@ export type Database = {
           updated_at: string
           user_id: string
           years_experience: number | null
+          professional_status: string | null
         }
         Insert: {
           approval_acknowledged_at?: string | null
@@ -656,6 +666,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           years_experience?: number | null
+          professional_status?: string | null
         }
         Update: {
           approval_acknowledged_at?: string | null
@@ -678,6 +689,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           years_experience?: number | null
+          professional_status?: string | null
         }
         Relationships: [
           {

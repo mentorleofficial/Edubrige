@@ -14,6 +14,13 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   User,
   Sparkles,
   Briefcase,
@@ -82,6 +89,7 @@ const MentorProfile = () => {
       bio: "",
       current_organization: "",
       current_role: "",
+      professional_status: "",
       years_experience: 0,
       linkedin_url: "",
       portfolio_url: "",
@@ -101,6 +109,7 @@ const MentorProfile = () => {
       bio: data.bio,
       current_organization: data.current_organization,
       current_role: data.current_role,
+      professional_status: data.professional_status || "",
       years_experience: data.years_experience,
       linkedin_url: data.linkedin_url,
       portfolio_url: data.portfolio_url,
@@ -114,16 +123,32 @@ const MentorProfile = () => {
 
   const watched = form.watch();
 
+  const status = form.watch("professional_status");
+  useEffect(() => {
+    if (!status) return;
+    const orgRequired = ["Employed", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education"].includes(status);
+    const orgOptional = ["Self-Employed / Consultant", "Career Break", "Other"].includes(status);
+    const showOrg = orgRequired || orgOptional;
+    const roleRequired = ["Employed", "Self-Employed / Consultant", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education", "Other"].includes(status);
+
+    if (!showOrg) form.setValue("current_organization", "");
+    if (!roleRequired) form.setValue("current_role", "");
+  }, [status, form]);
+
   // Profile completeness
   const completeness = useMemo(() => {
+    const statusVal = watched.professional_status || "";
+    const orgRequired = ["Employed", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education"].includes(statusVal);
+    const roleRequired = ["Employed", "Self-Employed / Consultant", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education", "Other"].includes(statusVal);
+
     const checks = [
       !!watched.full_name && watched.full_name.length >= 2,
       !!data?.email,
       !!watched.phone,
       !!watched.headline,
       (watched.bio?.length ?? 0) >= 50,
-      !!watched.current_organization,
-      !!watched.current_role,
+      !orgRequired || !!watched.current_organization,
+      !roleRequired || !!watched.current_role,
       watched.years_experience > 0,
       !!watched.linkedin_url,
       (watched.expertise?.length ?? 0) > 0,
@@ -359,15 +384,108 @@ const MentorProfile = () => {
 
               <Separator />
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label>Current organization *</Label>
-                  <Input {...form.register("current_organization")} placeholder="Acme Inc." />
+                  <Label>Professional Status *</Label>
+                  <Controller
+                    control={form.control}
+                    name="professional_status"
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Employed">Employed</SelectItem>
+                          <SelectItem value="Self-Employed / Consultant">Self-Employed / Consultant</SelectItem>
+                          <SelectItem value="Entrepreneur">Entrepreneur</SelectItem>
+                          <SelectItem value="Faculty / Academician">Faculty / Academician</SelectItem>
+                          <SelectItem value="Research Scholar">Research Scholar</SelectItem>
+                          <SelectItem value="Retired Professional">Retired Professional</SelectItem>
+                          <SelectItem value="Student / Higher Education">Student / Higher Education</SelectItem>
+                          <SelectItem value="Career Break">Career Break</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {form.formState.errors.professional_status && (
+                    <p className="text-xs text-destructive">{form.formState.errors.professional_status.message}</p>
+                  )}
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Current role *</Label>
-                  <Input {...form.register("current_role")} placeholder="Senior Product Manager" />
-                </div>
+
+                {status && (
+                  <div className="grid gap-4 sm:grid-cols-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                    {(() => {
+                      const orgRequired = ["Employed", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education"].includes(status);
+                      const orgOptional = ["Self-Employed / Consultant", "Career Break", "Other"].includes(status);
+                      const showOrg = orgRequired || orgOptional;
+                      
+                      const roleRequired = ["Employed", "Self-Employed / Consultant", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education", "Other"].includes(status);
+
+                      const getFieldLabels = (s: string) => {
+                        switch (s) {
+                          case "Employed":
+                            return { org: "Current Company / Organization", role: "Current Designation / Role" };
+                          case "Self-Employed / Consultant":
+                            return { org: "Practice / Business Name (Optional)", role: "Designation / Role" };
+                          case "Entrepreneur":
+                            return { org: "Venture / Company Name", role: "Role / Title" };
+                          case "Faculty / Academician":
+                            return { org: "Institution Name", role: "Designation" };
+                          case "Research Scholar":
+                            return { org: "Institution / University Name", role: "Field of Research" };
+                          case "Retired Professional":
+                            return { org: "Last Organization", role: "Last Designation" };
+                          case "Student / Higher Education":
+                            return { org: "Institution Name", role: "Degree / Program" };
+                          case "Career Break":
+                            return { org: "Last Organization (Optional)", role: "Last Designation (Optional)" };
+                          case "Other":
+                          default:
+                            return { org: "Organization / Affiliation (Optional)", role: "Designation / Description" };
+                        }
+                      };
+
+                      return (
+                        <>
+                          {showOrg && (
+                            <div className="space-y-1.5">
+                              <Label>
+                                {getFieldLabels(status).org}{" "}
+                                {orgRequired && <span className="text-destructive">*</span>}
+                              </Label>
+                              <Input
+                                placeholder="e.g. Acme Corp"
+                                {...form.register("current_organization")}
+                              />
+                              {form.formState.errors.current_organization && (
+                                <p className="text-xs text-destructive">
+                                  {form.formState.errors.current_organization.message}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                          {roleRequired && (
+                            <div className="space-y-1.5">
+                              <Label>
+                                {getFieldLabels(status).role}{" "}
+                                <span className="text-destructive">*</span>
+                              </Label>
+                              <Input
+                                placeholder="e.g. Lead Engineer"
+                                {...form.register("current_role")}
+                              />
+                              {form.formState.errors.current_role && (
+                                <p className="text-xs text-destructive">{form.formState.errors.current_role.message}</p>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -473,7 +591,7 @@ const MentorProfile = () => {
                     <Linkedin className="h-3.5 w-3.5" /> LinkedIn profile *
                   </Label>
                   <Input
-                    type="url"
+                    type="text"
                     placeholder="https://linkedin.com/in/…"
                     {...form.register("linkedin_url")}
                   />
@@ -485,7 +603,7 @@ const MentorProfile = () => {
                   <Label className="flex items-center gap-1.5">
                     <Globe className="h-3.5 w-3.5" /> Portfolio / website
                   </Label>
-                  <Input type="url" placeholder="https://…" {...form.register("portfolio_url")} />
+                  <Input type="text" placeholder="https://…" {...form.register("portfolio_url")} />
                   {form.formState.errors.portfolio_url && (
                     <p className="text-xs text-destructive">{form.formState.errors.portfolio_url.message}</p>
                   )}
