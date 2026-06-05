@@ -31,7 +31,12 @@ const buildHtml = (appName: string, recipientName: string, decision: Decision, n
     decision === "approved"
       ? `<tr><td align="center" style="padding:8px 24px 0;">
            <a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Sign in</a>
-         </td></tr>` : "";
+         </td></tr>`
+      : decision === "changes_requested"
+        ? `<tr><td align="center" style="padding:8px 24px 0;">
+             <a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Open Dashboard</a>
+           </td></tr>`
+        : "";
 
   const notesBlock = safeNotes
     ? `<tr><td style="padding:16px 24px 0;">

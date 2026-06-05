@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { ExternalLink, FileText, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { ExternalLink, FileText, Loader2, CheckCircle2, XCircle, RefreshCw } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 type Application = Database["public"]["Tables"]["mentor_applications"]["Row"];
 
@@ -23,73 +23,117 @@ interface Props {
 const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }: Props) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [notes, setNotes] = useState("");
-  const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
+  const [selectedAction, setSelectedAction] = useState<"approve" | "changes" | "reject" | null>(null);
+  const [inputText, setInputText] = useState("");
+  const [busy, setBusy] = useState(false);
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
 
   const loadResume = async () => {
     if (!application?.resume_url) return;
-    const { data } = await supabase.storage.from("mentor-resumes").createSignedUrl(application.resume_url, 300);
-    if (data?.signedUrl) {
-      setResumeUrl(data.signedUrl);
-      window.open(data.signedUrl, "_blank");
+    const newWindow = window.open("", "_blank");
+    if (!newWindow) {
+      toast({ variant: "destructive", title: "Popup blocked", description: "Please allow popups for this site." });
+      return;
+    }
+    try {
+      const { data, error } = await supabase.storage.from("mentor-resumes").createSignedUrl(application.resume_url, 300);
+      if (error) throw error;
+      if (data?.signedUrl) {
+        setResumeUrl(data.signedUrl);
+        newWindow.location.href = data.signedUrl;
+      } else {
+        newWindow.close();
+        toast({ variant: "destructive", title: "Could not open resume", description: "Signed URL is empty." });
+      }
+    } catch (err: any) {
+      newWindow.close();
+      toast({ variant: "destructive", title: "Could not open resume", description: err.message });
     }
   };
 
-  const handleApprove = async () => {
-    if (!application) return;
-    setBusy("approve");
+  const handleAction = async () => {
+    if (!application || !selectedAction) return;
+
+    if (selectedAction === "reject" && !inputText.trim()) {
+      toast({ variant: "destructive", title: "Reason required", description: "Please provide a reason for rejection." });
+      return;
+    }
+
+    if (selectedAction === "changes" && !inputText.trim()) {
+      toast({ variant: "destructive", title: "Feedback required", description: "Please provide feedback for the requested changes." });
+      return;
+    }
+
+    setBusy(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const { data, error } = await supabase.functions.invoke("approve-mentor-application", {
-        body: { application_id: application.id, admin_notes: notes || null },
-        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      toast({ title: "Application approved", description: "Mentor account created (inactive)." });
-      onUpdated();
-      onOpenChange(false);
-    } catch (err: any) {
-      toast({ variant: "destructive", title: "Approval failed", description: err.message });
-    } finally {
-      setBusy(null);
-    }
-  };
+      const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined;
 
-  const handleReject = async () => {
-    if (!application || !user) return;
-    setBusy("reject");
-    const { error } = await supabase
-      .from("mentor_applications")
-      .update({
-        status: "rejected",
-        admin_notes: notes || null,
-        reviewed_by: user.id,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", application.id);
-    setBusy(null);
-    if (error) {
-      toast({ variant: "destructive", title: "Reject failed", description: error.message });
-    } else {
-      toast({ title: "Application rejected" });
+      if (selectedAction === "approve") {
+        const { data, error } = await supabase.functions.invoke("approve-mentor-application", {
+          body: { application_id: application.id, admin_notes: inputText.trim() || null },
+          headers,
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        toast({ title: "Application approved", description: "Mentor account activated." });
+      } else if (selectedAction === "reject") {
+        const { data, error } = await supabase.functions.invoke("reject-mentor-application", {
+          body: { application_id: application.id, rejection_reason: inputText.trim() },
+          headers,
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        toast({ title: "Application rejected" });
+      } else if (selectedAction === "changes") {
+        const { data, error } = await supabase.functions.invoke("request-application-changes", {
+          body: { application_id: application.id, changes_feedback: inputText.trim() },
+          headers,
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        toast({ title: "Changes requested from mentor" });
+      }
+
       onUpdated();
       onOpenChange(false);
+      setSelectedAction(null);
+      setInputText("");
+    } catch (err: any) {
+      toast({ variant: "destructive", title: "Action failed", description: err.message });
+    } finally {
+      setBusy(false);
     }
   };
 
   if (!application) return null;
   const social = (application.social_links as any) || {};
 
+  const isPendingOrChanges = application.status === "pending" || application.status === "changes_requested";
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setSelectedAction(null); setInputText(""); } }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
             {application.full_name}
-            <Badge variant={application.status === "pending" ? "secondary" : application.status === "approved" ? "default" : "destructive"}>
-              {application.status}
+            <Badge
+              variant={
+                application.status === "pending"
+                  ? "secondary"
+                  : application.status === "approved"
+                  ? "default"
+                  : application.status === "rejected"
+                  ? "destructive"
+                  : "outline"
+              }
+              className={
+                application.status === "changes_requested"
+                  ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900"
+                  : ""
+              }
+            >
+              {application.status === "changes_requested" ? "changes requested" : application.status}
             </Badge>
           </DialogTitle>
         </DialogHeader>
@@ -100,6 +144,15 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
             <div><span className="text-muted-foreground">Phone:</span> {application.phone || "—"}</div>
             <div><span className="text-muted-foreground">Years:</span> {application.years_experience}</div>
             <div><span className="text-muted-foreground">Submitted:</span> {formatISTDate(application.created_at)}</div>
+            {application.professional_status && (
+              <div><span className="text-muted-foreground">Professional Status:</span> {application.professional_status}</div>
+            )}
+            {application.current_organization && (
+              <div><span className="text-muted-foreground">Organization/Institution:</span> {application.current_organization}</div>
+            )}
+            {application.current_role && (
+              <div><span className="text-muted-foreground">Role/Designation:</span> {application.current_role}</div>
+            )}
           </div>
 
           <div>
@@ -132,30 +185,146 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
             </Button>
           )}
 
-          {application.status === "pending" ? (
-            <>
-              <Separator />
-              <div className="space-y-2">
-                <Label>Admin notes (optional)</Label>
-                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Reason or feedback…" />
-              </div>
-              <div className="flex gap-2 justify-end">
-                <Button variant="destructive" onClick={handleReject} disabled={!!busy}>
-                  {busy === "reject" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
-                  Reject
-                </Button>
-                <Button onClick={handleApprove} disabled={!!busy}>
-                  {busy === "approve" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
-                  Approve
-                </Button>
-              </div>
-            </>
-          ) : application.admin_notes ? (
+          {application.status === "rejected" && application.rejection_reason && (
+            <div className="rounded-lg bg-destructive/10 p-3 border border-destructive/20 text-destructive text-sm">
+              <span className="font-semibold block mb-0.5">Rejection Reason:</span>
+              <p className="whitespace-pre-wrap">{application.rejection_reason}</p>
+            </div>
+          )}
+
+          {application.status === "changes_requested" && application.changes_feedback && (
+            <div className="rounded-lg bg-amber-100/60 dark:bg-amber-950/20 p-3 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 text-sm">
+              <span className="font-semibold block mb-0.5">Requested Changes Feedback:</span>
+              <p className="whitespace-pre-wrap">{application.changes_feedback}</p>
+            </div>
+          )}
+
+          {application.admin_notes && (
             <div>
               <Label className="text-xs uppercase text-muted-foreground">Admin notes</Label>
               <p className="text-sm mt-1 whitespace-pre-wrap">{application.admin_notes}</p>
             </div>
-          ) : null}
+          )}
+
+          {isPendingOrChanges && (
+            <>
+              <Separator />
+              <div className="space-y-4">
+                <Label className="text-sm font-semibold">Review Action</Label>
+                
+                {!selectedAction ? (
+                  <div className="flex flex-wrap gap-2.5">
+                    <Button
+                      variant="outline"
+                      className="border-green-200 text-green-700 bg-green-50/50 hover:bg-green-50 hover:text-green-800 dark:border-green-900/40 dark:text-green-400 dark:bg-green-950/10 dark:hover:bg-green-950/30"
+                      onClick={() => setSelectedAction("approve")}
+                    >
+                      <CheckCircle2 className="mr-2 h-4 w-4 text-green-600 dark:text-green-400" />
+                      Approve Application
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-amber-200 text-amber-700 bg-amber-50/50 hover:bg-amber-50 hover:text-amber-800 dark:border-amber-900/40 dark:text-amber-400 dark:bg-amber-950/10 dark:hover:bg-amber-950/30"
+                      onClick={() => setSelectedAction("changes")}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      Request Changes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="border-red-200 text-red-700 bg-red-50/50 hover:bg-red-50 hover:text-red-800 dark:border-red-900/40 dark:text-red-400 dark:bg-red-950/10 dark:hover:bg-red-950/30"
+                      onClick={() => setSelectedAction("reject")}
+                    >
+                      <XCircle className="mr-2 h-4 w-4 text-red-600 dark:text-red-400" />
+                      Reject Application
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold flex items-center gap-2">
+                        {selectedAction === "approve" && (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            Approving Application
+                          </>
+                        )}
+                        {selectedAction === "changes" && (
+                          <>
+                            <RefreshCw className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                            Requesting Changes
+                          </>
+                        )}
+                        {selectedAction === "reject" && (
+                          <>
+                            <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                            Rejecting Application
+                          </>
+                        )}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setSelectedAction(null); setInputText(""); }}
+                        className="h-8 text-xs"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="action-input" className="text-xs text-muted-foreground">
+                        {selectedAction === "approve"
+                          ? "Admin notes (optional)"
+                          : selectedAction === "changes"
+                          ? "Feedback for requested changes (required — sent to mentor)"
+                          : "Reason for rejection (required — sent to mentor)"}
+                      </Label>
+                      <Textarea
+                        id="action-input"
+                        value={inputText}
+                        onChange={(e) => setInputText(e.target.value)}
+                        rows={3}
+                        placeholder={
+                          selectedAction === "approve"
+                            ? "Optional approval comments..."
+                            : selectedAction === "changes"
+                            ? "Provide specific feedback on what details need correction or update..."
+                            : "Provide a detailed reason for rejecting this application..."
+                        }
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-1">
+                      <Button
+                        variant={selectedAction === "reject" ? "destructive" : selectedAction === "changes" ? "secondary" : "default"}
+                        className={
+                          selectedAction === "changes"
+                            ? "bg-amber-600 hover:bg-amber-700 text-white dark:bg-amber-700 dark:hover:bg-amber-800"
+                            : selectedAction === "approve"
+                            ? "bg-green-600 hover:bg-green-700 text-white dark:bg-green-700 dark:hover:bg-green-800"
+                            : ""
+                        }
+                        onClick={handleAction}
+                        disabled={busy}
+                      >
+                        {busy ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : selectedAction === "approve" ? (
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                        ) : selectedAction === "changes" ? (
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                        ) : (
+                          <XCircle className="mr-2 h-4 w-4" />
+                        )}
+                        Confirm {selectedAction === "approve" ? "Approval" : selectedAction === "changes" ? "Request Changes" : "Rejection"}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>

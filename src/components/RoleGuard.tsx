@@ -13,20 +13,34 @@ interface RoleGuardProps {
 }
 
 const RoleGuard = ({ children, allowedRoles, requireActiveMentor }: RoleGuardProps) => {
-  const { profile, loading, mentorActive } = useAuth();
+  const { profile, loading, mentorActive, isApproved, profileCompleteness } = useAuth();
   const { toast } = useToast();
 
   const blockedInactive = !!profile && profile.role === "mentor" && requireActiveMentor && !mentorActive;
 
   useEffect(() => {
     if (blockedInactive) {
-      toast({
-        variant: "destructive",
-        title: "Account inactive",
-        description: "This area unlocks once your mentor account is activated.",
-      });
+      if (!isApproved) {
+        toast({
+          variant: "destructive",
+          title: "Account Pending Activation",
+          description: "Your mentor account is approved but pending admin finalization.",
+        });
+      } else if (profileCompleteness < 100) {
+        toast({
+          variant: "destructive",
+          title: "Profile Incomplete",
+          description: "Please complete your profile to 100% to unlock this feature.",
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Account Inactive",
+          description: "This area unlocks once your mentor account is activated.",
+        });
+      }
     }
-  }, [blockedInactive, toast]);
+  }, [blockedInactive, isApproved, profileCompleteness, toast]);
 
   // Optimistic render: if we have a cached profile, trust it while session refreshes.
   if (loading && !profile) {

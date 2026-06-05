@@ -9,6 +9,14 @@ import { DAYS_FULL, normalizeHHMM } from "@/features/availability/timeUtils";
 import { DayRow } from "@/features/availability/components/DayRow";
 import { OverrideList } from "@/features/availability/components/OverrideList";
 import { AvailabilityPreview } from "@/features/availability/components/AvailabilityPreview";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   useMentorAvailability,
   useAvailabilityMutations,
@@ -31,7 +39,11 @@ const MentorAvailability = () => {
     m.deleteSlotsForDay.isPending ||
     m.copySlotsToDays.isPending ||
     m.addOverride.isPending ||
-    m.deleteOverride.isPending;
+    m.deleteOverride.isPending ||
+    m.updateSettings.isPending;
+
+  const bufferTime = data?.buffer_time_minutes ?? 0;
+  const minNotice = data?.minimum_notice_hours ?? 0;
 
   const showSaving = anyPending || (isFetching && !isLoading);
   const showSaved = !anyPending && !isFetching && !isLoading;
@@ -128,6 +140,67 @@ const MentorAvailability = () => {
               <CardContent>
                 <div className="inline-flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm font-medium">
                   Asia/Kolkata · IST (UTC+5:30)
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base font-bold">Booking Settings</CardTitle>
+                <CardDescription>
+                  Configure buffers and booking notice requirements.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="grid gap-6 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="buffer-time" className="font-semibold text-sm">Buffer time (after session)</Label>
+                  <Select
+                    value={String(bufferTime)}
+                    onValueChange={(val) =>
+                      m.updateSettings.mutate(
+                        { buffer_time_minutes: Number(val) },
+                        { onError: handleError }
+                      )
+                    }
+                  >
+                    <SelectTrigger id="buffer-time">
+                      <SelectValue placeholder="Select buffer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">No buffer</SelectItem>
+                      <SelectItem value="15">15 minutes</SelectItem>
+                      <SelectItem value="30">30 minutes</SelectItem>
+                      <SelectItem value="45">45 minutes</SelectItem>
+                      <SelectItem value="60">60 minutes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="min-notice" className="font-semibold text-sm">Minimum booking notice</Label>
+                  <Select
+                    value={String(minNotice)}
+                    onValueChange={(val) =>
+                      m.updateSettings.mutate(
+                        { minimum_notice_hours: Number(val) },
+                        { onError: handleError }
+                      )
+                    }
+                  >
+                    <SelectTrigger id="min-notice">
+                      <SelectValue placeholder="Select notice window" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">No notice</SelectItem>
+                      <SelectItem value="1">1 hour</SelectItem>
+                      <SelectItem value="2">2 hours</SelectItem>
+                      <SelectItem value="4">4 hours</SelectItem>
+                      <SelectItem value="8">8 hours</SelectItem>
+                      <SelectItem value="12">12 hours</SelectItem>
+                      <SelectItem value="24">24 hours (1 day)</SelectItem>
+                      <SelectItem value="48">48 hours (2 days)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardContent>
             </Card>

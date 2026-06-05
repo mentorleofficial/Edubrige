@@ -24,21 +24,37 @@ export interface BookingOverride {
 export interface BookingMentorProfile {
   is_active: boolean;
   timezone: string;
+  buffer_time_minutes: number;
+  minimum_notice_hours: number;
+}
+export interface BookingOffering {
+  id: string;
+  title: string;
+  description: string | null;
+  duration_minutes: number;
+  price: number;
+  category: string;
 }
 export interface BookSessionStaticData {
   mentor: BookingMentor | null;
   slots: BookingSlot[];
   mentorProfile: BookingMentorProfile | null;
   overrides: BookingOverride[];
+  offerings: BookingOffering[];
+}
+
+export interface BookedTime {
+  scheduled_at: string;
+  duration_minutes: number;
 }
 
 export const bookSessionStaticKey = (mentorId?: string) =>
   ["book-session", "static", mentorId] as const;
-export const bookSessionBookedKey = (mentorId?: string) =>
-  ["book-session", "booked-times", mentorId] as const;
+export const bookSessionBookedKey = (mentorId?: string, excludeSessionId?: string | null) =>
+  ["book-session", "booked-times", mentorId, excludeSessionId] as const;
 
 /**
- * Mentor + availability + overrides — stable, cached across visits.
+ * Mentor + availability + overrides + offerings — stable, cached across visits.
  */
 export function useBookSessionStatic(mentorId?: string) {
   return useQuery<BookSessionStaticData>({
@@ -47,7 +63,7 @@ export function useBookSessionStatic(mentorId?: string) {
     staleTime: 60_000,
     queryFn: async () => {
       const todayDate = new Date().toISOString().slice(0, 10);
-      const [mentorRes, slotsRes, mpRes, ovRes] = await Promise.all([
+      const [mentorRes, slotsRes, mpRes, ovRes, offeringsRes] = await Promise.all([
         supabase
           .from("users")
           .select("id, full_name, avatar_url, email")
@@ -60,7 +76,7 @@ export function useBookSessionStatic(mentorId?: string) {
           .order("day_of_week"),
         supabase
           .from("mentor_profiles")
-          .select("is_active, timezone")
+          .select("is_active, timezone, buffer_time_minutes, minimum_notice_hours")
           .eq("user_id", mentorId!)
           .maybeSingle(),
         supabase
@@ -69,12 +85,19 @@ export function useBookSessionStatic(mentorId?: string) {
           .eq("mentor_id", mentorId!)
           .gte("date", todayDate)
           .order("date"),
+        supabase
+          .from("mentorship_offerings")
+          .select("id, title, description, duration_minutes, price, category")
+          .eq("mentor_id", mentorId!)
+          .eq("status", "active")
+          .order("duration_minutes"),
       ]);
       return {
         mentor: (mentorRes.data as BookingMentor | null) ?? null,
         slots: (slotsRes.data as BookingSlot[] | null) ?? [],
         mentorProfile: (mpRes.data as BookingMentorProfile | null) ?? null,
         overrides: (ovRes.data as BookingOverride[] | null) ?? [],
+        offerings: (offeringsRes.data as BookingOffering[] | null) ?? [],
       };
     },
   });
@@ -83,28 +106,31 @@ export function useBookSessionStatic(mentorId?: string) {
 /**
  * Booked times — invalidated after a successful booking.
  */
-export function useBookedTimes(mentorId?: string) {
-  return useQuery<Set<string>>({
-    queryKey: bookSessionBookedKey(mentorId),
+export function useBookedTimes(mentorId?: string, excludeSessionId?: string | null) {
+  return useQuery<BookedTime[]>({
+    queryKey: bookSessionBookedKey(mentorId, excludeSessionId),
     enabled: !!mentorId,
     staleTime: 30_000,
     queryFn: async () => {
       const nowIso = new Date().toISOString();
       const horizon = new Date();
       horizon.setDate(horizon.getDate() + 90);
-      const { data, error } = await supabase
+      
+      let query = supabase
         .from("sessions")
         .select("scheduled_at, duration_minutes")
         .eq("mentor_id", mentorId!)
         .eq("status", "booked")
         .gte("scheduled_at", nowIso)
         .lte("scheduled_at", horizon.toISOString());
+
+      if (excludeSessionId) {
+        query = query.neq("id", excludeSessionId);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
-      const set = new Set<string>();
-      (data ?? []).forEach((s: { scheduled_at: string }) =>
-        set.add(new Date(s.scheduled_at).toISOString())
-      );
-      return set;
+      return (data ?? []) as BookedTime[];
     },
   });
 }
@@ -118,6 +144,7 @@ export interface BookSessionInput {
   title: string;
   topic?: string;
   rescheduleId?: string | null;
+  offeringId?: string | null;
 }
 export interface BookSessionResult {
   sessionId: string;
@@ -138,6 +165,7 @@ export function useBookSession() {
           mentee_notes: input.notes,
           title: input.title,
           topic: input.topic ?? "",
+          offering_id: input.offeringId || null,
         })
         .select("id")
         .single();
@@ -164,7 +192,7 @@ export function useBookSession() {
       return { sessionId: inserted.id, meetingUrl };
     },
     onSuccess: (_res, vars) => {
-      qc.invalidateQueries({ queryKey: bookSessionBookedKey(vars.mentorId) });
+      qc.invalidateQueries({ queryKey: bookSessionBookedKey(vars.mentorId, vars.rescheduleId) });
       qc.invalidateQueries({ queryKey: menteeSessionsKey(vars.menteeId) });
       qc.invalidateQueries({ queryKey: ["mentee-dashboard", vars.menteeId] });
     },

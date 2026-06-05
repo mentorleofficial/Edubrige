@@ -16,20 +16,7 @@ interface Props {
   userId?: string;
 }
 
-const profileCompletion = (p: MentorProfileRow | null) => {
-  if (!p) return 0;
-  const checks = [
-    !!p.bio && p.bio.length > 20,
-    !!(p.expertise && p.expertise.length > 0),
-    !!(p.qualifications && p.qualifications.length > 0),
-    !!(p.experiences && p.experiences.length > 0),
-    !!p.resume_url,
-    !!p.headline,
-    !!p.avatar_url,
-  ];
-  const done = checks.filter(Boolean).length;
-  return Math.round((done / checks.length) * 100);
-};
+import { calculateCompleteness } from "@/features/mentor-profile/utils/completeness";
 
 const MentorInsightsPanel = ({ sessions, feedback, profile, availabilityCount, userId }: Props) => {
   const completedSessions = sessions.filter((s) => s.status === "completed");
@@ -53,7 +40,7 @@ const MentorInsightsPanel = ({ sessions, feedback, profile, availabilityCount, u
       new Date(s.scheduled_at).getTime() < now + 14 * 24 * 3600 * 1000
   ).length;
 
-  const completion = profileCompletion(profile);
+  const { percentage: completion } = calculateCompleteness(profile ?? {});
 
   return (
     <Card className="h-full">

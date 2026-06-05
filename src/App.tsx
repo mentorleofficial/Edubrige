@@ -30,6 +30,7 @@ const MenteeProgramDetail = lazy(() => import("@/pages/MenteeProgramDetail"));
 const MentorLanding = lazy(() => import("@/pages/MentorLanding"));
 const MentorDirectory = lazy(() => import("@/pages/MentorDirectory"));
 const MentorProfile = lazy(() => import("@/pages/MentorProfile"));
+const MentorOfferings = lazy(() => import("@/pages/MentorOfferings"));
 const MentorAvailability = lazy(() => import("@/pages/MentorAvailability"));
 const MentorSessions = lazy(() => import("@/pages/MentorSessions"));
 const MenteeProfile = lazy(() => import("@/pages/MenteeProfile"));
@@ -81,6 +82,7 @@ const App = () => (
                   <Route path="/account/privacy" element={<RoleGuard allowedRoles={["admin", "mentor", "mentee"]}><AccountPrivacy /></RoleGuard>} />
                   <Route path="/mentors" element={<RoleGuard allowedRoles={["mentee", "admin"]}><MenteeOnboardingGuard><MentorDirectory /></MenteeOnboardingGuard></RoleGuard>} />
                   <Route path="/mentor/profile" element={<RoleGuard allowedRoles={["mentor"]}><MentorProfile /></RoleGuard>} />
+                  <Route path="/mentor/offerings" element={<RoleGuard allowedRoles={["mentor"]}><MentorOfferings /></RoleGuard>} />
                   <Route path="/mentor/availability" element={<RoleGuard allowedRoles={["mentor"]} requireActiveMentor><MentorAvailability /></RoleGuard>} />
                   <Route path="/mentor/sessions" element={<RoleGuard allowedRoles={["mentor"]} requireActiveMentor><MentorSessions /></RoleGuard>} />
                   <Route path="/mentor/leaderboard" element={<RoleGuard allowedRoles={["mentor", "admin"]}><MentorLeaderboard /></RoleGuard>} />

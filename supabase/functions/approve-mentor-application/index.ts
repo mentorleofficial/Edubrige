@@ -60,8 +60,8 @@ Deno.serve(async (req) => {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    if (app.status !== "pending") {
-      return new Response(JSON.stringify({ error: "Application already reviewed" }), {
+    if (app.status === "approved" || app.status === "rejected") {
+      return new Response(JSON.stringify({ error: `Application already reviewed with status: ${app.status}` }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -87,7 +87,7 @@ Deno.serve(async (req) => {
       { user_id: mentorUserId, role: "mentor" },
       { onConflict: "user_id,role" }
     );
-    await admin.from("users").update({ role: "mentor" }).eq("id", mentorUserId);
+    await admin.from("users").update({ role: "mentor", full_name: app.full_name }).eq("id", mentorUserId);
 
     // Generate slug from applicant's full name
     const { data: slugData } = await admin.rpc("generate_mentor_slug", {
@@ -103,9 +103,15 @@ Deno.serve(async (req) => {
         expertise: app.expertise,
         years_experience: app.years_experience,
         linkedin_url: app.linkedin_url ?? "",
+        portfolio_url: app.portfolio_url ?? "",
+        phone: app.phone ?? "",
+        resume_url: app.resume_url ?? "",
         is_active: true,
         approval_acknowledged_at: null,
         slug: mentorSlug,
+        current_organization: app.current_organization ?? "",
+        current_role: app.current_role ?? "",
+        professional_status: app.professional_status ?? "",
       },
       { onConflict: "user_id" }
     );
@@ -119,6 +125,14 @@ Deno.serve(async (req) => {
         reviewed_at: new Date().toISOString(),
       })
       .eq("id", application_id);
+
+    // Delete any other historical applications for the same email (e.g. previous rejections)
+    await admin
+      .from("mentor_applications")
+      .delete()
+      .ilike("email", app.email)
+      .neq("id", application_id);
+
 
     await admin.from("audit_logs").insert({
       user_id: userData.user.id,

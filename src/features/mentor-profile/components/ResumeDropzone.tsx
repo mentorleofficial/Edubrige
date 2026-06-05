@@ -38,10 +38,26 @@ const ResumeDropzone = ({ currentPath, pendingFile, onFileChange, onRemoveCurren
 
   const openCurrent = async () => {
     if (!currentPath) return;
+    const newWindow = window.open("", "_blank");
+    if (!newWindow) {
+      setError("Popup blocked. Please allow popups for this site.");
+      return;
+    }
     setOpening(true);
-    const url = await getResumeSignedUrl(currentPath);
-    setOpening(false);
-    if (url) window.open(url, "_blank", "noopener,noreferrer");
+    try {
+      const url = await getResumeSignedUrl(currentPath);
+      if (url) {
+        newWindow.location.href = url;
+      } else {
+        newWindow.close();
+        setError("Could not retrieve resume URL.");
+      }
+    } catch {
+      newWindow.close();
+      setError("Error opening resume.");
+    } finally {
+      setOpening(false);
+    }
   };
 
   const hasCurrent = !!currentPath && !pendingFile;

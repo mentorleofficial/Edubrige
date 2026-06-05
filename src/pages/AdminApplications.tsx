@@ -15,7 +15,7 @@ import ApplicationDetailDialog from "@/components/ApplicationDetailDialog";
 import { CheckCircle2, XCircle, Loader2, Search } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 type Application = Database["public"]["Tables"]["mentor_applications"]["Row"];
-type Status = "pending" | "approved" | "rejected" | "all";
+type Status = "pending" | "approved" | "rejected" | "changes_requested" | "all";
 
 const AdminApplications = () => {
   const { toast } = useToast();
@@ -42,8 +42,21 @@ const AdminApplications = () => {
 
   useEffect(() => { fetchApps(); }, []);
 
+  // Get only the latest application for each email
+  const latestApps = useMemo(() => {
+    const map = new Map<string, Application>();
+    // Since apps are ordered by created_at DESC, the first occurrence of an email is the latest one
+    for (const app of apps) {
+      const emailLower = app.email.toLowerCase();
+      if (!map.has(emailLower)) {
+        map.set(emailLower, app);
+      }
+    }
+    return Array.from(map.values());
+  }, [apps]);
+
   const filtered = useMemo(() => {
-    let list = tab === "all" ? apps : apps.filter((a) => a.status === tab);
+    let list = tab === "all" ? latestApps : latestApps.filter((a) => a.status === tab);
     if (query.trim()) {
       const q = query.trim().toLowerCase();
       list = list.filter(
@@ -54,11 +67,15 @@ const AdminApplications = () => {
       );
     }
     return list;
-  }, [apps, tab, query]);
+  }, [latestApps, tab, query]);
 
-  const pendingCount = apps.filter((a) => a.status === "pending").length;
-  const variant = (s: string) =>
-    s === "pending" ? "secondary" : s === "approved" ? "default" : "destructive";
+  const pendingCount = latestApps.filter((a) => a.status === "pending").length;
+  const variant = (s: string) => {
+    if (s === "pending") return "secondary";
+    if (s === "approved") return "default";
+    if (s === "rejected") return "destructive";
+    return "outline";
+  };
 
   const allOnPage = filtered.length > 0 && filtered.every((a) => picked.has(a.id));
   const togglePick = (id: string) => {
@@ -132,6 +149,7 @@ const AdminApplications = () => {
                 Pending {pendingCount > 0 && <Badge variant="secondary" className="ml-2">{pendingCount}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="approved">Approved</TabsTrigger>
+              <TabsTrigger value="changes_requested">Changes Requested</TabsTrigger>
               <TabsTrigger value="rejected">Rejected</TabsTrigger>
               <TabsTrigger value="all">All</TabsTrigger>
             </TabsList>
@@ -201,7 +219,18 @@ const AdminApplications = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-muted-foreground" onClick={() => { setSelected(a); setOpen(true); }}>{formatISTDate(a.created_at)}</TableCell>
-                      <TableCell onClick={() => { setSelected(a); setOpen(true); }}><Badge variant={variant(a.status)}>{a.status}</Badge></TableCell>
+                      <TableCell onClick={() => { setSelected(a); setOpen(true); }}>
+                        <Badge
+                          variant={variant(a.status)}
+                          className={
+                            a.status === "changes_requested"
+                              ? "bg-amber-100 text-amber-800 border-amber-200 hover:bg-amber-100/85 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900"
+                              : ""
+                          }
+                        >
+                          {a.status === "changes_requested" ? "changes requested" : a.status}
+                        </Badge>
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
