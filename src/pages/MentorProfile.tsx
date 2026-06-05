@@ -47,6 +47,8 @@ import ExperienceList from "@/features/mentor-profile/components/ExperienceList"
 import QualificationsList from "@/features/mentor-profile/components/QualificationsList";
 import ResumeDropzone from "@/features/mentor-profile/components/ResumeDropzone";
 import AvatarUploader from "@/features/mentor-profile/components/AvatarUploader";
+import { calculateCompleteness } from "@/features/mentor-profile/utils/completeness";
+import ProfileCompletionChecklist from "@/features/mentor-profile/components/ProfileCompletionChecklist";
 
 const SECTIONS = [
   { id: "about", label: "About", icon: User },
@@ -66,7 +68,7 @@ const initialsOf = (name: string) =>
     .toUpperCase() || "M";
 
 const MentorProfile = () => {
-  const { user } = useAuth();
+  const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const userId = user?.id;
   const { data, isLoading } = useMentorProfile(userId);
@@ -137,28 +139,16 @@ const MentorProfile = () => {
 
   // Profile completeness
   const completeness = useMemo(() => {
-    const statusVal = watched.professional_status || "";
-    const orgRequired = ["Employed", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education"].includes(statusVal);
-    const roleRequired = ["Employed", "Self-Employed / Consultant", "Entrepreneur", "Faculty / Academician", "Research Scholar", "Retired Professional", "Student / Higher Education", "Other"].includes(statusVal);
-
-    const checks = [
-      !!watched.full_name && watched.full_name.length >= 2,
-      !!data?.email,
-      !!watched.phone,
-      !!watched.headline,
-      (watched.bio?.length ?? 0) >= 50,
-      !orgRequired || !!watched.current_organization,
-      !roleRequired || !!watched.current_role,
-      watched.years_experience > 0,
-      !!watched.linkedin_url,
-      (watched.expertise?.length ?? 0) > 0,
-      (watched.qualifications?.length ?? 0) > 0,
-      (watched.experiences?.length ?? 0) > 0,
-      !!resumePath || !!pendingResume,
-      !!avatarUrl || !!pendingAvatar,
-    ];
-    return Math.round((checks.filter(Boolean).length / checks.length) * 100);
-  }, [watched, data?.email, resumePath, pendingResume, avatarUrl, pendingAvatar]);
+    if (!watched) return 0;
+    const { percentage } = calculateCompleteness({
+      ...watched,
+      email: data?.email,
+      resume_url: resumePath || (pendingResume ? "pending" : ""),
+      avatar_url: avatarUrl || (pendingAvatar ? "pending" : ""),
+      has_offerings: data?.has_offerings,
+    });
+    return percentage;
+  }, [watched, data?.email, resumePath, pendingResume, avatarUrl, pendingAvatar, data?.has_offerings]);
 
   // Section scroll spy
   useEffect(() => {
@@ -209,6 +199,7 @@ const MentorProfile = () => {
       setPendingResume(null);
       setPendingAvatar(null);
       toast({ title: "Profile saved", description: "Your changes are live." });
+      await refreshProfile();
     } catch (err: any) {
       toast({ variant: "destructive", title: "Save failed", description: err.message });
     }
@@ -307,6 +298,21 @@ const MentorProfile = () => {
             </div>
           </div>
         </div>
+
+        {/* Missing requirements checklist */}
+        {completeness < 100 && (
+          <div className="mt-6">
+            <ProfileCompletionChecklist
+              profileData={{
+                ...watched,
+                email: data?.email,
+                resume_url: resumePath || (pendingResume ? "pending" : ""),
+                avatar_url: avatarUrl || (pendingAvatar ? "pending" : ""),
+                has_offerings: data?.has_offerings,
+              }}
+            />
+          </div>
+        )}
 
         {/* Sticky section nav */}
         <nav className="sticky top-0 z-10 -mx-6 px-6 py-3 bg-background/80 backdrop-blur border-b mt-6 mb-6">

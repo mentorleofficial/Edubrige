@@ -24,6 +24,14 @@ export type MentorProfileRow = {
   resume_url: string | null;
   headline: string | null;
   avatar_url: string | null;
+  phone: string | null;
+  years_experience: number | null;
+  linkedin_url: string | null;
+  professional_status: string | null;
+  current_organization: string | null;
+  current_role: string | null;
+  full_name: string | null;
+  email: string | null;
 };
 
 export type MentorDashData = {
@@ -64,17 +72,22 @@ export const useMentorDashboardData = (userId?: string) => {
           },
         }));
 
-      const [mpRes, avRes, userRes] = await Promise.all([
+      const [mpRes, avRes, userRes, offeringsCountRes] = await Promise.all([
         supabase
           .from("mentor_profiles")
-          .select("bio, expertise, qualifications, experiences, resume_url, headline")
+          .select("bio, expertise, qualifications, experiences, resume_url, headline, phone, years_experience, linkedin_url, professional_status, current_organization, current_role")
           .eq("user_id", userId!)
           .maybeSingle(),
         supabase
           .from("mentor_availability")
           .select("id, day_of_week")
           .eq("mentor_id", userId!),
-        supabase.from("users").select("avatar_url").eq("id", userId!).maybeSingle(),
+        supabase.from("users").select("avatar_url, full_name, email").eq("id", userId!).maybeSingle(),
+        supabase
+          .from("mentorship_offerings")
+          .select("id", { count: "exact", head: true })
+          .eq("mentor_id", userId!)
+          .eq("status", "active"),
       ]);
 
       const sessionIds = sessions.map((s) => s.id);
@@ -88,10 +101,13 @@ export const useMentorDashboardData = (userId?: string) => {
         feedback = (fbRes.data as MentorDashFeedback[] | null) ?? [];
       }
 
-      const profile: MentorProfileRow | null = mpRes.data
+      const profile: MentorProfileRow & { has_offerings?: boolean } | null = mpRes.data
         ? {
-            ...(mpRes.data as Omit<MentorProfileRow, "avatar_url">),
+            ...(mpRes.data as any),
             avatar_url: userRes.data?.avatar_url ?? null,
+            full_name: userRes.data?.full_name ?? null,
+            email: userRes.data?.email ?? null,
+            has_offerings: (offeringsCountRes.count ?? 0) > 0,
           }
         : null;
 

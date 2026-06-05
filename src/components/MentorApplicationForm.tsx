@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,6 +34,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getResumeSignedUrl } from "@/features/mentor-profile/api/mentorProfile";
 
 const urlOrEmpty = z
   .string()
@@ -120,6 +122,7 @@ interface Props {
 const MentorApplicationForm = ({ onComplete }: Props) => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user, refreshProfile } = useAuth();
 
   const [stepIdx, setStepIdx] = useState(0);
   const [stage, setStage] = useState<Stage>("wizard");
@@ -136,6 +139,8 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
   const [resendIn, setResendIn] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
+  const [existingResumePath, setExistingResumePath] = useState<string>("");
+  const [existingAppId, setExistingAppId] = useState<string | null>(null);
 
   const [pending, setPending] = useState<{ values: FormValues; resumePath: string } | null>(null);
 
@@ -158,6 +163,51 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
       current_role: "",
     },
   });
+
+  useEffect(() => {
+    if (!user?.email) return;
+    const fetchExistingApp = async () => {
+      try {
+        const { data } = await supabase
+          .from("mentor_applications")
+          .select("*")
+          .ilike("email", user.email)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data) {
+          if (data.status === "changes_requested") {
+            setExistingAppId(data.id);
+          }
+          form.reset({
+            full_name: data.full_name || "",
+            email: data.email || "",
+            password: "dummy-password-value-123",
+            phone: data.phone || "",
+            linkedin_url: data.linkedin_url || "",
+            portfolio_url: data.portfolio_url || "",
+            twitter_url: (data.social_links as any)?.twitter || "",
+            github_url: (data.social_links as any)?.github || "",
+            bio: data.bio || "",
+            years_experience: data.years_experience || 0,
+            professional_status: data.professional_status || "",
+            current_organization: data.current_organization || "",
+            current_role: data.current_role || "",
+          });
+          setExpertise(data.expertise || []);
+          if (data.resume_url) {
+            setExistingResumePath(data.resume_url);
+          }
+        } else {
+          form.setValue("email", user.email || "");
+          form.setValue("password", "dummy-password-value-123");
+        }
+      } catch (err) {
+        console.error("Error fetching existing application:", err);
+      }
+    };
+    fetchExistingApp();
+  }, [user, form]);
 
   const status = form.watch("professional_status");
   useEffect(() => {
@@ -215,10 +265,13 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
 
   const validateStep = async (idx: number): Promise<boolean> => {
     if (idx === 0) {
-      const ok = await form.trigger(["full_name", "email", "password", "phone"]);
+      const ok = await form.trigger(["full_name", "email", ...(user ? [] : ["password"]), "phone"]);
       if (!ok) return false;
 
       const email = form.getValues("email");
+      if (user && user.email?.toLowerCase() === email?.toLowerCase()) {
+        return true;
+      }
       try {
         const { data: exists, error } = await supabase.rpc("check_email_exists", { email_to_check: email });
         if (error) throw error;
@@ -248,9 +301,11 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
       } else {
         setExpertiseError(null);
       }
-      if (!resume) {
+      if (!resume && !existingResumePath) {
         setResumeError("Please upload your resume");
         valid = false;
+      } else {
+        setResumeError(null);
       }
       return valid;
     }
@@ -277,11 +332,157 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
     setStepIdx((i) => Math.max(i - 1, 0));
   };
 
+  const checkCooldown = async (email: string): Promise<boolean> => {
+    try {
+      const { data: branding } = await supabase
+        .from("branding")
+        .select("rejection_cooldown_days")
+        .limit(1)
+        .maybeSingle();
+      const cooldownDays = branding?.rejection_cooldown_days ?? 30;
+      if (cooldownDays <= 0) return false;
+
+      const { data: lastRejectedApp } = await supabase
+        .from("mentor_applications")
+        .select("reviewed_at")
+        .ilike("email", email)
+        .eq("status", "rejected")
+        .order("reviewed_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (lastRejectedApp?.reviewed_at) {
+        const reviewedDate = new Date(lastRejectedApp.reviewed_at);
+        const cooldownMs = cooldownDays * 24 * 60 * 60 * 1000;
+        const diffMs = Date.now() - reviewedDate.getTime();
+        if (diffMs < cooldownMs) {
+          const remainingDays = Math.ceil((cooldownMs - diffMs) / (24 * 60 * 60 * 1000));
+          toast({
+            variant: "destructive",
+            title: "Application Cooldown Active",
+            description: `You can reapply in ${remainingDays} day(s). The admin set a ${cooldownDays}-day cooldown period for rejected applications.`,
+          });
+          return true;
+        }
+      }
+    } catch (e) {
+      console.error("Error checking application cooldown:", e);
+    }
+    return false;
+  };
+
   const submitAndSendOtp = async () => {
     const values = form.getValues();
     setSubmitting(true);
     try {
-      // Check if email already exists before uploading resume
+      const inCooldown = await checkCooldown(user?.email || values.email);
+      if (inCooldown) return;
+
+      let resumePath = "";
+      if (resume) {
+        const ext = resume.name.split(".").pop();
+        const uploadId = (crypto as any)?.randomUUID
+          ? (crypto as any).randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+        resumePath = `applications/${uploadId}/resume.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("mentor-resumes")
+          .upload(resumePath, resume, { contentType: resume.type });
+        if (upErr) throw upErr;
+      } else {
+        resumePath = existingResumePath;
+      }
+
+      if (!resumePath && !user) {
+        toast({ variant: "destructive", title: "Resume required", description: "Please upload your resume." });
+        return;
+      }
+
+      if (user) {
+        let appErr;
+        if (existingAppId) {
+          const { error } = await supabase
+            .from("mentor_applications")
+            .update({
+              full_name: values.full_name,
+              phone: values.phone || null,
+              linkedin_url: values.linkedin_url || null,
+              portfolio_url: values.portfolio_url || null,
+              social_links: {
+                twitter: values.twitter_url || null,
+                github: values.github_url || null,
+              },
+              bio: values.bio,
+              expertise,
+              years_experience: values.years_experience,
+              resume_url: resumePath || null,
+              professional_status: values.professional_status || null,
+              current_organization: values.current_organization || null,
+              current_role: values.current_role || null,
+              status: "pending",
+              changes_feedback: null,
+            })
+            .eq("id", existingAppId);
+          appErr = error;
+        } else {
+          const { error } = await supabase.from("mentor_applications").insert({
+            full_name: values.full_name,
+            email: user.email || values.email,
+            phone: values.phone || null,
+            linkedin_url: values.linkedin_url || null,
+            portfolio_url: values.portfolio_url || null,
+            social_links: {
+              twitter: values.twitter_url || null,
+              github: values.github_url || null,
+            },
+            bio: values.bio,
+            expertise,
+            years_experience: values.years_experience,
+            resume_url: resumePath || null,
+            professional_status: values.professional_status || null,
+            current_organization: values.current_organization || null,
+            current_role: values.current_role || null,
+            status: "pending",
+          });
+          appErr = error;
+        }
+        if (appErr) throw appErr;
+
+        const { error: userErr } = await supabase
+          .from("users")
+          .update({ full_name: values.full_name })
+          .eq("id", user.id);
+        if (userErr) throw userErr;
+
+        const { error: profErr } = await supabase.from("mentor_profiles").upsert(
+          {
+            user_id: user.id,
+            bio: values.bio,
+            expertise,
+            years_experience: values.years_experience,
+            linkedin_url: values.linkedin_url || "",
+            portfolio_url: values.portfolio_url || "",
+            phone: values.phone || "",
+            resume_url: resumePath || "",
+            professional_status: values.professional_status || "",
+            current_organization: values.current_organization || "",
+            current_role: values.current_role || "",
+          },
+          { onConflict: "user_id" }
+        );
+        if (profErr) console.error("profile update failed", profErr);
+
+        await refreshProfile();
+
+        setStage("done");
+        setStepIdx(3);
+        toast({ title: "Application submitted", description: "Your application has been received and is pending admin review." });
+        if (onComplete) {
+          onComplete();
+        }
+        return;
+      }
+
       const { data: exists, error: checkErr } = await supabase.rpc("check_email_exists", { email_to_check: values.email });
       if (checkErr) throw checkErr;
       if (exists) {
@@ -292,16 +493,6 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
         });
         return;
       }
-
-      const ext = resume!.name.split(".").pop();
-      const uploadId = (crypto as any)?.randomUUID
-        ? (crypto as any).randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
-      const resumePath = `applications/${uploadId}/resume.${ext}`;
-      const { error: upErr } = await supabase.storage
-        .from("mentor-resumes")
-        .upload(resumePath, resume!, { contentType: resume!.type });
-      if (upErr) throw upErr;
 
       const { error: signUpErr } = await supabase.auth.signUp({
         email: values.email,
@@ -492,7 +683,7 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
                 <Label>
                   Email <span className="text-destructive">*</span>
                 </Label>
-                <Input type="email" autoComplete="email" placeholder="you@example.com" {...form.register("email")} />
+                <Input type="email" autoComplete="email" placeholder="you@example.com" disabled={!!user} {...form.register("email")} />
                 {errs.email && <p className="text-xs text-destructive">{errs.email.message}</p>}
               </div>
               <div className="space-y-1.5">
@@ -511,35 +702,39 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
                 {errs.phone && <p className="text-xs text-destructive">{errs.phone.message}</p>}
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>
-                Password <span className="text-destructive">*</span>{" "}
-                <span className="text-xs font-normal text-muted-foreground">(min 8 chars)</span>
-              </Label>
-              <div className="relative">
-                <Input
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  className="pr-10"
-                  {...form.register("password")}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((s) => !s)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  tabIndex={-1}
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+            {!user && (
+              <div className="space-y-1.5">
+                <Label>
+                  Password <span className="text-destructive">*</span>{" "}
+                  <span className="text-xs font-normal text-muted-foreground">(min 8 chars)</span>
+                </Label>
+                <div className="relative">
+                  <Input
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    className="pr-10"
+                    {...form.register("password")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((s) => !s)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errs.password && <p className="text-xs text-destructive">{errs.password.message}</p>}
               </div>
-              {errs.password && <p className="text-xs text-destructive">{errs.password.message}</p>}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Already have an account?{" "}
-              <Link to="/login" className="text-primary underline">
-                Sign in
-              </Link>
-            </p>
+            )}
+            {!user && (
+              <p className="text-xs text-muted-foreground">
+                Already have an account?{" "}
+                <Link to="/login" className="text-primary underline">
+                  Sign in
+                </Link>
+              </p>
+            )}
           </div>
         )}
 
@@ -803,6 +998,50 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
                       <X className="h-4 w-4" />
                     </Button>
                   </div>
+                ) : existingResumePath ? (
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-8 w-8 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{existingResumePath.split("/").pop() ?? "Resume"}</p>
+                      <p className="text-xs text-muted-foreground">Uploaded</p>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const url = await getResumeSignedUrl(existingResumePath);
+                            if (url) window.open(url, "_blank");
+                          } catch (err) {
+                            console.error("Error signing url", err);
+                          }
+                        }}
+                      >
+                        View
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setExistingResumePath("");
+                          setTimeout(() => fileRef.current?.click(), 50);
+                        }}
+                      >
+                        Replace
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setExistingResumePath("")}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   <label className="flex items-center gap-3 cursor-pointer">
                     <Upload className="h-5 w-5 text-muted-foreground" />
@@ -905,7 +1144,7 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
               </>
             ) : stepIdx === 2 ? (
               <>
-                Submit & verify
+                {user ? "Submit Application" : "Submit & verify"}
                 <ArrowRight className="h-4 w-4" />
               </>
             ) : (

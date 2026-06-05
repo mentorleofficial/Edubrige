@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -7,10 +7,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -108,6 +128,7 @@ export type Database = {
           logo_url: string | null
           mentor_community_url: string
           primary_color: string
+          rejection_cooldown_days: number
           secondary_color: string
           sidebar_background: string
           sidebar_foreground: string
@@ -127,6 +148,7 @@ export type Database = {
           logo_url?: string | null
           mentor_community_url?: string
           primary_color?: string
+          rejection_cooldown_days?: number
           secondary_color?: string
           sidebar_background?: string
           sidebar_foreground?: string
@@ -146,6 +168,7 @@ export type Database = {
           logo_url?: string | null
           mentor_community_url?: string
           primary_color?: string
+          rejection_cooldown_days?: number
           secondary_color?: string
           sidebar_background?: string
           sidebar_foreground?: string
@@ -391,7 +414,10 @@ export type Database = {
         Row: {
           admin_notes: string | null
           bio: string
+          changes_feedback: string | null
           created_at: string
+          current_organization: string | null
+          current_role: string | null
           email: string
           expertise: string[]
           full_name: string
@@ -399,6 +425,8 @@ export type Database = {
           linkedin_url: string | null
           phone: string | null
           portfolio_url: string | null
+          professional_status: string | null
+          rejection_reason: string | null
           resume_url: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -406,14 +434,14 @@ export type Database = {
           status: Database["public"]["Enums"]["application_status"]
           updated_at: string
           years_experience: number
-          professional_status: string | null
-          current_organization: string | null
-          current_role: string | null
         }
         Insert: {
           admin_notes?: string | null
           bio: string
+          changes_feedback?: string | null
           created_at?: string
+          current_organization?: string | null
+          current_role?: string | null
           email: string
           expertise?: string[]
           full_name: string
@@ -421,6 +449,8 @@ export type Database = {
           linkedin_url?: string | null
           phone?: string | null
           portfolio_url?: string | null
+          professional_status?: string | null
+          rejection_reason?: string | null
           resume_url?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -428,14 +458,14 @@ export type Database = {
           status?: Database["public"]["Enums"]["application_status"]
           updated_at?: string
           years_experience?: number
-          professional_status?: string | null
-          current_organization?: string | null
-          current_role?: string | null
         }
         Update: {
           admin_notes?: string | null
           bio?: string
+          changes_feedback?: string | null
           created_at?: string
+          current_organization?: string | null
+          current_role?: string | null
           email?: string
           expertise?: string[]
           full_name?: string
@@ -443,6 +473,8 @@ export type Database = {
           linkedin_url?: string | null
           phone?: string | null
           portfolio_url?: string | null
+          professional_status?: string | null
+          rejection_reason?: string | null
           resume_url?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -450,9 +482,6 @@ export type Database = {
           status?: Database["public"]["Enums"]["application_status"]
           updated_at?: string
           years_experience?: number
-          professional_status?: string | null
-          current_organization?: string | null
-          current_role?: string | null
         }
         Relationships: []
       }
@@ -625,6 +654,7 @@ export type Database = {
         Row: {
           approval_acknowledged_at: string | null
           bio: string | null
+          buffer_time_minutes: number
           created_at: string
           current_organization: string | null
           current_role: string | null
@@ -634,8 +664,10 @@ export type Database = {
           id: string
           is_active: boolean
           linkedin_url: string | null
+          minimum_notice_hours: number
           phone: string | null
           portfolio_url: string | null
+          professional_status: string | null
           qualifications: Json
           resume_url: string | null
           slug: string | null
@@ -643,11 +675,11 @@ export type Database = {
           updated_at: string
           user_id: string
           years_experience: number | null
-          professional_status: string | null
         }
         Insert: {
           approval_acknowledged_at?: string | null
           bio?: string | null
+          buffer_time_minutes?: number
           created_at?: string
           current_organization?: string | null
           current_role?: string | null
@@ -657,8 +689,10 @@ export type Database = {
           id?: string
           is_active?: boolean
           linkedin_url?: string | null
+          minimum_notice_hours?: number
           phone?: string | null
           portfolio_url?: string | null
+          professional_status?: string | null
           qualifications?: Json
           resume_url?: string | null
           slug?: string | null
@@ -666,11 +700,11 @@ export type Database = {
           updated_at?: string
           user_id: string
           years_experience?: number | null
-          professional_status?: string | null
         }
         Update: {
           approval_acknowledged_at?: string | null
           bio?: string | null
+          buffer_time_minutes?: number
           created_at?: string
           current_organization?: string | null
           current_role?: string | null
@@ -680,8 +714,10 @@ export type Database = {
           id?: string
           is_active?: boolean
           linkedin_url?: string | null
+          minimum_notice_hours?: number
           phone?: string | null
           portfolio_url?: string | null
+          professional_status?: string | null
           qualifications?: Json
           resume_url?: string | null
           slug?: string | null
@@ -689,13 +725,100 @@ export type Database = {
           updated_at?: string
           user_id?: string
           years_experience?: number | null
-          professional_status?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "mentor_profiles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mentorship_offerings: {
+        Row: {
+          category: string
+          created_at: string
+          currency: string
+          description: string | null
+          duration_minutes: number
+          id: string
+          mentor_id: string
+          price: number
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          mentor_id: string
+          price?: number
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          currency?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          mentor_id?: string
+          price?: number
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentorship_offerings_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
@@ -980,6 +1103,7 @@ export type Database = {
           mentee_notes: string
           mentor_id: string
           notes: string | null
+          offering_id: string | null
           scheduled_at: string
           status: Database["public"]["Enums"]["session_status"]
           title: string
@@ -997,6 +1121,7 @@ export type Database = {
           mentee_notes?: string
           mentor_id: string
           notes?: string | null
+          offering_id?: string | null
           scheduled_at: string
           status?: Database["public"]["Enums"]["session_status"]
           title?: string
@@ -1014,6 +1139,7 @@ export type Database = {
           mentee_notes?: string
           mentor_id?: string
           notes?: string | null
+          offering_id?: string | null
           scheduled_at?: string
           status?: Database["public"]["Enums"]["session_status"]
           title?: string
@@ -1032,6 +1158,13 @@ export type Database = {
             columns: ["mentor_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_offering_id_fkey"
+            columns: ["offering_id"]
+            isOneToOne: false
+            referencedRelation: "mentorship_offerings"
             referencedColumns: ["id"]
           },
         ]
@@ -1071,19 +1204,16 @@ export type Database = {
       }
       user_roles: {
         Row: {
-          email: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
-          email?: string | null
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
-          email?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
@@ -1141,6 +1271,7 @@ export type Database = {
         Args: { _mentee: string; _mentor: string }
         Returns: boolean
       }
+      check_email_exists: { Args: { email_to_check: string }; Returns: boolean }
       generate_mentor_slug: {
         Args: { _full_name: string; _user_id: string }
         Returns: string
@@ -1195,7 +1326,11 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "mentor" | "mentee"
-      application_status: "pending" | "approved" | "rejected"
+      application_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "changes_requested"
       badge_tier: "bronze" | "silver" | "gold"
       dsr_kind: "export" | "correction" | "deletion" | "withdrawal"
       dsr_status: "pending" | "in_review" | "completed" | "rejected"
@@ -1327,10 +1462,18 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["admin", "mentor", "mentee"],
-      application_status: ["pending", "approved", "rejected"],
+      application_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "changes_requested",
+      ],
       badge_tier: ["bronze", "silver", "gold"],
       dsr_kind: ["export", "correction", "deletion", "withdrawal"],
       dsr_status: ["pending", "in_review", "completed", "rejected"],
@@ -1340,3 +1483,4 @@ export const Constants = {
     },
   },
 } as const
+

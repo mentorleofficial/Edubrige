@@ -10,6 +10,7 @@ import {
   fetchAdminUsers,
   setUserDisabled,
   toggleMentorActive,
+  deleteUser,
 } from "../api/users";
 
 const adminUsersKey = (params: FetchUsersParams) =>
@@ -70,6 +71,16 @@ export function useSetUserDisabled() {
   return useMutation({
     mutationFn: ({ userId, disabled }: { userId: string; disabled: boolean }) =>
       setUserDisabled(userId, disabled),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+    },
+  });
+}
+
+export function useDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId }: { userId: string }) => deleteUser(userId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
     },

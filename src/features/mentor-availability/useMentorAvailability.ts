@@ -4,6 +4,8 @@ import {
   fetchOverrides,
   fetchTimezone,
   updateTimezone,
+  fetchAvailabilitySettings,
+  updateAvailabilitySettings,
   addSlot,
   updateSlot,
   deleteSlot,
@@ -22,6 +24,8 @@ export interface MentorAvailabilityData {
   slots: WeeklySlot[];
   overrides: DateOverride[];
   timezone: string;
+  buffer_time_minutes: number;
+  minimum_notice_hours: number;
 }
 
 export function useMentorAvailability(userId?: string) {
@@ -30,12 +34,18 @@ export function useMentorAvailability(userId?: string) {
     enabled: !!userId,
     staleTime: 60_000,
     queryFn: async (): Promise<MentorAvailabilityData> => {
-      const [slots, overrides, timezone] = await Promise.all([
+      const [slots, overrides, settings] = await Promise.all([
         fetchWeeklySlots(userId!),
         fetchOverrides(userId!),
-        fetchTimezone(userId!),
+        fetchAvailabilitySettings(userId!),
       ]);
-      return { slots, overrides, timezone };
+      return {
+        slots,
+        overrides,
+        timezone: settings.timezone,
+        buffer_time_minutes: settings.buffer_time_minutes,
+        minimum_notice_hours: settings.minimum_notice_hours,
+      };
     },
   });
 }
@@ -73,6 +83,11 @@ export function useAvailabilityMutations(userId?: string) {
     }),
     updateTimezone: useMutation({
       mutationFn: (tz: string) => updateTimezone(userId!, tz),
+      onSuccess: invalidate,
+    }),
+    updateSettings: useMutation({
+      mutationFn: (patch: { timezone?: string; buffer_time_minutes?: number; minimum_notice_hours?: number }) =>
+        updateAvailabilitySettings(userId!, patch),
       onSuccess: invalidate,
     }),
     addOverride: useMutation({

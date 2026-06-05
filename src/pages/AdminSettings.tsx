@@ -4,6 +4,7 @@ import BrandingSettings from "@/components/admin/BrandingSettings";
 import JwtSettings from "@/components/admin/JwtSettings";
 import PrivacySettings from "@/components/admin/PrivacySettings";
 import EdubridgeSettings from "@/components/admin/EdubridgeSettings";
+import ApplicationPolicySettings from "@/components/admin/ApplicationPolicySettings";
 
 const AdminSettings = () => {
   return (
@@ -19,11 +20,13 @@ const AdminSettings = () => {
             <TabsTrigger value="jwt">SSO / JWT</TabsTrigger>
             <TabsTrigger value="privacy">Privacy</TabsTrigger>
             <TabsTrigger value="edubridge">EduBridge</TabsTrigger>
+            <TabsTrigger value="applications">Applications</TabsTrigger>
           </TabsList>
           <TabsContent value="branding" className="mt-6"><BrandingSettings /></TabsContent>
           <TabsContent value="jwt" className="mt-6"><JwtSettings /></TabsContent>
           <TabsContent value="privacy" className="mt-6"><PrivacySettings /></TabsContent>
           <TabsContent value="edubridge" className="mt-6"><EdubridgeSettings /></TabsContent>
+          <TabsContent value="applications" className="mt-6"><ApplicationPolicySettings /></TabsContent>
         </Tabs>
       </div>
     </AppLayout>
@@ -31,3 +34,4 @@ const AdminSettings = () => {
 };
 
 export default AdminSettings;
+

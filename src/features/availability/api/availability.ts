@@ -39,22 +39,44 @@ export async function fetchOverrides(mentorId: string): Promise<DateOverride[]> 
   return (data ?? []) as DateOverride[];
 }
 
-export async function fetchTimezone(mentorId: string): Promise<string> {
+export interface AvailabilitySettings {
+  timezone: string;
+  buffer_time_minutes: number;
+  minimum_notice_hours: number;
+}
+
+export async function fetchAvailabilitySettings(mentorId: string): Promise<AvailabilitySettings> {
   const { data, error } = await supabase
     .from("mentor_profiles")
-    .select("timezone")
+    .select("timezone, buffer_time_minutes, minimum_notice_hours")
     .eq("user_id", mentorId)
     .maybeSingle();
   if (error) throw error;
-  return (data?.timezone as string) ?? "UTC";
+  return {
+    timezone: data?.timezone ?? "Asia/Kolkata",
+    buffer_time_minutes: data?.buffer_time_minutes ?? 0,
+    minimum_notice_hours: data?.minimum_notice_hours ?? 0,
+  };
+}
+
+export async function fetchTimezone(mentorId: string): Promise<string> {
+  const { timezone } = await fetchAvailabilitySettings(mentorId);
+  return timezone;
+}
+
+export async function updateAvailabilitySettings(
+  mentorId: string,
+  patch: { timezone?: string; buffer_time_minutes?: number; minimum_notice_hours?: number }
+) {
+  const { error } = await supabase
+    .from("mentor_profiles")
+    .update(patch)
+    .eq("user_id", mentorId);
+  if (error) throw error;
 }
 
 export async function updateTimezone(mentorId: string, timezone: string) {
-  const { error } = await supabase
-    .from("mentor_profiles")
-    .update({ timezone })
-    .eq("user_id", mentorId);
-  if (error) throw error;
+  await updateAvailabilitySettings(mentorId, { timezone });
 }
 
 export async function addSlot(input: {

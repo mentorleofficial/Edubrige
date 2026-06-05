@@ -104,3 +104,10 @@ export async function setUserDisabled(userId: string, disabled: boolean) {
     user_id: userId,
   });
 }
+
+export async function deleteUser(userId: string) {
+  return invokeAdmin({
+    action: "delete",
+    user_id: userId,
+  });
+}

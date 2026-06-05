@@ -43,9 +43,14 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const { application_id, admin_notes } = body || {};
+    const { application_id, rejection_reason } = body || {};
     if (!application_id) {
       return new Response(JSON.stringify({ error: "application_id required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (!rejection_reason) {
+      return new Response(JSON.stringify({ error: "rejection_reason required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -73,97 +78,45 @@ Deno.serve(async (req) => {
       .eq("email", app.email)
       .maybeSingle();
 
-    if (!existing?.id) {
-      return new Response(
-        JSON.stringify({ error: "No user account found for this email. Applicant may not have completed signup." }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (existing?.id) {
+      await admin.from("notifications").insert({
+        user_id: existing.id,
+        title: "Application Status Update",
+        message: `Your mentor application has been reviewed. Status: Rejected. Reason: ${rejection_reason}`,
+        type: "application_status",
+      });
     }
-
-    const mentorUserId = existing.id;
-
-    // Ensure mentor role + activate profile
-    await admin.from("user_roles").upsert(
-      { user_id: mentorUserId, role: "mentor" },
-      { onConflict: "user_id,role" }
-    );
-    await admin.from("users").update({ role: "mentor", full_name: app.full_name }).eq("id", mentorUserId);
-
-    // Generate slug from applicant's full name
-    const { data: slugData } = await admin.rpc("generate_mentor_slug", {
-      _full_name: app.full_name,
-      _user_id: mentorUserId,
-    });
-    const mentorSlug = (slugData as string | null) ?? null;
-
-    await admin.from("mentor_profiles").upsert(
-      {
-        user_id: mentorUserId,
-        bio: app.bio,
-        expertise: app.expertise,
-        years_experience: app.years_experience,
-        linkedin_url: app.linkedin_url ?? "",
-        portfolio_url: app.portfolio_url ?? "",
-        phone: app.phone ?? "",
-        resume_url: app.resume_url ?? "",
-        is_active: true,
-        approval_acknowledged_at: null,
-        slug: mentorSlug,
-        current_organization: app.current_organization ?? "",
-        current_role: app.current_role ?? "",
-        professional_status: app.professional_status ?? "",
-      },
-      { onConflict: "user_id" }
-    );
 
     await admin
       .from("mentor_applications")
       .update({
-        status: "approved",
-        admin_notes: admin_notes ?? null,
+        status: "rejected",
+        rejection_reason: rejection_reason,
+        admin_notes: rejection_reason,
         reviewed_by: userData.user.id,
         reviewed_at: new Date().toISOString(),
       })
       .eq("id", application_id);
 
-    // Delete any other historical applications for the same email (e.g. previous rejections)
-    await admin
-      .from("mentor_applications")
-      .delete()
-      .ilike("email", app.email)
-      .neq("id", application_id);
-
-
     await admin.from("audit_logs").insert({
       user_id: userData.user.id,
-      action: "approve_mentor_application",
+      action: "reject_mentor_application",
       entity_type: "mentor_applications",
       entity_id: application_id,
-      details: { mentor_user_id: mentorUserId, email: app.email },
+      details: { email: app.email, rejection_reason },
     });
 
-    // Queue outbound event for EduBridge sync
-    await admin.from("outbound_events").insert({
-      event_type: "mentor.approved",
-      payload: {
-        mentor_user_id: mentorUserId,
-        email: app.email,
-        full_name: app.full_name,
-        slug: mentorSlug,
-      },
-    });
-
-    // Fire decision email (don't fail approval if email fails)
+    // Fire decision email (don't fail rejection if email fails)
     try {
       await admin.functions.invoke("mentor-application-decision-email", {
-        body: { application_id, decision: "approved", notes: admin_notes ?? "" },
+        body: { application_id, decision: "rejected", notes: rejection_reason },
         headers: { Authorization: authHeader },
       });
     } catch (e) {
       console.warn("decision email failed", e);
     }
 
-    return new Response(JSON.stringify({ success: true, mentor_user_id: mentorUserId }), {
+    return new Response(JSON.stringify({ success: true }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

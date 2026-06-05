@@ -29,7 +29,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, MoreHorizontal, Search, UserPlus } from "lucide-react";
 import {
-  useAdminUsers, useCreateUser, useToggleMentorActive, useSetUserDisabled,
+  useAdminUsers, useCreateUser, useToggleMentorActive, useSetUserDisabled, useDeleteUser,
   type RoleFilter, type StatusFilter,
 } from "@/features/admin";
 import type { AppRole } from "@/features/admin/api/users";
@@ -63,6 +63,7 @@ const AdminUsers = () => {
   const toggleMutation = useToggleMentorActive(queryParams);
   const createMutation = useCreateUser();
   const disableMutation = useSetUserDisabled();
+  const deleteMutation = useDeleteUser();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [inviteMode, setInviteMode] = useState<"invite" | "password">("invite");
@@ -131,6 +132,15 @@ const AdminUsers = () => {
       toast({ title: disabled ? "User deactivated" : "User restored" });
     } catch (err) {
       handleError(err, disabled ? "Failed to deactivate user" : "Failed to restore user");
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      await deleteMutation.mutateAsync({ userId });
+      toast({ title: "User deleted" });
+    } catch (err) {
+      handleError(err, "Failed to delete user");
     }
   };
 
@@ -321,6 +331,8 @@ const AdminUsers = () => {
                             isSelf={isSelf}
                             onSetDisabled={handleSetDisabled}
                             pending={disableMutation.isPending}
+                            onDeleteUser={handleDeleteUser}
+                            deletePending={deleteMutation.isPending}
                           />
                         </TableCell>
                       </TableRow>
@@ -352,14 +364,17 @@ const AdminUsers = () => {
 };
 
 const UserRowActions = ({
-  user, isSelf, onSetDisabled, pending,
+  user, isSelf, onSetDisabled, pending, onDeleteUser, deletePending,
 }: {
   user: { id: string; full_name: string; is_disabled: boolean };
   isSelf: boolean;
   onSetDisabled: (id: string, disabled: boolean) => void;
   pending: boolean;
+  onDeleteUser: (id: string) => void;
+  deletePending: boolean;
 }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const disabling = !user.is_disabled;
 
   return (
@@ -378,6 +393,9 @@ const UserRowActions = ({
               Deactivate user
             </DropdownMenuItem>
           )}
+          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setConfirmDeleteOpen(true)}>
+            Delete user
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -401,6 +419,27 @@ const UserRowActions = ({
               className={disabling ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : undefined}
             >
               {disabling ? "Deactivate" : "Restore"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-destructive">Delete {user.full_name} permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the user's authentication account, public profile, roles, and all associated data from the platform.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { onDeleteUser(user.id); setConfirmDeleteOpen(false); }}
+              disabled={deletePending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

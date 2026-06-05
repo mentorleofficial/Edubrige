@@ -7,15 +7,18 @@ export interface MentorProfileData extends MentorProfileFormValues {
   resume_url: string;
   is_active: boolean;
   slug: string | null;
+  has_offerings: boolean;
 }
 
 export async function fetchMentorProfile(userId: string): Promise<MentorProfileData> {
-  const [{ data: u, error: uErr }, { data: p, error: pErr }] = await Promise.all([
+  const [{ data: u, error: uErr }, { data: p, error: pErr }, { count: activeOfferingsCount, error: oErr }] = await Promise.all([
     supabase.from("users").select("full_name, email, avatar_url").eq("id", userId).maybeSingle(),
     supabase.from("mentor_profiles").select("*").eq("user_id", userId).maybeSingle(),
+    supabase.from("mentorship_offerings").select("id", { count: "exact", head: true }).eq("mentor_id", userId).eq("status", "active"),
   ]);
   if (uErr) throw uErr;
   if (pErr) throw pErr;
+  if (oErr) throw oErr;
 
   return {
     full_name: u?.full_name ?? "",
@@ -36,6 +39,7 @@ export async function fetchMentorProfile(userId: string): Promise<MentorProfileD
     resume_url: (p?.resume_url as string) ?? "",
     is_active: p?.is_active ?? false,
     slug: ((p as any)?.slug as string | null) ?? null,
+    has_offerings: (activeOfferingsCount ?? 0) > 0,
   };
 }
 

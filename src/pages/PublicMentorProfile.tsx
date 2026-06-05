@@ -24,7 +24,11 @@ import {
   Sparkles,
   ArrowLeft,
   Star,
+  Tag,
+  Clock,
+  Coins,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 type Qualification = {
   institution: string;
@@ -83,6 +87,22 @@ const PublicMentorProfile = () => {
   const [notFound, setNotFound] = useState(false);
   const [rating, setRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
   const { data: mentorBadges = [] } = useMentorBadges(mentor?.user_id);
+
+  // Fetch active offerings
+  const { data: offerings = [] } = useQuery<any[]>({
+    queryKey: ["public-offerings", mentor?.user_id],
+    enabled: !!mentor?.user_id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mentorship_offerings")
+        .select("*")
+        .eq("mentor_id", mentor!.user_id)
+        .eq("status", "active")
+        .order("duration_minutes");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
 
   useEffect(() => {
     const fetch = async () => {
@@ -263,6 +283,59 @@ const PublicMentorProfile = () => {
                 url={typeof window !== "undefined" ? window.location.href : ""}
                 text={`Check out ${mentor.full_name}${mentor.headline ? ` — ${mentor.headline}` : ""} on ${branding.app_name}`}
               />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Offerings & Services */}
+        {offerings.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Tag className="h-5 w-5 text-primary" /> Offerings & Services
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {offerings.map((o) => (
+                  <Card key={o.id} className="flex flex-col justify-between border bg-card/50 hover:border-primary/40 transition-all">
+                    <CardHeader className="p-4 pb-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-bold text-sm text-foreground">{o.title}</h4>
+                      </div>
+                      {o.description && (
+                        <p className="text-xs text-muted-foreground line-clamp-2 mt-1 leading-relaxed">
+                          {o.description}
+                        </p>
+                      )}
+                    </CardHeader>
+                    <CardContent className="p-4 pt-2 space-y-3">
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3.5 w-3.5 text-primary" /> {o.duration_minutes} mins
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Coins className="h-3.5 w-3.5 text-emerald-500" /> {o.price === 0 ? "Free" : `₹${o.price}`}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full mt-2"
+                        onClick={() => {
+                          if (!user) {
+                            navigate(`/login?redirect=/mentors/${mentorId}`);
+                            return;
+                          }
+                          const targetId = mentor?.user_id ?? mentorId;
+                          if (role === "mentee") navigate(`/book/${targetId}?offeringId=${o.id}`);
+                        }}
+                      >
+                        Book session
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </CardContent>
           </Card>
         )}

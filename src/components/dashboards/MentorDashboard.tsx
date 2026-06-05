@@ -3,7 +3,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FolderKanban, Award } from "lucide-react";
+import { FolderKanban, Award, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import MentorProfileCompletionModal from "@/features/mentor-profile/components/MentorProfileCompletionModal";
 import { Link } from "react-router-dom";
 import InactiveMentorBanner from "@/components/InactiveMentorBanner";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
@@ -21,7 +23,7 @@ import RecentFeedbackPanel from "./mentor/RecentFeedbackPanel";
 import RecentActivityFeed from "./mentor/RecentActivityFeed";
 
 const MentorDashboard = () => {
-  const { user, mentorActive } = useAuth();
+  const { user, isApproved, profileCompleteness } = useAuth();
   const { data, isLoading } = useMentorDashboardData(user?.id);
   const { data: programs = [] } = useMyPrograms();
   const { data: badges = [] } = useMentorBadges(user?.id);
@@ -51,7 +53,7 @@ const MentorDashboard = () => {
   if (isLoading || !data) {
     return (
       <div className="space-y-4">
-        {!mentorActive && <InactiveMentorBanner />}
+        {!isApproved && <InactiveMentorBanner />}
         <Skeleton className="h-32 w-full" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -66,7 +68,26 @@ const MentorDashboard = () => {
   return (
     <TooltipProvider>
     <div className="space-y-6">
-      {!mentorActive && <InactiveMentorBanner />}
+      {data?.profile && (
+        <MentorProfileCompletionModal
+          profileData={data.profile}
+          isApproved={isApproved}
+        />
+      )}
+
+      {!isApproved && <InactiveMentorBanner />}
+      {isApproved && profileCompleteness < 100 && (
+        <Alert className="border-amber-500/30 bg-amber-500/5">
+          <AlertCircle className="h-4 w-4 text-amber-500" />
+          <AlertTitle className="text-amber-700 font-semibold">Profile Incomplete</AlertTitle>
+          <AlertDescription className="text-muted-foreground">
+            Your account is approved, but you must complete your profile to 100% to unlock your availability calendar, program modules, bookings, and active features.
+            <Button asChild variant="link" className="h-auto p-0 ml-1.5 text-xs text-primary font-bold">
+              <Link to="/mentor/profile">Complete Profile Now</Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <NextSessionCard session={computed.next} />
 

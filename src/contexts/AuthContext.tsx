@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from "r
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { calculateCompleteness } from "@/features/mentor-profile/utils/completeness";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -16,6 +17,8 @@ interface UserProfile {
 interface CachedAuth {
   profile: UserProfile;
   mentorActive: boolean;
+  profileCompleteness?: number;
+  isApproved?: boolean;
 }
 
 interface AuthContextType {
@@ -24,6 +27,8 @@ interface AuthContextType {
   profile: UserProfile | null;
   role: AppRole | null;
   mentorActive: boolean;
+  profileCompleteness: number;
+  isApproved: boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string, role: AppRole) => Promise<void>;
@@ -59,6 +64,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(cached?.profile ?? null);
   const [mentorActive, setMentorActive] = useState<boolean>(cached?.mentorActive ?? true);
+  const [profileCompleteness, setProfileCompleteness] = useState<number>(cached?.profileCompleteness ?? 100);
+  const [isApproved, setIsApproved] = useState<boolean>(cached?.isApproved ?? true);
   // Loading stays true until we have either a confirmed-no-session OR a resolved profile.
   // Optimistic UI is driven from the cached profile above, not from `loading`.
   const [loading, setLoading] = useState(true);
@@ -90,18 +97,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       let isActive = true;
+      let completeness = 100;
+
       if (profileData.role === "mentor") {
-        const { data: mp } = await supabase
-          .from("mentor_profiles")
-          .select("is_active")
-          .eq("user_id", userId)
-          .maybeSingle();
+        const [{ data: mp }, { count: activeOfferingsCount }] = await Promise.all([
+          supabase
+            .from("mentor_profiles")
+            .select("is_active, bio, expertise, qualifications, experiences, resume_url, headline, phone, years_experience, linkedin_url, professional_status, current_organization, current_role")
+            .eq("user_id", userId)
+            .maybeSingle(),
+          supabase
+            .from("mentorship_offerings")
+            .select("id", { count: "exact", head: true })
+            .eq("mentor_id", userId)
+            .eq("status", "active"),
+        ]);
+
         isActive = !!mp?.is_active;
+
+        if (mp) {
+          const { percentage } = calculateCompleteness({
+            ...mp,
+            full_name: profileData.full_name,
+            email: profileData.email,
+            avatar_url: profileData.avatar_url,
+            has_offerings: (activeOfferingsCount ?? 0) > 0,
+          });
+          completeness = percentage;
+        } else {
+          completeness = 0;
+        }
       }
 
+      const activeState = isActive && completeness === 100;
+
       setProfile(profileData);
-      setMentorActive(isActive);
-      writeCache({ profile: profileData, mentorActive: isActive });
+      setMentorActive(activeState);
+      setProfileCompleteness(completeness);
+      setIsApproved(isActive);
+
+      writeCache({
+        profile: profileData,
+        mentorActive: activeState,
+        profileCompleteness: completeness,
+        isApproved: isActive,
+      });
       lastFetchedFor.current = userId;
     } finally {
       fetchingFor.current = null;
@@ -121,6 +161,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!uid) {
           setProfile(null);
           setMentorActive(false);
+          setProfileCompleteness(100);
+          setIsApproved(true);
           writeCache(null);
           lastFetchedFor.current = null;
           setLoading(false);
@@ -146,6 +188,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         writeCache(null);
         setProfile(null);
         setMentorActive(false);
+        setProfileCompleteness(100);
+        setIsApproved(true);
         lastFetchedFor.current = null;
         setLoading(false);
         return;
@@ -197,6 +241,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut();
     setProfile(null);
     setMentorActive(false);
+    setProfileCompleteness(100);
+    setIsApproved(true);
     writeCache(null);
     lastFetchedFor.current = null;
 
@@ -218,6 +264,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profile,
         role: profile?.role ?? null,
         mentorActive,
+        profileCompleteness,
+        isApproved,
         loading,
         signIn,
         signUp,

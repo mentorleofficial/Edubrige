@@ -8,7 +8,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-type Action = "create" | "disable" | "restore";
+type Action = "create" | "disable" | "restore" | "delete";
 type AppRole = "admin" | "mentor" | "mentee";
 type Mode = "invite" | "password";
 
@@ -24,18 +24,22 @@ interface Payload {
   user_id?: string;
 }
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), {
-    status,
+const json = (body: unknown, status = 200) => {
+  if (body && typeof body === "object" && "error" in body) {
+    console.error("admin-manage-user error:", body.error);
+  }
+  return new Response(JSON.stringify(body), {
+    status: 200, // Always 200 to let client handle the error body directly
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+    if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized: Missing Authorization header" }, 401);
 
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
@@ -45,10 +49,9 @@ Deno.serve(async (req) => {
     const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
     });
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsErr } = await userClient.auth.getClaims(token);
-    if (claimsErr || !claimsData?.claims?.sub) return json({ error: "Unauthorized" }, 401);
-    const callerId = claimsData.claims.sub as string;
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData.user) return json({ error: "Unauthorized: " + (userErr?.message ?? "Invalid token") }, 401);
+    const callerId = userData.user.id;
 
     // Service-role client (bypasses RLS for admin ops)
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -60,7 +63,8 @@ Deno.serve(async (req) => {
       _user_id: callerId,
       _role: "admin",
     });
-    if (roleErr || !isAdmin) return json({ error: "Forbidden" }, 403);
+    if (roleErr) return json({ error: "Forbidden: check role RPC failed: " + roleErr.message }, 403);
+    if (!isAdmin) return json({ error: "Forbidden: caller is not an admin" }, 403);
 
     const body = (await req.json().catch(() => ({}))) as Payload;
     const action = body.action;
@@ -136,6 +140,25 @@ Deno.serve(async (req) => {
       await admin.from("audit_logs").insert({
         user_id: callerId,
         action: disabling ? "USER_DISABLED" : "USER_RESTORED",
+        entity_type: "users",
+        entity_id: targetId,
+        details: {},
+      });
+
+      return json({ ok: true });
+    }
+
+    if (action === "delete") {
+      const targetId = body.user_id;
+      if (!targetId) return json({ error: "user_id is required" }, 400);
+      if (targetId === callerId) return json({ error: "You cannot delete your own account" }, 400);
+
+      const { error: delErr } = await admin.auth.admin.deleteUser(targetId);
+      if (delErr) return json({ error: delErr.message }, 400);
+
+      await admin.from("audit_logs").insert({
+        user_id: callerId,
+        action: "USER_DELETED",
         entity_type: "users",
         entity_id: targetId,
         details: {},

@@ -4,7 +4,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,11 +12,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronLeft, ChevronRight, CheckCircle, Globe, Info, Video, Copy } from "lucide-react";
+import { ChevronLeft, ChevronRight, CheckCircle, Globe, Info, Video, Copy, AlertCircle } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import { fromZonedTime } from "date-fns-tz";
 import { cn } from "@/lib/utils";
@@ -51,13 +58,34 @@ const BookSession = () => {
   const { toast } = useToast();
 
   const { data: staticData } = useBookSessionStatic(mentorId);
-  const { data: bookedTimes = new Set<string>() } = useBookedTimes(mentorId);
+  const { data: bookedTimes = [] } = useBookedTimes(mentorId, rescheduleId || undefined);
   const bookMutation = useBookSession();
 
   const mentor = staticData?.mentor ?? null;
   const slots = staticData?.slots ?? [];
   const overrides = staticData?.overrides ?? [];
   const timezone = staticData?.mentorProfile?.timezone ?? "UTC";
+  const [selectedOffering, setSelectedOffering] = useState<any | null>(null);
+
+  // Sync selected offering
+  useEffect(() => {
+    if (staticData?.offerings && staticData.offerings.length > 0) {
+      const qId = params.get("offeringId");
+      const found = staticData.offerings.find((o) => o.id === qId) ?? staticData.offerings[0];
+      if (found && (!selectedOffering || selectedOffering.id !== found.id)) {
+        setSelectedOffering(found);
+      }
+    }
+  }, [staticData?.offerings, params]);
+
+  // Sync title from selected offering
+  useEffect(() => {
+    if (selectedOffering) {
+      setTitle(`${selectedOffering.title} · ${selectedOffering.duration_minutes} min`);
+    } else {
+      setTitle("");
+    }
+  }, [selectedOffering]);
 
   // Guard inactive mentor.
   useEffect(() => {
@@ -101,17 +129,36 @@ const BookSession = () => {
     return fromZonedTime(local, APP_TZ);
   };
 
-  const isoForSlot = (date: Date, hhmm: string) => toISTDate(date, hhmm).toISOString();
+  const getSlotTimes = (date: Date, hhmm: string) => {
+    const startMs = toISTDate(date, hhmm).getTime();
+    const duration = selectedOffering?.duration_minutes ?? 30;
+    const endMs = startMs + duration * 60 * 1000;
+    const buffer = staticData?.mentorProfile?.buffer_time_minutes ?? 0;
+    const blockedEndMs = endMs + buffer * 60 * 1000;
+    return { startMs, endMs, blockedEndMs };
+  };
 
-  const isSlotTaken = (date: Date, hhmm: string) => bookedTimes.has(isoForSlot(date, hhmm));
+  const isPastSlot = (date: Date, hhmm: string) => {
+    const { startMs } = getSlotTimes(date, hhmm);
+    const minNoticeHours = staticData?.mentorProfile?.minimum_notice_hours ?? 0;
+    const noticeMs = Math.max(minNoticeHours * 60 * 60 * 1000, 5 * 60 * 1000);
+    return startMs < Date.now() + noticeMs;
+  };
 
-  // Treat slots starting within the next 5 minutes (or already passed) as unbookable.
-  const isPastSlot = (date: Date, hhmm: string) =>
-    toISTDate(date, hhmm).getTime() <= Date.now() + 5 * 60 * 1000;
+  const isSlotTaken = (date: Date, hhmm: string) => {
+    const { startMs, blockedEndMs } = getSlotTimes(date, hhmm);
+    const buffer = staticData?.mentorProfile?.buffer_time_minutes ?? 0;
+    
+    return bookedTimes.some((booking) => {
+      const bStartMs = new Date(booking.scheduled_at).getTime();
+      const bBlockedEndMs = bStartMs + (booking.duration_minutes + buffer) * 60 * 1000;
+      return Math.max(startMs, bStartMs) < Math.min(blockedEndMs, bBlockedEndMs);
+    });
+  };
 
   const isDayFullyBooked = (date: Date) => {
     const ranges = getRangesForDate(date, slots, overrides);
-    const list = sliceIntoSlots(ranges, 30).filter((t) => !isPastSlot(date, t));
+    const list = sliceIntoSlots(ranges, selectedOffering?.duration_minutes ?? 30).filter((t) => !isPastSlot(date, t));
     if (list.length === 0) return false;
     return list.every((t) => isSlotTaken(date, t));
   };
@@ -134,9 +181,9 @@ const BookSession = () => {
     [selectedDate, slots, overrides]
   );
   const daySlotList = useMemo(
-    () => sliceIntoSlots(dayRanges, 30).filter((t) => !(selectedDate && isPastSlot(selectedDate, t))),
+    () => sliceIntoSlots(dayRanges, selectedOffering?.duration_minutes ?? 30).filter((t) => !(selectedDate && isPastSlot(selectedDate, t))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dayRanges, selectedDate]
+    [dayRanges, selectedDate, selectedOffering]
   );
   const selectedKind = useMemo(
     () => (selectedDate ? getOverrideKind(selectedDate, overrides) : null),
@@ -146,28 +193,30 @@ const BookSession = () => {
   const slotEndForSelected = useMemo(() => {
     if (!selectedDate || !selectedTime) return null;
     const [h, m] = selectedTime.split(":").map(Number);
-    const total = h * 60 + m + 30;
+    const total = h * 60 + m + (selectedOffering?.duration_minutes ?? 30);
     const eh = Math.floor(total / 60);
     const em = total % 60;
     return `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`;
-  }, [selectedDate, selectedTime]);
+  }, [selectedDate, selectedTime, selectedOffering]);
 
   const booking = bookMutation.isPending;
 
   const handleBook = async () => {
     if (!selectedDate || !selectedTime || !user || !mentorId) return;
     const scheduledAt = toISTDate(selectedDate, selectedTime);
+    const duration = selectedOffering?.duration_minutes ?? 30;
 
     try {
       const { meetingUrl } = await bookMutation.mutateAsync({
         mentorId,
         menteeId: user.id,
         scheduledAt,
-        durationMinutes: 30,
+        durationMinutes: duration,
         notes,
         title: title.trim() || `Session with ${mentor?.full_name ?? "mentor"}`,
         topic: topic.trim(),
         rescheduleId,
+        offeringId: selectedOffering?.id || null,
       });
 
       // Fire-and-forget booking confirmation email
@@ -179,7 +228,7 @@ const BookSession = () => {
             menteeEmail: user.email,
             menteeName: (user.user_metadata as Record<string, unknown>)?.full_name || user.email,
             scheduledAtISO: scheduledAt.toISOString(),
-            durationMinutes: 30,
+            durationMinutes: duration,
             meetingUrl,
             menteeNotes: notes || undefined,
           },
@@ -210,6 +259,29 @@ const BookSession = () => {
   };
 
   if (!mentor) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
+
+  if (staticData && staticData.offerings && staticData.offerings.length === 0) {
+    return (
+      <AppLayout>
+        <div className="max-w-2xl mx-auto py-12 text-center">
+          <Card>
+            <CardHeader className="flex flex-col items-center pb-4">
+              <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+              </div>
+              <CardTitle className="text-xl">Booking Unavailable</CardTitle>
+              <CardDescription className="pt-2 text-center max-w-md">
+                This mentor does not have any active offerings at the moment. Please check back later or choose another mentor.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              <Button onClick={() => navigate("/mentors")}>Back to Mentors Directory</Button>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    );
+  }
 
   if (bookedSession) {
     const { scheduledAt, meetingUrl } = bookedSession;
@@ -257,7 +329,7 @@ const BookSession = () => {
                     description: `Meeting link: ${meetingUrl}`,
                     location: meetingUrl,
                     startISO: scheduledAt.toISOString(),
-                    durationMinutes: 30,
+                    durationMinutes: selectedOffering?.duration_minutes ?? 30,
                   }}
                   filename={`mentorle-session-${formatIST(scheduledAt, "yyyy-MM-dd-HHmm")}.ics`}
                 />
@@ -311,6 +383,42 @@ const BookSession = () => {
           <Globe className="h-3 w-3" /> All times shown in{" "}
           <span className="font-medium">India Standard Time (IST)</span>
         </p>
+
+        {staticData?.offerings && staticData.offerings.length > 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-2">
+                <Label htmlFor="offering-select" className="font-semibold text-sm">Select Session Type</Label>
+                <Select
+                  value={selectedOffering?.id ?? ""}
+                  onValueChange={(val) => {
+                    const found = staticData.offerings.find((o) => o.id === val);
+                    if (found) {
+                      setSelectedOffering(found);
+                      setSelectedTime(null);
+                    }
+                  }}
+                >
+                  <SelectTrigger id="offering-select" className="max-w-md">
+                    <SelectValue placeholder="Choose a mentorship session type..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {staticData.offerings.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>
+                        {o.title} ({o.duration_minutes} mins · {o.price === 0 ? "Free" : `₹${o.price}`})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedOffering?.description && (
+                  <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
+                    {selectedOffering.description}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           {/* Calendar */}
