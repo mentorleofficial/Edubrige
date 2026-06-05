@@ -254,7 +254,13 @@ const MentorAvailability = () => {
           </div>
 
           <div>
-            <AvailabilityPreview slots={slots} overrides={overrides} timezone={timezone} />
+            <AvailabilityPreview
+              slots={slots}
+              overrides={overrides}
+              timezone={timezone}
+              minNoticeHours={minNotice}
+              bufferTimeMinutes={bufferTime}
+            />
           </div>
         </div>
       </div>

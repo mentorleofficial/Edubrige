@@ -261,88 +261,119 @@ const MentorOfferings = () => {
             {offerings.map((o) => (
               <Card
                 key={o.id}
-                className="group flex flex-col justify-between overflow-hidden relative border border-muted/80 bg-card hover:border-primary/50 hover:shadow-md transition-all duration-300"
+                className="group flex flex-col justify-between border bg-card hover:shadow-md transition-all duration-200 hover:border-border/80"
               >
-                <div>
-                  <div className="h-2 bg-gradient-to-r from-primary to-accent" />
-                  <CardHeader className="pb-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <CardTitle className="text-base font-semibold leading-tight tracking-tight truncate pr-2">
                         {o.title}
                       </CardTitle>
+
+                      {o.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                          {o.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex-shrink-0 pt-0.5">
                       {getStatusBadge(o.status)}
                     </div>
-                    {o.description && (
-                      <p className="text-muted-foreground text-xs line-clamp-3 mt-1.5 leading-relaxed">
-                        {o.description}
-                      </p>
-                    )}
-                  </CardHeader>
-                </div>
-                <CardContent className="pt-0 space-y-4">
-                  <div className="flex items-center gap-4 text-sm font-medium text-foreground/80 border-t pt-3">
+                  </div>
+                </CardHeader>
+
+                <CardContent className="pt-0 flex-1 flex flex-col">
+                  {/* Metadata */}
+                  <div className="flex items-center gap-5 text-sm text-muted-foreground mb-5">
                     <div className="flex items-center gap-1.5">
-                      <Clock className="h-4 w-4 text-primary" />
-                      <span>{o.duration_minutes} mins</span>
+                      <Clock className="h-4 w-4" />
+                      <span className="font-medium">{o.duration_minutes} min</span>
                     </div>
                     <div className="flex items-center gap-1.5">
-                      <Coins className="h-4 w-4 text-emerald-500" />
-                      <span>{o.price === 0 ? "Free" : `₹${o.price}`}</span>
+                      <Coins className="h-4 w-4" />
+                      <span className="font-bold text-foreground">
+                        {o.price === 0 ? "Free" : `₹${o.price}`}
+                      </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-end gap-2 border-t pt-3">
-                    {o.status === "active" ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Pause offering"
-                        onClick={() => updateStatusMutation.mutate({ id: o.id, status: "paused" })}
-                        disabled={updateStatusMutation.isPending}
-                      >
-                        <Pause className="h-4 w-4 text-amber-500" />
-                      </Button>
-                    ) : o.status === "paused" || o.status === "draft" ? (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Activate offering"
-                        onClick={() => updateStatusMutation.mutate({ id: o.id, status: "active" })}
-                        disabled={updateStatusMutation.isPending}
-                      >
-                        <Play className="h-4 w-4 text-emerald-500" />
-                      </Button>
-                    ) : null}
-                    
-                    {o.status !== "archived" && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        title="Archive offering"
-                        onClick={() => updateStatusMutation.mutate({ id: o.id, status: "archived" })}
-                        disabled={updateStatusMutation.isPending}
-                      >
-                        <Archive className="h-4 w-4 text-muted-foreground" />
-                      </Button>
-                    )}
+                  {/* Actions */}
+                  <div className="mt-auto flex items-center justify-between pt-4 border-t">
+                    {/* Status Controls */}
+                    <div className="flex items-center gap-1">
+                      {o.status === "active" ? (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="hover:bg-amber-100 hover:text-amber-600 dark:hover:bg-amber-950 dark:hover:text-amber-500"
+                          onClick={() =>
+                            updateStatusMutation.mutate({
+                              id: o.id,
+                              status: "paused",
+                            })
+                          }
+                        >
+                          <Pause className="h-4 w-4" />
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="hover:bg-emerald-100 hover:text-emerald-600 dark:hover:bg-emerald-950 dark:hover:text-emerald-500"
+                          onClick={() =>
+                            updateStatusMutation.mutate({
+                              id: o.id,
+                              status: "active",
+                            })
+                          }
+                        >
+                          <Play className="h-4 w-4" />
+                        </Button>
+                      )}
 
-                    <Button variant="outline" size="sm" onClick={() => handleEdit(o)}>
-                      <Edit2 className="h-3.5 w-3.5 mr-1" /> Edit
-                    </Button>
+                      {o.status !== "archived" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+                          onClick={() =>
+                            updateStatusMutation.mutate({
+                              id: o.id,
+                              status: "archived",
+                            })
+                          }
+                        >
+                          <Archive className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
 
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive hover:bg-destructive/10"
-                      onClick={() => {
-                        if (confirm("Are you sure you want to delete this offering?")) {
-                          deleteMutation.mutate(o.id);
-                        }
-                      }}
-                      disabled={deleteMutation.isPending}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {/* Main Actions */}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(o)}
+                        className="font-medium"
+                      >
+                        <Edit2 className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        onClick={() => {
+                          if (confirm("Delete this offering?")) {
+                            deleteMutation.mutate(o.id);
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -358,6 +389,7 @@ const MentorOfferings = () => {
                 Fill in the details for this session offering. Offerings represent different services mentees can book.
               </DialogDescription>
             </DialogHeader>
+
             <form onSubmit={handleSubmit} className="space-y-4 py-2">
               <div className="space-y-1.5">
                 <Label htmlFor="title">Title *</Label>
@@ -416,13 +448,22 @@ const MentorOfferings = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="category">Category</Label>
-                  <Input
-                    id="category"
-                    placeholder="mentorship"
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                  />
+                  <Label htmlFor="category">Category *</Label>
+                  <Select value={category} onValueChange={setCategory}>
+                    <SelectTrigger id="category">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Resume Review">Resume Review</SelectItem>
+                      <SelectItem value="Portfolio Review">Portfolio Review</SelectItem>
+                      <SelectItem value="Career Guidance">Career Guidance</SelectItem>
+                      <SelectItem value="Mock Interview">Mock Interview</SelectItem>
+                      <SelectItem value="Code Review">Code Review</SelectItem>
+                      <SelectItem value="General Mentorship">General Mentorship</SelectItem>
+                      <SelectItem value="Project Guidance">Project Guidance</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-1.5">

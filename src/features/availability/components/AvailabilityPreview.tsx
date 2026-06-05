@@ -10,9 +10,10 @@ import {
   getMonthMatrix,
   getRangesForDate,
   getOverrideKind,
-  sliceIntoSlots,
-  formatSlotLabel,
+  formatTimeRange,
+  getAvailableRangesWithNotice,
   hasAnyAvailability,
+  hasAnyAvailabilityWithNotice,
   isSameDay,
 } from "../previewUtils";
 
@@ -20,6 +21,8 @@ interface Props {
   slots: WeeklySlot[];
   overrides: DateOverride[];
   timezone: string;
+  minNoticeHours?: number;
+  bufferTimeMinutes?: number;
 }
 
 const MONTH_NAMES = [
@@ -28,7 +31,13 @@ const MONTH_NAMES = [
 ];
 const DOW_LABELS = ["S", "M", "T", "W", "T", "F", "S"];
 
-export function AvailabilityPreview({ slots, overrides, timezone }: Props) {
+export function AvailabilityPreview({
+  slots,
+  overrides,
+  timezone,
+  minNoticeHours = 0,
+  bufferTimeMinutes = 0
+}: Props) {
   const today = useMemo(() => {
     const t = new Date();
     t.setHours(0, 0, 0, 0);
@@ -63,8 +72,8 @@ export function AvailabilityPreview({ slots, overrides, timezone }: Props) {
     [cursor]
   );
 
-  const ranges = selected ? getRangesForDate(selected, slots, overrides) : [];
-  const slotList = sliceIntoSlots(ranges, 30);
+  const ranges = selected ? getAvailableRangesWithNotice(selected, slots, overrides, minNoticeHours) : [];
+  const timeRanges = formatTimeRange(ranges);
   const selectedKind = selected ? getOverrideKind(selected, overrides) : null;
 
   const goPrev = () => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1));
@@ -109,7 +118,7 @@ export function AvailabilityPreview({ slots, overrides, timezone }: Props) {
             const inMonth = date.getMonth() === cursor.getMonth();
             const isPast = date < today;
             const kind = getOverrideKind(date, overrides);
-            const available = !isPast && hasAnyAvailability(date, slots, overrides);
+            const available = !isPast && hasAnyAvailabilityWithNotice(date, slots, overrides, minNoticeHours);
             const isSelected = selected && isSameDay(date, selected);
             const isToday = isSameDay(date, today);
             const isBlocked = kind === "blocked";
@@ -175,21 +184,23 @@ export function AvailabilityPreview({ slots, overrides, timezone }: Props) {
               )}
             </div>
           )}
-          {selected && slotList.length === 0 && (
+          {selected && timeRanges.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-4">
               {selectedKind === "blocked"
                 ? "Marked unavailable on this date."
-                : "No availability on this day."}
+                : minNoticeHours > 0 && isSameDay(selected, new Date())
+                  ? `No available slots (minimum ${minNoticeHours}h notice required).`
+                  : "No availability on this day."}
             </p>
           )}
-          {selected && slotList.length > 0 && (
-            <div className="grid grid-cols-2 gap-1.5 max-h-64 overflow-y-auto pr-1">
-              {slotList.map((s) => (
+          {selected && timeRanges.length > 0 && (
+            <div className="space-y-2">
+              {timeRanges.map((range, idx) => (
                 <div
-                  key={s}
-                  className="text-xs text-center py-1.5 rounded border border-primary/30 text-primary hover:bg-primary/10 transition-colors"
+                  key={idx}
+                  className="text-sm text-center py-2.5 rounded border border-primary/30 text-primary bg-primary/5 hover:bg-primary/10 transition-colors font-medium"
                 >
-                  {formatSlotLabel(s)}
+                  {range}
                 </div>
               ))}
             </div>

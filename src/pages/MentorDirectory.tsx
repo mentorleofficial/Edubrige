@@ -4,7 +4,7 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Calendar } from "lucide-react";
@@ -131,39 +131,73 @@ const MentorDirectory = () => {
               const profile = m.mentor_profiles?.[0];
               const initials = m.full_name.split(" ").map((n) => n[0]).join("").toUpperCase();
               const progs = mentorPrograms[m.id] || [];
+              const headline = m.headline ?? profile?.bio ?? "";
               return (
-                <Card key={m.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="flex flex-row items-start gap-4 pb-3">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">{initials}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg">{m.full_name}</CardTitle>
-                      {profile?.years_experience ? (
-                        <p className="text-sm text-muted-foreground">{profile.years_experience} years experience</p>
-                      ) : null}
+                <Card
+                  key={m.id}
+                  className="group overflow-hidden hover:shadow-xl transition-all duration-300 border-0 relative"
+                  style={{ borderRadius: '20px', width: '260px', aspectRatio: '3/4', background: '#1a1a2e' }}
+                >
+                  {/* Full-bleed background image */}
+                  {m.avatar_url ? (
+                    <img
+                      src={m.avatar_url}
+                      alt={m.full_name}
+                      className="absolute inset-0 w-full h-full object-cover object-top"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 flex items-start justify-center pt-6">
+                      <div
+                        className="rounded-full flex items-center justify-center"
+                        style={{ width: 160, height: 160, background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', fontSize: 48, fontWeight: 500 }}
+                      >
+                        {initials}
+                      </div>
                     </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {progs.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {progs.map((p) => (
-                          <ProgramBadge key={p.id} name={p.name} color={p.color} to={`/mentee/programs/${p.slug}`} />
-                        ))}
-                      </div>
-                    )}
-                    {profile?.bio && <p className="text-sm text-muted-foreground line-clamp-2">{profile.bio}</p>}
-                    {profile?.expertise && profile.expertise.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {profile.expertise.slice(0, 4).map((e) => (
-                          <Badge key={e} variant="secondary" className="text-xs">{e}</Badge>
-                        ))}
-                      </div>
-                    )}
-                    <Button variant="outline" className="w-full" onClick={() => navigate(`/book/${m.id}`)}>
-                      <Calendar className="mr-2 h-4 w-4" />Book Session
-                    </Button>
-                  </CardContent>
+                  )}
+
+                  {/* Share button */}
+                  {/* <button
+                    className="absolute top-3 right-3 z-10 flex items-center justify-center rounded-full"
+                    style={{ width: 34, height: 34, background: 'rgba(255,255,255,0.18)', border: '0.5px solid rgba(255,255,255,0.25)' }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                    </svg>
+                  </button> */}
+
+                  {/* Compact bottom overlay */}
+                  <div
+                    className="absolute bottom-0 left-0 right-0 z-10 px-3.5 pb-3.5"
+                    style={{ paddingTop: 48, background: 'linear-gradient(to top, rgba(0,0,0,0.88) 55%, transparent 100%)' }}
+                  >
+                    <h3 className="font-bold pb-2 text-white mb-0.5" style={{ fontSize: 17, lineHeight: 1.2 }}>
+                      {m.full_name}
+                    </h3>
+
+                    {/* {headline && (
+                      <p className="mb-2.5" style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
+                        {headline}
+                      </p>
+                    )} */}
+
+                    <div className="flex items-center gap-2.5">
+                      {profile?.years_experience && (
+                        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: 500, whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>{profile.years_experience}</span> Yrs Exp.
+                        </div>
+                      )}
+                      <Button
+                        className="flex-1 font-bold"
+                        style={{ background: '#fff', color: '#111', borderRadius: 8, padding: '8px 0', border: 'none', fontSize: 12, height: 'auto' }}
+                        onClick={() => navigate(`/book/${m.id}`)}
+                      >
+                        Book Now
+                      </Button>
+                    </div>
+                  </div>
                 </Card>
               );
             })}

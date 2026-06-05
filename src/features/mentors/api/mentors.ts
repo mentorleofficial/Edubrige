@@ -4,6 +4,7 @@ export interface MentorWithProfile {
   id: string;
   full_name: string;
   avatar_url: string | null;
+  headline: string | null;
   mentor_profiles: {
     bio: string | null;
     expertise: string[] | null;
@@ -23,6 +24,7 @@ export async function fetchActiveMentors(): Promise<MentorWithProfile[]> {
     id: row.user_id,
     full_name: row.full_name,
     avatar_url: row.avatar_url,
+    headline: row.headline ?? null,
     mentor_profiles: [
       {
         bio: row.bio,

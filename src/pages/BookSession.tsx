@@ -6,18 +6,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -40,6 +33,7 @@ import {
   useBookSessionStatic,
   useBookedTimes,
   useBookSession,
+  type BookingOffering,
 } from "@/features/mentee-booking/useBookSessionData";
 
 const MONTH_NAMES = [
@@ -65,7 +59,9 @@ const BookSession = () => {
   const slots = staticData?.slots ?? [];
   const overrides = staticData?.overrides ?? [];
   const timezone = staticData?.mentorProfile?.timezone ?? "UTC";
-  const [selectedOffering, setSelectedOffering] = useState<any | null>(null);
+  const [selectedOffering, setSelectedOffering] = useState<BookingOffering | null>(null);
+  const activeOffering = selectedOffering ?? staticData?.offerings?.[0] ?? null;
+  const mentorInitials = mentor?.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase() || "M";
 
   // Sync selected offering
   useEffect(() => {
@@ -80,12 +76,12 @@ const BookSession = () => {
 
   // Sync title from selected offering
   useEffect(() => {
-    if (selectedOffering) {
-      setTitle(`${selectedOffering.title} · ${selectedOffering.duration_minutes} min`);
+    if (activeOffering) {
+      setTitle(`${activeOffering.title} · ${activeOffering.duration_minutes} min`);
     } else {
       setTitle("");
     }
-  }, [selectedOffering]);
+  }, [activeOffering]);
 
   // Guard inactive mentor.
   useEffect(() => {
@@ -131,7 +127,7 @@ const BookSession = () => {
 
   const getSlotTimes = (date: Date, hhmm: string) => {
     const startMs = toISTDate(date, hhmm).getTime();
-    const duration = selectedOffering?.duration_minutes ?? 30;
+    const duration = activeOffering?.duration_minutes ?? 30;
     const endMs = startMs + duration * 60 * 1000;
     const buffer = staticData?.mentorProfile?.buffer_time_minutes ?? 0;
     const blockedEndMs = endMs + buffer * 60 * 1000;
@@ -148,7 +144,7 @@ const BookSession = () => {
   const isSlotTaken = (date: Date, hhmm: string) => {
     const { startMs, blockedEndMs } = getSlotTimes(date, hhmm);
     const buffer = staticData?.mentorProfile?.buffer_time_minutes ?? 0;
-    
+
     return bookedTimes.some((booking) => {
       const bStartMs = new Date(booking.scheduled_at).getTime();
       const bBlockedEndMs = bStartMs + (booking.duration_minutes + buffer) * 60 * 1000;
@@ -158,7 +154,7 @@ const BookSession = () => {
 
   const isDayFullyBooked = (date: Date) => {
     const ranges = getRangesForDate(date, slots, overrides);
-    const list = sliceIntoSlots(ranges, selectedOffering?.duration_minutes ?? 30).filter((t) => !isPastSlot(date, t));
+    const list = sliceIntoSlots(ranges, activeOffering?.duration_minutes ?? 30).filter((t) => !isPastSlot(date, t));
     if (list.length === 0) return false;
     return list.every((t) => isSlotTaken(date, t));
   };
@@ -181,9 +177,9 @@ const BookSession = () => {
     [selectedDate, slots, overrides]
   );
   const daySlotList = useMemo(
-    () => sliceIntoSlots(dayRanges, selectedOffering?.duration_minutes ?? 30).filter((t) => !(selectedDate && isPastSlot(selectedDate, t))),
+    () => sliceIntoSlots(dayRanges, activeOffering?.duration_minutes ?? 30).filter((t) => !(selectedDate && isPastSlot(selectedDate, t))),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [dayRanges, selectedDate, selectedOffering]
+    [dayRanges, selectedDate, activeOffering]
   );
   const selectedKind = useMemo(
     () => (selectedDate ? getOverrideKind(selectedDate, overrides) : null),
@@ -193,18 +189,18 @@ const BookSession = () => {
   const slotEndForSelected = useMemo(() => {
     if (!selectedDate || !selectedTime) return null;
     const [h, m] = selectedTime.split(":").map(Number);
-    const total = h * 60 + m + (selectedOffering?.duration_minutes ?? 30);
+    const total = h * 60 + m + (activeOffering?.duration_minutes ?? 30);
     const eh = Math.floor(total / 60);
     const em = total % 60;
     return `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`;
-  }, [selectedDate, selectedTime, selectedOffering]);
+  }, [selectedDate, selectedTime, activeOffering]);
 
   const booking = bookMutation.isPending;
 
   const handleBook = async () => {
     if (!selectedDate || !selectedTime || !user || !mentorId) return;
     const scheduledAt = toISTDate(selectedDate, selectedTime);
-    const duration = selectedOffering?.duration_minutes ?? 30;
+    const duration = activeOffering?.duration_minutes ?? 30;
 
     try {
       const { meetingUrl } = await bookMutation.mutateAsync({
@@ -216,7 +212,7 @@ const BookSession = () => {
         title: title.trim() || `Session with ${mentor?.full_name ?? "mentor"}`,
         topic: topic.trim(),
         rescheduleId,
-        offeringId: selectedOffering?.id || null,
+        offeringId: activeOffering?.id || null,
       });
 
       // Fire-and-forget booking confirmation email
@@ -329,7 +325,7 @@ const BookSession = () => {
                     description: `Meeting link: ${meetingUrl}`,
                     location: meetingUrl,
                     startISO: scheduledAt.toISOString(),
-                    durationMinutes: selectedOffering?.duration_minutes ?? 30,
+                    durationMinutes: activeOffering?.duration_minutes ?? 30,
                   }}
                   filename={`mentorle-session-${formatIST(scheduledAt, "yyyy-MM-dd-HHmm")}.ics`}
                 />
@@ -364,61 +360,141 @@ const BookSession = () => {
     );
   }
 
-  const initials = mentor.full_name?.split(" ").map((n: string) => n[0]).join("").toUpperCase();
-
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-5xl">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-14 w-14">
-            <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">{initials}</AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="text-3xl font-bold">{rescheduleId ? "Reschedule" : "Book"} with {mentor.full_name}</h1>
-            <p className="text-muted-foreground">Pick a date, then choose an available time.</p>
-          </div>
-        </div>
+      <div className="space-y-6 max-w-6xl">
+        <Card className="overflow-hidden border-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white">
+          <CardContent className="p-6 sm:p-8">
+            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16 border border-white/15 shadow-lg shadow-black/20">
+                  <AvatarImage src={mentor.avatar_url ?? undefined} alt={mentor.full_name ?? "Mentor"} />
+                  <AvatarFallback className="bg-white/10 text-white font-bold text-lg">{mentorInitials}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.25em] text-white/60">Booking session</p>
+                  <h1 className="mt-1 text-3xl font-bold">{rescheduleId ? "Reschedule" : "Book"} with {mentor.full_name}</h1>
+                  <p className="mt-2 max-w-2xl text-sm text-white/70">
+                    Pick an offering, then choose a date and time that works for both of you.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm backdrop-blur-sm sm:grid-cols-3 md:min-w-[360px]">
+                <div>
+                  <p className="text-white/50 text-[11px] uppercase tracking-wide">Timezone</p>
+                  <p className="mt-1 font-medium">IST</p>
+                </div>
+                <div>
+                  <p className="text-white/50 text-[11px] uppercase tracking-wide">Notice</p>
+                  <p className="mt-1 font-medium">{staticData?.mentorProfile?.minimum_notice_hours ?? 0}h</p>
+                </div>
+                <div>
+                  <p className="text-white/50 text-[11px] uppercase tracking-wide">Buffer</p>
+                  <p className="mt-1 font-medium">{staticData?.mentorProfile?.buffer_time_minutes ?? 0} min</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Globe className="h-3 w-3" /> All times shown in{" "}
-          <span className="font-medium">India Standard Time (IST)</span>
+          <Globe className="h-3 w-3" /> All times shown in <span className="font-medium">India Standard Time (IST)</span>
         </p>
 
-        {staticData?.offerings && staticData.offerings.length > 0 && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-2">
-                <Label htmlFor="offering-select" className="font-semibold text-sm">Select Session Type</Label>
-                <Select
-                  value={selectedOffering?.id ?? ""}
-                  onValueChange={(val) => {
-                    const found = staticData.offerings.find((o) => o.id === val);
-                    if (found) {
-                      setSelectedOffering(found);
-                      setSelectedTime(null);
-                    }
-                  }}
-                >
-                  <SelectTrigger id="offering-select" className="max-w-md">
-                    <SelectValue placeholder="Choose a mentorship session type..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {staticData.offerings.map((o) => (
-                      <SelectItem key={o.id} value={o.id}>
-                        {o.title} ({o.duration_minutes} mins · {o.price === 0 ? "Free" : `₹${o.price}`})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedOffering?.description && (
-                  <p className="text-xs text-muted-foreground mt-1.5 max-w-2xl leading-relaxed">
-                    {selectedOffering.description}
-                  </p>
-                )}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Mentor profile</CardTitle>
+            <CardDescription>Quick context before selecting a session type.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4 md:grid-cols-[auto_minmax(0,1fr)] md:items-start">
+            <Avatar className="h-20 w-20">
+              <AvatarImage src={mentor.avatar_url ?? undefined} alt={mentor.full_name ?? "Mentor"} />
+              <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">{mentorInitials}</AvatarFallback>
+            </Avatar>
+            <div className="space-y-3">
+              <div>
+                <h2 className="text-2xl font-bold">{mentor.full_name}</h2>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Badge variant="secondary">{timezone}</Badge>
+                  <Badge variant="secondary">{staticData?.mentorProfile?.minimum_notice_hours ?? 0}h notice</Badge>
+                  <Badge variant="secondary">{staticData?.mentorProfile?.buffer_time_minutes ?? 0} min buffer</Badge>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+              <p className="text-sm text-muted-foreground max-w-3xl">
+                The session cards below show duration, price, and category. Select one card to unlock the calendar.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="space-y-3">
+          <div className="flex items-end justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-xl font-bold">Choose an offering</h2>
+              <p className="text-sm text-muted-foreground">Select one card to continue to the calendar.</p>
+            </div>
+            {activeOffering && (
+              <Badge className="rounded-full px-3 py-1 text-xs">
+                Selected: {activeOffering.title}
+              </Badge>
+            )}
+          </div>
+
+          {staticData?.offerings && staticData.offerings.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {staticData.offerings.map((offering) => {
+                const isSelected = activeOffering?.id === offering.id;
+                return (
+                  <button
+                    key={offering.id}
+                    type="button"
+                    onClick={() => {
+                      setSelectedOffering(offering);
+                      setSelectedDate(null);
+                      setSelectedTime(null);
+                    }}
+                    className={cn(
+                      "text-left rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+                      isSelected
+                        ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/20"
+                        : "border-border bg-card hover:border-primary/40"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <h3 className="text-base font-semibold leading-tight">{offering.title}</h3>
+                        <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground">
+                          {offering.category || "Mentorship"}
+                        </p>
+                      </div>
+                      <Badge variant={isSelected ? "default" : "secondary"} className="shrink-0">
+                        {offering.price === 0 ? "Free" : `₹${offering.price}`}
+                      </Badge>
+                    </div>
+
+                    <p className="mt-3 min-h-[3.75rem] text-sm text-muted-foreground line-clamp-3">
+                      {offering.description || "No description provided for this offering."}
+                    </p>
+
+                    <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{offering.duration_minutes} minutes</span>
+                      <span className={cn("font-medium", isSelected ? "text-primary" : "text-foreground/70")}>
+                        {isSelected ? "Selected" : "Tap to select"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                This mentor has no active offerings right now.
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           {/* Calendar */}
@@ -453,7 +529,7 @@ const BookSession = () => {
                   const isToday = isSameDay(date, today);
                   const isBlocked = kind === "blocked";
                   const isCustom = kind === "custom";
-                  const clickable = inMonth && !isPast && !tooFar && hasAvail && !fullyBooked;
+                  const clickable = !!activeOffering && inMonth && !isPast && !tooFar && hasAvail && !fullyBooked;
 
                   return (
                     <button
@@ -468,6 +544,7 @@ const BookSession = () => {
                       className={cn(
                         "relative aspect-square rounded-lg text-sm flex items-center justify-center transition-colors",
                         !inMonth && "text-muted-foreground/40",
+                        !activeOffering && "text-muted-foreground/40 cursor-not-allowed",
                         inMonth && (isPast || tooFar) && "text-muted-foreground/40 cursor-not-allowed",
                         inMonth && !isPast && !tooFar && !hasAvail && "text-muted-foreground/60 cursor-not-allowed",
                         clickable && !isCustom && !isSelected && "bg-primary/10 text-primary font-medium hover:bg-primary/20",
@@ -515,6 +592,11 @@ const BookSession = () => {
                   ? formatIST(selectedDate, "EEEE, MMMM d")
                   : "Select a date"}
               </CardTitle>
+              {activeOffering && (
+                <CardDescription>
+                  {activeOffering.title} · {activeOffering.duration_minutes} min · {activeOffering.price === 0 ? "Free" : `₹${activeOffering.price}`}
+                </CardDescription>
+              )}
               {selectedDate && (
                 <div className="flex flex-wrap items-center gap-2">
                   {selectedKind === "blocked" && (
@@ -527,11 +609,15 @@ const BookSession = () => {
               )}
             </CardHeader>
             <CardContent className="space-y-4">
-              {!selectedDate && (
+              {!activeOffering ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">
+                  Select an offering card above to unlock dates and times.
+                </p>
+              ) : !selectedDate ? (
                 <p className="text-sm text-muted-foreground py-6 text-center">
                   Pick a highlighted date on the calendar to see available times.
                 </p>
-              )}
+              ) : null}
 
               {selectedDate && daySlotList.length === 0 && (
                 <p className="text-sm text-muted-foreground py-6 text-center">
@@ -569,7 +655,7 @@ const BookSession = () => {
 
                   {selectedTime && (
                     <div className="space-y-3 border-t pt-4">
-                      <div>
+                      {/* <div>
                         <Label htmlFor="session-title" className="text-sm">
                           Session title <span className="text-destructive">*</span>
                         </Label>
@@ -581,8 +667,8 @@ const BookSession = () => {
                           onChange={(e) => setTitle(e.target.value)}
                           maxLength={120}
                         />
-                      </div>
-                      <div>
+                      </div> */}
+                      {/* <div>
                         <Label htmlFor="session-topic" className="text-sm">
                           Topic (optional)
                         </Label>
@@ -594,7 +680,7 @@ const BookSession = () => {
                           onChange={(e) => setTopic(e.target.value)}
                           maxLength={120}
                         />
-                      </div>
+                      </div> */}
                       <div>
                         <Label htmlFor="notes" className="flex items-center gap-2 text-sm">
                           <Info className="h-3.5 w-3.5" /> What would you like to discuss? (optional)
@@ -628,8 +714,8 @@ const BookSession = () => {
               <AlertDialogDescription>
                 {selectedDate && selectedTime && (
                   <>Book a session with <strong>{mentor.full_name}</strong> on{" "}
-                  <strong>{formatIST(selectedDate, "d MMM yyyy")} at {formatSlotLabel(selectedTime)} IST</strong>
-                  {slotEndForSelected && <> – {formatSlotLabel(slotEndForSelected)}</>}?</>
+                    <strong>{formatIST(selectedDate, "d MMM yyyy")} at {formatSlotLabel(selectedTime)} IST</strong>
+                    {slotEndForSelected && <> – {formatSlotLabel(slotEndForSelected)}</>}?</>
                 )}
               </AlertDialogDescription>
             </AlertDialogHeader>

@@ -96,10 +96,79 @@ export function formatSlotLabel(hhmm: string): string {
   return `${h12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+export function formatTimeRange(ranges: Range[]): string[] {
+  return ranges.map((r) => {
+    const startLabel = formatSlotLabel(r.start_time);
+    const endLabel = formatSlotLabel(r.end_time);
+    return `${startLabel} – ${endLabel}`;
+  });
+}
+
+export function getAvailableRangesWithNotice(
+  date: Date,
+  weekly: WeeklySlotLike[],
+  overrides: OverrideLike[],
+  minNoticeHours: number = 0,
+  bufferTimeMinutes: number = 0
+): Range[] {
+  const ranges = getRangesForDate(date, weekly, overrides);
+  if (ranges.length === 0) return [];
+
+  // If no minimum notice, return as-is
+  if (minNoticeHours === 0) return ranges;
+
+  // Calculate the cutoff time based on minimum notice
+  const now = new Date();
+  const cutoffTime = new Date(now.getTime() + minNoticeHours * 60 * 60 * 1000);
+
+  // Check if the selected date is today
+  const isToday = isSameDay(date, new Date());
+
+  if (!isToday) {
+    // For future dates, all ranges are available
+    return ranges;
+  }
+
+  // For today, filter out ranges that are before the cutoff time
+  const cutoffMinutes = cutoffTime.getHours() * 60 + cutoffTime.getMinutes();
+
+  return ranges.map((r) => {
+    const startMinutes = toMinutes(r.start_time);
+    const endMinutes = toMinutes(r.end_time);
+
+    // If the entire range is before the cutoff, it's not available
+    if (endMinutes <= cutoffMinutes) {
+      return null;
+    }
+
+    // If the range starts before the cutoff, trim it
+    if (startMinutes < cutoffMinutes) {
+      const newStartMinutes = cutoffMinutes;
+      const h = Math.floor(newStartMinutes / 60);
+      const m = newStartMinutes % 60;
+      return {
+        start_time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`,
+        end_time: r.end_time,
+      };
+    }
+
+    return r;
+  }).filter((r) => r !== null) as Range[];
+}
+
 export function hasAnyAvailability(
   date: Date,
   weekly: WeeklySlotLike[],
   overrides: OverrideLike[]
 ): boolean {
   return getRangesForDate(date, weekly, overrides).length > 0;
+}
+
+export function hasAnyAvailabilityWithNotice(
+  date: Date,
+  weekly: WeeklySlotLike[],
+  overrides: OverrideLike[],
+  minNoticeHours: number = 0
+): boolean {
+  return getAvailableRangesWithNotice(date, weekly, overrides, minNoticeHours).length > 0;
 }
