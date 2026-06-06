@@ -14,6 +14,7 @@ export type MentorDashFeedback = {
   comment: string | null;
   created_at: string;
   submitted_by: string;
+  audience: "mentor" | "mentee" | "admin_private";
 };
 
 export type MentorProfileRow = {
