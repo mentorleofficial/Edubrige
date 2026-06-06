@@ -167,6 +167,8 @@ const AdminUsers = () => {
               <DialogHeader>
                 <DialogTitle>Create new user</DialogTitle>
               </DialogHeader>
+              {/* Set Password mode is removed. Commented out per request. */}
+              {/*
               <Tabs value={inviteMode} onValueChange={(v) => setInviteMode(v as "invite" | "password")} className="pt-2">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="invite">Email invite</TabsTrigger>
@@ -183,6 +185,12 @@ const AdminUsers = () => {
                   </p>
                 </TabsContent>
               </Tabs>
+              */}
+              <div className="pt-2">
+                <p className="text-xs text-muted-foreground">
+                  The user receives an email with a secure link to set their own password.
+                </p>
+              </div>
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <Label>Full name</Label>
@@ -192,12 +200,14 @@ const AdminUsers = () => {
                   <Label>Email</Label>
                   <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
                 </div>
+                {/*
                 {inviteMode === "password" && (
                   <div className="space-y-2">
                     <Label>Temporary password</Label>
                     <Input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Minimum 8 characters" />
                   </div>
                 )}
+                */}
                 <div className="space-y-2">
                   <Label>Role</Label>
                   <Select value={newRole} onValueChange={(v) => setNewRole(v as AppRole)}>
@@ -259,7 +269,6 @@ const AdminUsers = () => {
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Mentor active</TableHead>
                   <TableHead>Joined</TableHead>
                   <TableHead className="w-[50px]" />
                 </TableRow>
@@ -268,14 +277,14 @@ const AdminUsers = () => {
                 {isLoading ? (
                   Array.from({ length: 6 }).map((_, i) => (
                     <TableRow key={`sk-${i}`}>
-                      {Array.from({ length: 7 }).map((__, j) => (
+                      {Array.from({ length: 6 }).map((__, j) => (
                         <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
                       ))}
                     </TableRow>
                   ))
                 ) : filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                    <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -295,31 +304,35 @@ const AdminUsers = () => {
                         <TableCell>
                           {u.is_disabled ? (
                             <Badge variant="outline" className="text-destructive border-destructive/40">Deactivated</Badge>
-                          ) : (
-                            <Badge variant="secondary">Active</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {u.role === "mentor" ? (
+                          ) : u.role === "mentor" ? (
                             <div className="flex items-center gap-2">
-                              <Switch
-                                checked={!!mp?.is_active}
-                                disabled={isPending || isSelf || u.is_disabled}
-                                onCheckedChange={(checked) => handleToggle(u.id, checked)}
-                              />
-                              {isPending ? (
-                                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                              {!hasProfile ? (
+                                <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-400">
+                                  Active (No Profile)
+                                </Badge>
                               ) : (
-                                <span className="text-xs text-muted-foreground">
-                                  {mp?.is_active ? "Active" : "Inactive"}
-                                </span>
-                              )}
-                              {!hasProfile && (
-                                <Badge variant="outline" className="text-[10px] px-1 py-0">no profile</Badge>
+                                <>
+                                  <Switch
+                                    checked={!!mp?.is_active}
+                                    disabled={isPending || isSelf}
+                                    onCheckedChange={(checked) => handleToggle(u.id, checked)}
+                                  />
+                                  {isPending ? (
+                                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                                  ) : mp?.is_active ? (
+                                    <Badge variant="default" className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                                      Active (Booking Open)
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="bg-slate-100 text-slate-800 dark:bg-slate-900 dark:text-slate-400">
+                                      Active (Calendar Closed)
+                                    </Badge>
+                                  )}
+                                </>
                               )}
                             </div>
                           ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
+                            <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400">Active</Badge>
                           )}
                         </TableCell>
                         <TableCell className="text-muted-foreground">

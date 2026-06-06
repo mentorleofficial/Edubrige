@@ -44,6 +44,7 @@ const PublicMentorProfile = lazy(() => import("@/pages/PublicMentorProfile"));
 const AccountPrivacy = lazy(() => import("@/pages/AccountPrivacy"));
 const AdminPrivacyRequests = lazy(() => import("@/pages/AdminPrivacyRequests"));
 const MentorLeaderboard = lazy(() => import("@/pages/MentorLeaderboard"));
+const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 
 const App = () => (
   <ErrorBoundary>
@@ -61,6 +62,7 @@ const App = () => (
                   <Route path="/mentor" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/mentee" element={<Navigate to="/dashboard" replace />} />
                   <Route path="/login" element={<Login />} />
+                  <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/become-a-mentor" element={<MentorLanding />} />
                   <Route path="/mentors/:mentorId" element={<PublicMentorProfile />} />
                   <Route path="/auth/jwt/callback" element={<JwtCallback />} />

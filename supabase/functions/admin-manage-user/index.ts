@@ -34,6 +34,48 @@ const json = (body: unknown, status = 200) => {
   });
 };
 
+function getAppUrl(req: Request, branding?: any): string {
+  // 1. Check database-configured site URL first
+  if (branding?.site_url) {
+    const dbUrl = branding.site_url.trim();
+    if (dbUrl && !dbUrl.includes("localhost") && !dbUrl.includes("127.0.0.1")) {
+      return dbUrl.startsWith("http") ? dbUrl : `https://${dbUrl}`;
+    }
+  }
+
+  // 2. Check custom environment variable
+  const envUrl = Deno.env.get("APP_URL") || Deno.env.get("SITE_URL") || Deno.env.get("PUBLIC_APP_URL");
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+    return envUrl.startsWith("http") ? envUrl : `https://${envUrl}`;
+  }
+
+  // 3. Fallback to Origin or Referer header if not localhost or internal Supabase URL
+  const origin = req.headers.get("origin") || req.headers.get("referer") || "";
+  if (origin && !origin.includes("localhost") && !origin.includes("127.0.0.1") && !origin.includes("supabase.co") && !origin.includes("supabase.in")) {
+    try {
+      const parsed = new URL(origin);
+      return parsed.origin;
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  // 4. Detect if running local supabase instance
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  if (supabaseUrl.includes("localhost") || supabaseUrl.includes("127.0.0.1")) {
+    try {
+      if (origin) return new URL(origin).origin;
+    } catch (_) {
+      // ignore
+    }
+    if (envUrl) return envUrl;
+    return "http://localhost:5173";
+  }
+
+  // 5. Production fallback
+  return "https://mentorle.vercel.app/";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -84,13 +126,33 @@ Deno.serve(async (req) => {
       let userId: string | null = null;
 
       if (mode === "invite") {
-        const redirectTo = `${new URL(req.url).origin.replace(/\/functions\/v1.*$/, "")}`;
+        const { data: branding } = await admin
+          .from("branding").select("*").limit(1).maybeSingle();
+        const appUrl = getAppUrl(req, branding);
+        const redirectUrl = appUrl.endsWith("/")
+          ? `${appUrl}reset-password`
+          : `${appUrl}/reset-password`;
+
         const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
           data: { full_name, role },
-          redirectTo: req.headers.get("origin") ?? redirectTo,
+          redirectTo: redirectUrl,
         });
         if (error) return json({ error: error.message }, 400);
         userId = data.user?.id ?? null;
+
+        // If the invited user is a mentor, create a placeholder application in changes_requested status
+        if (role === "mentor") {
+          const { error: appErr } = await admin.from("mentor_applications").insert({
+            full_name,
+            email,
+            bio: "",
+            status: "changes_requested",
+            changes_feedback: "Please complete your profile details to submit for review.",
+          });
+          if (appErr) {
+            console.error("Failed to create placeholder mentor application:", appErr);
+          }
+        }
       } else {
         const password = body.password ?? "";
         if (password.length < 8) {
@@ -104,6 +166,20 @@ Deno.serve(async (req) => {
         });
         if (error) return json({ error: error.message }, 400);
         userId = data.user?.id ?? null;
+
+        // If the created user is a mentor, create a placeholder application in changes_requested status
+        if (role === "mentor") {
+          const { error: appErr } = await admin.from("mentor_applications").insert({
+            full_name,
+            email,
+            bio: "",
+            status: "changes_requested",
+            changes_feedback: "Please complete your profile details to submit for review.",
+          });
+          if (appErr) {
+            console.error("Failed to create placeholder mentor application:", appErr);
+          }
+        }
       }
 
       // The handle_new_user trigger inserts into public.users + user_roles using

@@ -381,10 +381,16 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
       let resumePath = "";
       if (resume) {
         const ext = resume.name.split(".").pop();
-        const uploadId = (crypto as any)?.randomUUID
-          ? (crypto as any).randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
-        resumePath = `applications/${uploadId}/resume.${ext}`;
+        if (user) {
+          // If logged in, upload to user-scoped folder to match the "Users upload own resume" RLS policy
+          resumePath = `${user.id}/${Date.now()}.${ext}`;
+        } else {
+          // If anonymous guest, upload to the applications folder (handled by "Anonymous can upload application resume" RLS policy)
+          const uploadId = (crypto as any)?.randomUUID
+            ? (crypto as any).randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+          resumePath = `applications/${uploadId}/resume.${ext}`;
+        }
         const { error: upErr } = await supabase.storage
           .from("mentor-resumes")
           .upload(resumePath, resume, { contentType: resume.type });
