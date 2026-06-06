@@ -96,8 +96,8 @@ export const useMentorDashboardData = (userId?: string) => {
       if (sessionIds.length > 0) {
         const fbRes = await supabase
           .from("feedback")
-          .select("id, session_id, rating, comment, created_at, submitted_by")
-          .eq("audience", "mentor")
+          .select("id, session_id, rating, comment, created_at, submitted_by, audience")
+          .in("audience", ["mentor", "mentee"])
           .in("session_id", sessionIds);
         feedback = (fbRes.data as MentorDashFeedback[] | null) ?? [];
       }
