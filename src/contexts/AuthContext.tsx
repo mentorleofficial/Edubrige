@@ -120,6 +120,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (mp) {
           const { percentage } = calculateCompleteness({
             ...mp,
+            qualifications: Array.isArray(mp.qualifications) ? mp.qualifications : [],
+            experiences: Array.isArray(mp.experiences) ? mp.experiences : [],
             full_name: profileData.full_name,
             email: profileData.email,
             avatar_url: profileData.avatar_url,

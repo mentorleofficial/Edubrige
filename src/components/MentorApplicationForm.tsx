@@ -265,7 +265,7 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
 
   const validateStep = async (idx: number): Promise<boolean> => {
     if (idx === 0) {
-      const ok = await form.trigger(["full_name", "email", ...(user ? [] : ["password"]), "phone"]);
+      const ok = await form.trigger(["full_name", "email", ...(user ? [] : ["password" as const]), "phone"] as const);
       if (!ok) return false;
 
       const email = form.getValues("email");
