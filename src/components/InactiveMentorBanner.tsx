@@ -239,9 +239,16 @@ const InactiveMentorBanner = () => {
     <Alert className="border-accent bg-accent/10">
       <Clock className="h-4 w-4" />
       <AlertTitle>Account Pending Activation</AlertTitle>
-      <AlertDescription>
-        Your mentor account is approved but not yet active. You can complete your profile while an admin
-        finalizes activation. Availability and session features will unlock once you're activated.
+      <AlertDescription className="text-muted-foreground text-sm mt-1 space-y-3">
+        <div>
+          Your mentor account is approved but not yet active. You can complete your profile while an admin
+          finalizes activation. Availability and session features will unlock once you're activated.
+        </div>
+        <div>
+          <Button size="sm" onClick={() => setShowFormDialog(true)} className="bg-primary text-primary-foreground font-medium">
+            <FileText className="mr-2 h-3.5 w-3.5" /> Complete Profile Details
+          </Button>
+        </div>
       </AlertDescription>
     </Alert>
   );

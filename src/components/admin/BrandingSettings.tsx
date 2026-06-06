@@ -27,6 +27,7 @@ interface BrandingRow {
   heading_font: string;
   mentor_community_url: string;
   leaderboard_enabled: boolean;
+  site_url: string;
 }
 
 const DEFAULTS = {
@@ -188,6 +189,7 @@ const BrandingSettings = () => {
         heading_font: draft.heading_font,
         mentor_community_url: draft.mentor_community_url,
         leaderboard_enabled: draft.leaderboard_enabled,
+        site_url: draft.site_url,
       })
       .eq("id", draft.id);
     setSaving(false);
@@ -225,6 +227,17 @@ const BrandingSettings = () => {
             <div className="space-y-2">
               <Label>App name</Label>
               <Input value={draft.app_name} onChange={(e) => update({ app_name: e.target.value })} />
+            </div>
+            <div className="space-y-2">
+              <Label>Site URL</Label>
+              <Input 
+                value={draft.site_url || ""} 
+                onChange={(e) => update({ site_url: e.target.value })} 
+                placeholder="https://mentorle.vercel.app/"
+              />
+              <p className="text-xs text-muted-foreground">
+                The production URL of the web application. Used for links in invitation and review emails.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Logo</Label>

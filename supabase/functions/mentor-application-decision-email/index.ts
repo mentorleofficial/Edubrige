@@ -65,6 +65,48 @@ const buildHtml = (appName: string, recipientName: string, decision: Decision, n
   </body></html>`;
 };
 
+function getAppUrl(req: Request, branding?: any): string {
+  // 1. Check database-configured site URL first
+  if (branding?.site_url) {
+    const dbUrl = branding.site_url.trim();
+    if (dbUrl && !dbUrl.includes("localhost") && !dbUrl.includes("127.0.0.1")) {
+      return dbUrl.startsWith("http") ? dbUrl : `https://${dbUrl}`;
+    }
+  }
+
+  // 2. Check custom environment variable
+  const envUrl = Deno.env.get("APP_URL") || Deno.env.get("SITE_URL") || Deno.env.get("PUBLIC_APP_URL");
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+    return envUrl.startsWith("http") ? envUrl : `https://${envUrl}`;
+  }
+
+  // 3. Fallback to Origin or Referer header if not localhost or internal Supabase URL
+  const origin = req.headers.get("origin") || req.headers.get("referer") || "";
+  if (origin && !origin.includes("localhost") && !origin.includes("127.0.0.1") && !origin.includes("supabase.co") && !origin.includes("supabase.in")) {
+    try {
+      const parsed = new URL(origin);
+      return parsed.origin;
+    } catch (_) {
+      // ignore
+    }
+  }
+
+  // 4. Detect if running local supabase instance
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
+  if (supabaseUrl.includes("localhost") || supabaseUrl.includes("127.0.0.1")) {
+    try {
+      if (origin) return new URL(origin).origin;
+    } catch (_) {
+      // ignore
+    }
+    if (envUrl) return envUrl;
+    return "http://localhost:5173";
+  }
+
+  // 5. Production fallback
+  return "https://mentorle.vercel.app/";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -120,11 +162,11 @@ Deno.serve(async (req) => {
     }
 
     const { data: branding } = await admin
-      .from("branding").select("app_name").limit(1).maybeSingle();
+      .from("branding").select("*").limit(1).maybeSingle();
     const appName = branding?.app_name || "Mentorship Platform";
 
-    const origin = req.headers.get("origin") || req.headers.get("referer") || "";
-    const loginUrl = origin ? new URL("/login", origin).toString() : "https://example.com/login";
+    const appUrl = getAppUrl(req, branding);
+    const loginUrl = new URL("/login", appUrl).toString();
 
     const html = buildHtml(appName, app.full_name, decision!, notes, loginUrl);
     const subject =
