@@ -89,19 +89,19 @@ export function useBookSessionStatic(mentorId?: string) {
       return {
         mentor: info
           ? {
-              id: info.id,
-              full_name: info.full_name,
-              avatar_url: info.avatar_url,
-              email: info.email,
-            }
+            id: info.id,
+            full_name: info.full_name,
+            avatar_url: info.avatar_url,
+            email: info.email,
+          }
           : null,
         mentorProfile: info
           ? {
-              is_active: info.is_active,
-              timezone: info.timezone,
-              buffer_time_minutes: info.buffer_time_minutes,
-              minimum_notice_hours: info.minimum_notice_hours,
-            }
+            is_active: info.is_active,
+            timezone: info.timezone,
+            buffer_time_minutes: info.buffer_time_minutes,
+            minimum_notice_hours: info.minimum_notice_hours,
+          }
           : null,
         slots: (slotsRes.data as BookingSlot[] | null) ?? [],
         overrides: (ovRes.data as BookingOverride[] | null) ?? [],
@@ -123,17 +123,17 @@ export function useBookedTimes(mentorId?: string, excludeSessionId?: string | nu
       const nowIso = new Date().toISOString();
       const horizon = new Date();
       horizon.setDate(horizon.getDate() + 90);
-      
+
       const { data, error } = await supabase.rpc("get_booked_times", {
         _mentor_id: mentorId!,
       });
       if (error) throw error;
-      
+
       let list = (data ?? []) as any[];
       if (excludeSessionId) {
         list = list.filter((item) => item.id !== excludeSessionId);
       }
-      
+
       return list
         .filter((item) => item.scheduled_at >= nowIso && item.scheduled_at <= horizon.toISOString())
         .map((item) => ({
@@ -164,6 +164,8 @@ export function useBookSession() {
   const qc = useQueryClient();
   return useMutation<BookSessionResult, Error, BookSessionInput>({
     mutationFn: async (input) => {
+      const meetingUrl = `https://meet.jit.si/mentorle-${crypto.randomUUID()}`;
+
       const { data: inserted, error } = await supabase
         .from("sessions")
         .insert({
@@ -174,17 +176,12 @@ export function useBookSession() {
           mentee_notes: input.notes,
           title: input.title,
           topic: input.topic ?? "",
+          meeting_url: meetingUrl,
           offering_id: input.offeringId || null,
         })
         .select("id")
         .single();
       if (error || !inserted) throw error || new Error("Insert failed");
-
-      const meetingUrl = `https://meet.jit.si/mentorle-${inserted.id}`;
-      await supabase
-        .from("sessions")
-        .update({ meeting_url: meetingUrl })
-        .eq("id", inserted.id);
 
       if (input.rescheduleId) {
         await supabase
