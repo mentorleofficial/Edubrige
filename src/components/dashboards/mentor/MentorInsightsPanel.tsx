@@ -30,9 +30,14 @@ const MentorInsightsPanel = ({ sessions, feedback, profile, availabilityCount, u
   ).length;
 
   const ratedIds = new Set(
-    feedback.filter((f) => f.submitted_by === userId).map((f) => f.session_id)
+    feedback
+      .filter((f) => f.submitted_by === userId && f.audience === "mentee")
+      .map((f) => f.session_id)
   );
-  const pendingMenteeFeedback = completedSessions.filter((s) => !ratedIds.has(s.id)).length;
+  const pendingSessions = completedSessions
+    .filter((s) => !ratedIds.has(s.id))
+    .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at));
+  const pendingMenteeFeedback = pendingSessions.length;
 
   const now = Date.now();
   const upcoming14 = sessions.filter(
