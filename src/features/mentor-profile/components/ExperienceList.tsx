@@ -1,9 +1,12 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Briefcase, Plus, Trash2 } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Briefcase, Plus, Trash2, ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { ExperienceValue } from "../schema";
 
 interface Props {
@@ -21,9 +24,153 @@ const empty: ExperienceValue = {
 };
 
 const formatRange = (e: ExperienceValue) => {
-  const fmt = (d: string) =>
-    d ? new Date(d + "-01").toLocaleDateString(undefined, { month: "short", year: "numeric" }) : "";
+  const fmt = (d: string) => {
+    if (!d) return "";
+    const parts = d.split("-");
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(y) || isNaN(m)) return "";
+    return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "short", year: "numeric" });
+  };
   return `${fmt(e.start_date) || "—"} → ${e.end_date ? fmt(e.end_date) : "Present"}`;
+};
+
+interface MonthYearPickerProps {
+  value: string; // YYYY-MM
+  onChange: (value: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}
+
+const MonthYearPicker = ({ value, onChange, placeholder = "Select date", disabled }: MonthYearPickerProps) => {
+  const [open, setOpen] = useState(false);
+
+  // Parse current value or fallback to current date
+  const initialDate = value ? new Date(value + "-02") : new Date();
+  const [currentYear, setCurrentYear] = useState(initialDate.getFullYear());
+
+  // Keep currentYear in sync when value changes or popover opens
+  useEffect(() => {
+    if (value) {
+      const parts = value.split("-");
+      const y = parseInt(parts[0], 10);
+      if (!isNaN(y)) {
+        setCurrentYear(y);
+      }
+    }
+  }, [value, open]);
+
+  const months = [
+    { label: "Jan", value: 0 },
+    { label: "Feb", value: 1 },
+    { label: "Mar", value: 2 },
+    { label: "Apr", value: 3 },
+    { label: "May", value: 4 },
+    { label: "Jun", value: 5 },
+    { label: "Jul", value: 6 },
+    { label: "Aug", value: 7 },
+    { label: "Sep", value: 8 },
+    { label: "Oct", value: 9 },
+    { label: "Nov", value: 10 },
+    { label: "Dec", value: 11 },
+  ];
+
+  const formatValue = (val: string) => {
+    if (!val) return placeholder;
+    const parts = val.split("-");
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (isNaN(y) || isNaN(m)) return placeholder;
+    const d = new Date(y, m - 1, 1);
+    return d.toLocaleDateString(undefined, { month: "short", year: "numeric" });
+  };
+
+  const handleSelectMonth = (monthIndex: number) => {
+    const formattedMonth = String(monthIndex + 1).padStart(2, "0");
+    onChange(`${currentYear}-${formattedMonth}`);
+    setOpen(false);
+  };
+
+  const isFuture = (monthIndex: number) => {
+    const today = new Date();
+    const target = new Date(currentYear, monthIndex, 1);
+    return target > today;
+  };
+
+  const isSelected = (monthIndex: number) => {
+    if (!value) return false;
+    const parts = value.split("-");
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    return y === currentYear && m === monthIndex + 1;
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className={cn(
+            "w-full pl-3 pr-3 text-left font-normal h-10 flex items-center justify-between border-input bg-background",
+            !value && "text-muted-foreground"
+          )}
+          disabled={disabled}
+          type="button"
+        >
+          {value ? formatValue(value) : <span>{placeholder}</span>}
+          <CalendarIcon className="h-4 w-4 opacity-50 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64 p-3" align="start">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setCurrentYear((y) => y - 1)}
+              type="button"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-semibold">{currentYear}</span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7"
+              onClick={() => setCurrentYear((y) => y + 1)}
+              disabled={currentYear >= new Date().getFullYear()}
+              type="button"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {months.map((m) => {
+              const selected = isSelected(m.value);
+              const disabledMonth = isFuture(m.value);
+              return (
+                <Button
+                  key={m.value}
+                  variant={selected ? "default" : "ghost"}
+                  size="sm"
+                  className={cn(
+                    "h-9 w-full text-xs font-normal",
+                    selected && "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground"
+                  )}
+                  disabled={disabledMonth}
+                  onClick={() => handleSelectMonth(m.value)}
+                  type="button"
+                >
+                  {m.label}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 };
 
 const ExperienceList = ({ value, onChange }: Props) => {
@@ -86,21 +233,21 @@ const ExperienceList = ({ value, onChange }: Props) => {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Start *</Label>
-                  <Input
-                    type="month"
+                  <MonthYearPicker
                     value={exp.start_date}
-                    onChange={(e) => update(i, { start_date: e.target.value })}
+                    onChange={(val) => update(i, { start_date: val })}
+                    placeholder="Select start date"
                   />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">End</Label>
-                  <Input
-                    type="month"
+                  <MonthYearPicker
                     value={exp.end_date || ""}
                     disabled={isPresent}
-                    onChange={(e) => update(i, { end_date: e.target.value })}
+                    onChange={(val) => update(i, { end_date: val })}
+                    placeholder="Select end date"
                   />
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-1">
                     <Checkbox
                       checked={isPresent}
                       onCheckedChange={(c) => update(i, { end_date: c ? "" : exp.start_date })}
@@ -134,3 +281,4 @@ const ExperienceList = ({ value, onChange }: Props) => {
 };
 
 export default ExperienceList;
+

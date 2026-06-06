@@ -37,6 +37,7 @@ import {
 import {
   mentorProfileSchema,
   type MentorProfileFormValues,
+  type ExperienceValue,
   useMentorProfile,
   useUpdateMentorProfile,
   uploadAvatar,
@@ -136,6 +137,68 @@ const MentorProfile = () => {
     if (!showOrg) form.setValue("current_organization", "");
     if (!roleRequired) form.setValue("current_role", "");
   }, [status, form]);
+
+  const watchedRole = form.watch("current_role");
+  const watchedOrg = form.watch("current_organization");
+  const watchedExperiences = form.watch("experiences");
+
+  // Sync Current Role/Org to Experiences
+  useEffect(() => {
+    const currentExperiences = form.getValues("experiences") || [];
+    const currentRole = form.getValues("current_role") || "";
+    const currentOrg = form.getValues("current_organization") || "";
+
+    const presentIndex = currentExperiences.findIndex((exp) => !exp.end_date);
+    const roleChanged = currentRole !== (presentIndex !== -1 ? currentExperiences[presentIndex].title : "");
+    const orgChanged = currentOrg !== (presentIndex !== -1 ? currentExperiences[presentIndex].company : "");
+
+    if (roleChanged || orgChanged) {
+      if (presentIndex !== -1) {
+        const updated = [...currentExperiences];
+        updated[presentIndex] = {
+          ...updated[presentIndex],
+          title: currentRole,
+          company: currentOrg,
+        };
+        form.setValue("experiences", updated, { shouldDirty: true, shouldValidate: true });
+      } else if (currentRole || currentOrg) {
+        const newExp: ExperienceValue = {
+          title: currentRole,
+          company: currentOrg,
+          location: "",
+          start_date: new Date().toISOString().substring(0, 7), // YYYY-MM
+          end_date: "",
+          description: "",
+        };
+        form.setValue("experiences", [...currentExperiences, newExp], { shouldDirty: true, shouldValidate: true });
+      }
+    }
+  }, [watchedRole, watchedOrg]);
+
+  // Sync Experiences to Current Role/Org
+  useEffect(() => {
+    const currentExperiences = form.getValues("experiences") || [];
+    const currentRole = form.getValues("current_role") || "";
+    const currentOrg = form.getValues("current_organization") || "";
+
+    const presentIndex = currentExperiences.findIndex((exp) => !exp.end_date);
+
+    if (presentIndex !== -1) {
+      const presentExp = currentExperiences[presentIndex];
+      const roleDiff = currentRole !== presentExp.title;
+      const orgDiff = currentOrg !== presentExp.company;
+
+      if (roleDiff || orgDiff) {
+        if (roleDiff) form.setValue("current_role", presentExp.title, { shouldDirty: true, shouldValidate: true });
+        if (orgDiff) form.setValue("current_organization", presentExp.company, { shouldDirty: true, shouldValidate: true });
+      }
+    } else {
+      if (currentRole || currentOrg) {
+        form.setValue("current_role", "", { shouldDirty: true, shouldValidate: true });
+        form.setValue("current_organization", "", { shouldDirty: true, shouldValidate: true });
+      }
+    }
+  }, [watchedExperiences]);
 
   // Profile completeness
   const completeness = useMemo(() => {
