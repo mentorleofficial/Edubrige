@@ -63,22 +63,13 @@ export function useBookSessionStatic(mentorId?: string) {
     staleTime: 60_000,
     queryFn: async () => {
       const todayDate = new Date().toISOString().slice(0, 10);
-      const [mentorRes, slotsRes, mpRes, ovRes, offeringsRes] = await Promise.all([
-        supabase
-          .from("users")
-          .select("id, full_name, avatar_url, email")
-          .eq("id", mentorId!)
-          .single(),
+      const [bookingInfoRes, slotsRes, ovRes, offeringsRes] = await Promise.all([
+        supabase.rpc("get_mentor_booking_info", { _mentor_id: mentorId! }),
         supabase
           .from("mentor_availability")
           .select("id, day_of_week, start_time, end_time")
           .eq("mentor_id", mentorId!)
           .order("day_of_week"),
-        supabase
-          .from("mentor_profiles")
-          .select("is_active, timezone, buffer_time_minutes, minimum_notice_hours")
-          .eq("user_id", mentorId!)
-          .maybeSingle(),
         supabase
           .from("mentor_availability_overrides")
           .select("id, date, is_unavailable, start_time, end_time")
@@ -92,10 +83,27 @@ export function useBookSessionStatic(mentorId?: string) {
           .eq("status", "active")
           .order("duration_minutes"),
       ]);
+
+      const info = Array.isArray(bookingInfoRes.data) && bookingInfoRes.data.length ? bookingInfoRes.data[0] : null;
+
       return {
-        mentor: (mentorRes.data as BookingMentor | null) ?? null,
+        mentor: info
+          ? {
+              id: info.id,
+              full_name: info.full_name,
+              avatar_url: info.avatar_url,
+              email: info.email,
+            }
+          : null,
+        mentorProfile: info
+          ? {
+              is_active: info.is_active,
+              timezone: info.timezone,
+              buffer_time_minutes: info.buffer_time_minutes,
+              minimum_notice_hours: info.minimum_notice_hours,
+            }
+          : null,
         slots: (slotsRes.data as BookingSlot[] | null) ?? [],
-        mentorProfile: (mpRes.data as BookingMentorProfile | null) ?? null,
         overrides: (ovRes.data as BookingOverride[] | null) ?? [],
         offerings: (offeringsRes.data as BookingOffering[] | null) ?? [],
       };
@@ -116,21 +124,22 @@ export function useBookedTimes(mentorId?: string, excludeSessionId?: string | nu
       const horizon = new Date();
       horizon.setDate(horizon.getDate() + 90);
       
-      let query = supabase
-        .from("sessions")
-        .select("scheduled_at, duration_minutes")
-        .eq("mentor_id", mentorId!)
-        .eq("status", "booked")
-        .gte("scheduled_at", nowIso)
-        .lte("scheduled_at", horizon.toISOString());
-
-      if (excludeSessionId) {
-        query = query.neq("id", excludeSessionId);
-      }
-
-      const { data, error } = await query;
+      const { data, error } = await supabase.rpc("get_booked_times", {
+        _mentor_id: mentorId!,
+      });
       if (error) throw error;
-      return (data ?? []) as BookedTime[];
+      
+      let list = (data ?? []) as any[];
+      if (excludeSessionId) {
+        list = list.filter((item) => item.id !== excludeSessionId);
+      }
+      
+      return list
+        .filter((item) => item.scheduled_at >= nowIso && item.scheduled_at <= horizon.toISOString())
+        .map((item) => ({
+          scheduled_at: item.scheduled_at,
+          duration_minutes: item.duration_minutes,
+        }));
     },
   });
 }

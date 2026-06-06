@@ -14,6 +14,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import BadgeChip from "@/components/badges/BadgeChip";
 import SocialShareButtons from "@/components/SocialShareButtons";
 import { useMentorBadges } from "@/features/badges/api";
+import { ensureAbsoluteUrl } from "@/lib/utils";
 import {
   Briefcase,
   GraduationCap,
@@ -250,14 +251,14 @@ const PublicMentorProfile = () => {
                 <div className="flex gap-2 sm:pb-2">
                   {mentor.linkedin_url && (
                     <Button variant="outline" size="icon" asChild>
-                      <a href={mentor.linkedin_url} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                      <a href={ensureAbsoluteUrl(mentor.linkedin_url)} target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
                         <Linkedin className="h-4 w-4" />
                       </a>
                     </Button>
                   )}
                   {mentor.portfolio_url && (
                     <Button variant="outline" size="icon" asChild>
-                      <a href={mentor.portfolio_url} target="_blank" rel="noopener noreferrer" aria-label="Portfolio">
+                      <a href={ensureAbsoluteUrl(mentor.portfolio_url)} target="_blank" rel="noopener noreferrer" aria-label="Portfolio">
                         <Globe className="h-4 w-4" />
                       </a>
                     </Button>

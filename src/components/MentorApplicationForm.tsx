@@ -476,9 +476,14 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
 
         setStage("done");
         setStepIdx(3);
-        toast({ title: "Application submitted", description: "Your application has been received and is pending admin review." });
+        toast({
+          title: existingAppId ? "Reapplication submitted" : "Application submitted",
+          description: "Your application has been received and is pending admin review.",
+        });
         if (onComplete) {
-          onComplete();
+          setTimeout(() => {
+            onComplete();
+          }, 3000);
         }
         return;
       }
@@ -612,8 +617,14 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
           <CheckCircle2 className="h-8 w-8 text-primary" />
         </div>
-        <h2 className="font-serif text-3xl">You're in!</h2>
-        <p className="text-muted-foreground">Redirecting to your dashboard…</p>
+        <h2 className="font-serif text-3xl">
+          {existingAppId ? "Reapplication Submitted!" : "You're in!"}
+        </h2>
+        <p className="text-muted-foreground">
+          {existingAppId
+            ? "Your updated application has been received and is pending admin review."
+            : "Redirecting to your dashboard…"}
+        </p>
       </div>
     );
   }

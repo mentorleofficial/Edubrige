@@ -7,30 +7,10 @@
   | Json[]
 
 export type Database = {
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -1204,16 +1184,19 @@ export type Database = {
       }
       user_roles: {
         Row: {
+          email: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
+          email?: string | null
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
+          email?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
@@ -1275,6 +1258,27 @@ export type Database = {
       generate_mentor_slug: {
         Args: { _full_name: string; _user_id: string }
         Returns: string
+      }
+      get_booked_times: {
+        Args: { _mentor_id: string }
+        Returns: {
+          duration_minutes: number
+          id: string
+          scheduled_at: string
+        }[]
+      }
+      get_mentor_booking_info: {
+        Args: { _mentor_id: string }
+        Returns: {
+          avatar_url: string
+          buffer_time_minutes: number
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean
+          minimum_notice_hours: number
+          timezone: string
+        }[]
       }
       get_public_mentor: {
         Args: { _slug_or_id: string }
@@ -1462,9 +1466,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: ["admin", "mentor", "mentee"],
@@ -1483,4 +1484,3 @@ export const Constants = {
     },
   },
 } as const
-

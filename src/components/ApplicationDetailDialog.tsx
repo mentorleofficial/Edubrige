@@ -1,4 +1,5 @@
 import { formatISTDate } from "@/lib/datetime";
+import { ensureAbsoluteUrl } from "@/lib/utils";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -172,10 +173,10 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
           <div className="space-y-1.5">
             <Label className="text-xs uppercase text-muted-foreground">Links</Label>
             <div className="flex flex-wrap gap-3 text-sm">
-              {application.linkedin_url && <a href={application.linkedin_url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">LinkedIn <ExternalLink className="h-3 w-3" /></a>}
-              {application.portfolio_url && <a href={application.portfolio_url} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">Portfolio <ExternalLink className="h-3 w-3" /></a>}
-              {social.twitter && <a href={social.twitter} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">Twitter <ExternalLink className="h-3 w-3" /></a>}
-              {social.github && <a href={social.github} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">GitHub <ExternalLink className="h-3 w-3" /></a>}
+              {application.linkedin_url && <a href={ensureAbsoluteUrl(application.linkedin_url)} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">LinkedIn <ExternalLink className="h-3 w-3" /></a>}
+              {application.portfolio_url && <a href={ensureAbsoluteUrl(application.portfolio_url)} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">Portfolio <ExternalLink className="h-3 w-3" /></a>}
+              {social.twitter && <a href={ensureAbsoluteUrl(social.twitter)} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">Twitter <ExternalLink className="h-3 w-3" /></a>}
+              {social.github && <a href={ensureAbsoluteUrl(social.github)} target="_blank" rel="noreferrer" className="text-primary inline-flex items-center gap-1 hover:underline">GitHub <ExternalLink className="h-3 w-3" /></a>}
             </div>
           </div>
 

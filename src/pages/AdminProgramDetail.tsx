@@ -266,10 +266,27 @@ const AdminProgramDetail = () => {
       const userIds = Array.from(new Set((roleRows || []).map((r) => r.user_id).filter(Boolean)));
       if (userIds.length === 0) return [] as UserRow[];
 
+      let activeUserIds = userIds;
+      if (role === "mentor") {
+        const { data: activeMentors, error: activeErr } = await supabase
+          .from("mentor_profiles")
+          .select("user_id")
+          .eq("is_active", true)
+          .in("user_id", userIds);
+        
+        if (activeErr) {
+          console.error("Load active mentor profiles failed:", activeErr);
+          return [] as UserRow[];
+        }
+        activeUserIds = (activeMentors || []).map((m) => m.user_id);
+      }
+
+      if (activeUserIds.length === 0) return [] as UserRow[];
+
       const { data: users, error: usersErr } = await supabase
         .from("users")
         .select("id, full_name, email")
-        .in("id", userIds)
+        .in("id", activeUserIds)
         .order("full_name");
 
       if (usersErr) {
