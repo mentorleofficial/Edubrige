@@ -92,16 +92,54 @@ const MentorInsightsPanel = ({ sessions, feedback, profile, availabilityCount, u
         )}
 
         {pendingMenteeFeedback > 0 && (
-          <div className="flex items-start gap-3 rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
-            <MessageSquareWarning className="mt-0.5 h-4 w-4 text-amber-500" />
-            <div className="flex-1">
+          <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+            <div className="flex items-center gap-2">
+              <MessageSquareWarning className="h-4 w-4 text-amber-500" />
               <div className="text-sm font-medium">
                 {pendingMenteeFeedback} pending mentee feedback
               </div>
-              <Button asChild variant="link" className="h-auto p-0 text-xs">
-                <Link to="/mentor/sessions">Share feedback</Link>
-              </Button>
             </div>
+            <ul className="mt-2 space-y-1.5">
+              {pendingSessions.slice(0, 3).map((s) => {
+                const name = s.mentee?.full_name || "Mentee";
+                const initials = name
+                  .split(" ")
+                  .map((p) => p[0])
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase();
+                return (
+                  <li
+                    key={s.id}
+                    className="flex items-center justify-between gap-2 rounded-md bg-background/60 px-2 py-1.5"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage src={s.mentee?.avatar_url ?? undefined} alt={name} />
+                        <AvatarFallback className="text-[10px]">{initials || "M"}</AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <div className="truncate text-xs font-medium">{name}</div>
+                        <div className="truncate text-[11px] text-muted-foreground">
+                          {formatISTDate(s.scheduled_at)}
+                        </div>
+                      </div>
+                    </div>
+                    <Button asChild size="sm" variant="ghost" className="h-7 px-2 text-xs">
+                      <Link to={`/session/${s.id}/feedback`}>
+                        <Star className="mr-1 h-3 w-3" /> Rate
+                      </Link>
+                    </Button>
+                  </li>
+                );
+              })}
+            </ul>
+            {pendingMenteeFeedback > 3 && (
+              <Button asChild variant="link" className="mt-1 h-auto p-0 text-xs">
+                <Link to="/mentor/sessions">View all {pendingMenteeFeedback}</Link>
+              </Button>
+            )}
           </div>
         )}
 
