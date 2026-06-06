@@ -62,7 +62,9 @@ const NextSessionCard = ({ session }: { session: MentorDashSession | null }) => 
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           <div>
-            <div className="text-xs uppercase tracking-wide text-primary">Next Session</div>
+            <div className="text-xs uppercase tracking-wide text-primary">
+              {session.title || "Untitled Session"}
+            </div>
             <h3 className="text-xl font-semibold" style={{ fontFamily: "var(--font-serif)" }}>
               {session.mentee?.full_name || "Your mentee"}
             </h3>

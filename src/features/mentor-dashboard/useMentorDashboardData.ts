@@ -64,7 +64,7 @@ export const useMentorDashboardData = (userId?: string) => {
             const { data, error } = await supabase
               .from("sessions")
               .select(
-                "id, scheduled_at, duration_minutes, status, notes, mentee_notes, meeting_url, cancellation_reason, mentee_id, cancelled_at, mentee:users!sessions_mentee_id_fkey(full_name, avatar_url)"
+                "id, scheduled_at, duration_minutes, status, title, topic, notes, mentee_notes, meeting_url, cancellation_reason, mentee_id, cancelled_at, mentee:users!sessions_mentee_id_fkey(full_name, avatar_url)"
               )
               .eq("mentor_id", userId!)
               .order("scheduled_at", { ascending: false });
@@ -104,12 +104,12 @@ export const useMentorDashboardData = (userId?: string) => {
 
       const profile: MentorProfileRow & { has_offerings?: boolean } | null = mpRes.data
         ? {
-            ...(mpRes.data as any),
-            avatar_url: userRes.data?.avatar_url ?? null,
-            full_name: userRes.data?.full_name ?? null,
-            email: userRes.data?.email ?? null,
-            has_offerings: (offeringsCountRes.count ?? 0) > 0,
-          }
+          ...(mpRes.data as any),
+          avatar_url: userRes.data?.avatar_url ?? null,
+          full_name: userRes.data?.full_name ?? null,
+          email: userRes.data?.email ?? null,
+          has_offerings: (offeringsCountRes.count ?? 0) > 0,
+        }
         : null;
 
       return {
