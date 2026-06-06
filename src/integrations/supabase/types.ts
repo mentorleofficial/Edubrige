@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -113,6 +113,7 @@ export type Database = {
           sidebar_background: string
           sidebar_foreground: string
           sidebar_primary: string
+          site_url: string
           updated_at: string
         }
         Insert: {
@@ -133,6 +134,7 @@ export type Database = {
           sidebar_background?: string
           sidebar_foreground?: string
           sidebar_primary?: string
+          site_url?: string
           updated_at?: string
         }
         Update: {
@@ -153,6 +155,7 @@ export type Database = {
           sidebar_background?: string
           sidebar_foreground?: string
           sidebar_primary?: string
+          site_url?: string
           updated_at?: string
         }
         Relationships: []
