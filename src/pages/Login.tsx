@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useBranding } from "@/contexts/BrandingContext";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,16 @@ const Login = () => {
   const branding = useBranding();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/dashboard";
+
+  const safeRedirect = redirectTo.startsWith("/") ? redirectTo : "/dashboard";
 
   // Only redirect once we have BOTH a session AND a resolved profile.
   // If we have a session but no profile (e.g. RLS 403 or missing users row),
   // staying on /login avoids an infinite loop with RoleGuard.
   if (session && profile) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={safeRedirect} replace />;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -29,7 +33,7 @@ const Login = () => {
     setIsLoading(true);
     try {
       await signIn(email, password);
-      navigate("/dashboard");
+      navigate(safeRedirect);
     } catch (error: any) {
       toast({
         variant: "destructive",

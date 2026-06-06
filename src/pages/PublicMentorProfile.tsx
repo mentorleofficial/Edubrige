@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { useBranding } from "@/contexts/BrandingContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -83,11 +84,40 @@ const PublicMentorProfile = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const branding = useBranding();
+  const { toast } = useToast();
   const [mentor, setMentor] = useState<PublicMentor | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [rating, setRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
   const { data: mentorBadges = [] } = useMentorBadges(mentor?.user_id);
+  const bookingTargetId = mentor?.user_id ?? mentorId;
+
+  const getBookingPath = (offeringId?: string) => {
+    if (!bookingTargetId) return "/book";
+    const params = new URLSearchParams();
+    if (offeringId) params.set("offeringId", offeringId);
+    const query = params.toString();
+    return `/book/${bookingTargetId}${query ? `?${query}` : ""}`;
+  };
+
+  const handleBook = (offeringId?: string) => {
+    const bookingPath = getBookingPath(offeringId);
+
+    if (!user) {
+      navigate(`/login?redirect=${encodeURIComponent(bookingPath)}`);
+      return;
+    }
+
+    if (role === "mentee") {
+      navigate(bookingPath);
+      return;
+    }
+
+    toast({
+      title: "Booking unavailable",
+      description: "Only mentee accounts can book sessions from this page.",
+    });
+  };
 
   // Fetch active offerings
   const { data: offerings = [] } = useQuery<any[]>({
@@ -162,12 +192,7 @@ const PublicMentorProfile = () => {
   }, [mentorId]);
 
   const onBook = () => {
-    if (!user) {
-      navigate(`/login?redirect=/mentors/${mentorId}`);
-      return;
-    }
-    const targetId = mentor?.user_id ?? mentorId;
-    if (role === "mentee") navigate(`/book/${targetId}`);
+    handleBook();
   };
 
   if (loading) {
@@ -426,22 +451,7 @@ const PublicMentorProfile = () => {
                           <Button
                             className="mt-6 w-full"
                             onClick={() => {
-                              if (!user) {
-                                navigate(
-                                  `/login?redirect=/mentors/${mentorId}`
-                                );
-                                return;
-                              }
-
-                              const targetId =
-                                mentor?.user_id ??
-                                mentorId;
-
-                              if (role === "mentee") {
-                                navigate(
-                                  `/book/${targetId}?offeringId=${o.id}`
-                                );
-                              }
+                              handleBook(o.id);
                             }}
                           >
                             Book Session
