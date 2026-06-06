@@ -14,7 +14,8 @@ const relTime = (ms: number) => {
 };
 
 const RecentFeedbackPanel = ({ feedback }: { feedback: MentorDashFeedback[] }) => {
-  const recent = [...feedback]
+  const recent = feedback
+    .filter((f) => f.audience === "mentor")
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .slice(0, 3);
 
