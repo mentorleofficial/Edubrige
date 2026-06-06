@@ -92,7 +92,7 @@ const App = () => (
                   <Route path="/mentee/profile" element={<RoleGuard allowedRoles={["mentee"]}><MenteeProfile /></RoleGuard>} />
                   <Route path="/mentee/sessions" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><MenteeSessions /></MenteeOnboardingGuard></RoleGuard>} />
                   <Route path="/book/:mentorId" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><BookSession /></MenteeOnboardingGuard></RoleGuard>} />
-                  <Route path="/session/:id/feedback" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><SessionFeedback /></MenteeOnboardingGuard></RoleGuard>} />
+                  <Route path="/session/:id/feedback" element={<RoleGuard allowedRoles={["mentor", "mentee"]}><SessionFeedback /></RoleGuard>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
