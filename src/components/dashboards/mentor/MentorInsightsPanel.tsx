@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Sparkles, FileText, MessageSquareWarning, CalendarOff, UserCog } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Sparkles, FileText, MessageSquareWarning, CalendarOff, UserCog, Star } from "lucide-react";
 import { Link } from "react-router-dom";
+import { formatISTDate } from "@/lib/datetime";
 import type {
   MentorDashSession,
   MentorDashFeedback,
