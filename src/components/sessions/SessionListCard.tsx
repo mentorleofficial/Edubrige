@@ -144,17 +144,11 @@ export default function SessionListCard({
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center font-bold gap-x-2 gap-y-1 text-xs text-muted-foreground">
             <span>{formatIST(data.scheduledAt, "EEE, d MMM")}</span>
             <span>·</span>
             <span>{formatISTTime(data.scheduledAt)}</span>
             <span>·</span>
-            <span>{data.durationMinutes} min</span>
-            {rel && (
-              <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-foreground/80">
-                {rel}
-              </span>
-            )}
           </div>
 
           {alert && <div className="pt-1">{alert}</div>}
@@ -201,7 +195,7 @@ export default function SessionListCard({
 
       {open && hasDetails && (
         <div className="mt-3 space-y-2 rounded-md bg-muted/40 p-3 text-sm">
-          {data.meetingUrl && (
+          {/* {data.meetingUrl && (
             <div className="flex items-center gap-2">
               <Link2 className="h-3.5 w-3.5 text-primary shrink-0" />
               <a
@@ -223,7 +217,7 @@ export default function SessionListCard({
                 <Copy className="h-3 w-3" />
               </Button>
             </div>
-          )}
+          )} */}
           {data.menteeNotes && (
             <div>
               <span className="font-medium">Mentee notes:</span>{" "}
@@ -241,10 +235,7 @@ export default function SessionListCard({
               <span className="font-medium">Cancellation:</span> {data.cancellationReason}
             </div>
           )}
-          {extraDetails}
-          <div className="pt-1 text-[11px] text-muted-foreground">
-            Scheduled for {formatISTDateTime(data.scheduledAt)}
-          </div>
+
         </div>
       )}
     </div>

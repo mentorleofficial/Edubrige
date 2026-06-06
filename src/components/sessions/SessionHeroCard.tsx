@@ -71,9 +71,19 @@ export default function SessionHeroCard({
               Next session
             </span>
             <SessionStatusDot status={data.status} />
-            <span className="text-xs text-muted-foreground">
-              {relativeIST(data.scheduledAt)}
-            </span>
+            {data.programs.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {data.programs.map((p) => (
+                  <ProgramBadge
+                    key={p.slug}
+                    name={p.name}
+                    color={p.color}
+                    to={`${data.programLinkBase}/${p.slug}`}
+                  />
+                ))}
+              </div>
+            )}
+
           </div>
 
           <div className="flex items-center gap-3">
@@ -107,7 +117,7 @@ export default function SessionHeroCard({
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Clock className="h-4 w-4" />
-              {formatISTTime(data.scheduledAt)} · {data.durationMinutes} min
+              {formatISTTime(data.scheduledAt)}
             </span>
             {data.meetingUrl && (
               <span className="inline-flex items-center gap-1.5">
@@ -117,18 +127,7 @@ export default function SessionHeroCard({
             )}
           </div>
 
-          {data.programs.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {data.programs.map((p) => (
-                <ProgramBadge
-                  key={p.slug}
-                  name={p.name}
-                  color={p.color}
-                  to={`${data.programLinkBase}/${p.slug}`}
-                />
-              ))}
-            </div>
-          )}
+
         </div>
 
         <div className="flex flex-col gap-2 md:w-56 md:items-stretch">

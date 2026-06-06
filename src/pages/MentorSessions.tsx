@@ -415,10 +415,10 @@ const MentorSessions = () => {
 
   const heroProgs = nextSession
     ? (menteeProgramsWithId[nextSession.mentee_id] || []).map((p) => ({
-        name: p.name,
-        color: p.color,
-        slug: p.slug,
-      }))
+      name: p.name,
+      color: p.color,
+      slug: p.slug,
+    }))
     : [];
   const heroData = nextSession ? toCardData(nextSession, heroProgs) : null;
 
@@ -550,7 +550,7 @@ const MentorSessions = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label>Title</Label>
               <Input
                 value={editTitle}
@@ -565,7 +565,7 @@ const MentorSessions = () => {
                 onChange={(e) => setEditTopic(e.target.value)}
                 placeholder="Topic / focus area"
               />
-            </div>
+            </div> */}
             <div className="space-y-2">
               <Label>Meeting link</Label>
               <Input
