@@ -23,6 +23,7 @@ import {
   ExternalLink,
   Lock,
   Tag,
+  CalendarDays,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -65,6 +66,7 @@ const AppSidebar = () => {
     { title: "Applications", icon: ClipboardCheck, path: "/admin/applications", badge: pendingApps },
     { title: "Programs", icon: FolderKanban, path: "/admin/programs" },
     { title: "Sessions", icon: BookOpen, path: "/admin/sessions" },
+    { title: "Events", icon: CalendarDays, path: "/admin/events" },
     { title: "Feedback", icon: Star, path: "/admin/feedback" },
     { title: "Leaderboard", icon: Trophy, path: "/mentor/leaderboard" },
     { title: "Settings", icon: Settings, path: "/admin/settings" },
@@ -77,6 +79,7 @@ const AppSidebar = () => {
     { title: "My Profile", icon: User, path: "/mentor/profile" },
     { title: "Offerings", icon: Tag, path: "/mentor/offerings" },
     { title: "Availability", icon: Calendar, path: "/mentor/availability" },
+    { title: "Events", icon: CalendarDays, path: "/mentor/events" },
     { title: "Programs", icon: FolderKanban, path: "/mentor/programs" },
     { title: "My Mentees", icon: UsersRound, path: "/mentor/mentees" },
     { title: "Sessions", icon: BookOpen, path: "/mentor/sessions" },
@@ -97,6 +100,7 @@ const AppSidebar = () => {
     { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
     { title: "My Profile", icon: User, path: "/mentee/profile" },
     { title: "Programs", icon: FolderKanban, path: "/mentee/programs" },
+    { title: "Events", icon: CalendarDays, path: "/mentee/events" },
     { title: "Find Mentors", icon: GraduationCap, path: "/mentors" },
     { title: "My Sessions", icon: BookOpen, path: "/mentee/sessions" },
     { title: "Privacy & My Data", icon: Shield, path: "/account/privacy" },
