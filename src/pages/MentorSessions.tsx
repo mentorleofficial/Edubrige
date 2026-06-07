@@ -19,6 +19,7 @@ import {
   CheckCircle2,
   X,
   UserX,
+  User,
   FileEdit,
   Video,
   Star,
@@ -32,6 +33,7 @@ import SessionHeroCard from "@/components/sessions/SessionHeroCard";
 import SessionListCard, {
   type OverflowAction,
   type SessionCardData,
+  type ProgramTag,
 } from "@/components/sessions/SessionListCard";
 import SessionsToolbar, {
   type SortMode,
@@ -52,10 +54,12 @@ import {
   useMentorMentees,
   selectMenteeProgramMap,
 } from "@/features/mentor-mentees/useMentorMentees";
+import { MenteeDetailsDialog } from "@/features/mentor-mentees/components/MenteeDetailsDialog";
 
 function toCardData(
   s: MentorSessionRow,
-  programs: SessionCardData["programs"]
+  programs: SessionCardData["programs"],
+  bookedProgram?: ProgramTag | null
 ): SessionCardData {
   return {
     id: s.id,
@@ -72,6 +76,9 @@ function toCardData(
     notes: s.notes,
     menteeNotes: s.mentee_notes,
     cancellationReason: s.cancellation_reason,
+    bookedProgram: bookedProgram ?? (s.program
+      ? { name: s.program.name, color: s.program.color, slug: s.program.slug }
+      : null),
   };
 }
 
@@ -80,6 +87,7 @@ const MentorSessions = () => {
   const navigate = useNavigate();
 
   const { data: sessions = [], isLoading } = useMentorSessions(user?.id);
+  console.log("DEBUG: Mentor Sessions fetch:", sessions);
   const sessionIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
   const { data: ratedSessionIds } = useMentorRatedSessions(user?.id, sessionIds);
   const { data: menteeRows = [] } = useMentorMentees(user?.id);
@@ -128,6 +136,7 @@ const MentorSessions = () => {
   const [editTitle, setEditTitle] = useState("");
   const [editTopic, setEditTopic] = useState("");
   const [actionItemsTarget, setActionItemsTarget] = useState<MentorSessionRow | null>(null);
+  const [selectedMenteeId, setSelectedMenteeId] = useState<string | null>(null);
 
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
   const [search, setSearch] = useState("");
@@ -206,12 +215,20 @@ const MentorSessions = () => {
   );
 
   const buildCardActions = (s: MentorSessionRow, isUpcoming: boolean) => {
-    const progs = (menteeProgramsWithId[s.mentee_id] || []).map((p) => ({
-      name: p.name,
-      color: p.color,
-      slug: p.slug,
-    }));
-    const data = toCardData(s, progs);
+    const foundProg = s.program
+      ? { name: s.program.name, color: s.program.color, slug: s.program.slug }
+      : s.program_id
+      ? (menteeProgramsWithId[s.mentee_id] || []).find((p) => p.id === s.program_id)
+      : null;
+
+    const progs = foundProg
+      ? [{ name: foundProg.name, color: foundProg.color, slug: foundProg.slug }]
+      : (menteeProgramsWithId[s.mentee_id] || []).map((p) => ({
+          name: p.name,
+          color: p.color,
+          slug: p.slug,
+        }));
+    const data = toCardData(s, progs, foundProg);
     const primary: React.ReactNode[] = [];
     const overflow: OverflowAction[] = [];
     let alert: React.ReactNode = null;
@@ -304,6 +321,11 @@ const MentorSessions = () => {
     }
 
     overflow.push(
+      {
+        label: "View Mentee Details",
+        icon: <User className="h-3.5 w-3.5" />,
+        onClick: () => setSelectedMenteeId(s.mentee_id),
+      },
       {
         label: "Action items",
         icon: <ListTodo className="h-3.5 w-3.5" />,
@@ -625,6 +647,14 @@ const MentorSessions = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <MenteeDetailsDialog
+        menteeId={selectedMenteeId}
+        open={!!selectedMenteeId}
+        onOpenChange={(open) => {
+          if (!open) setSelectedMenteeId(null);
+        }}
+      />
     </AppLayout>
   );
 };

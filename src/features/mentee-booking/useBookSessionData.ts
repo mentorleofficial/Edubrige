@@ -154,6 +154,7 @@ export interface BookSessionInput {
   topic?: string;
   rescheduleId?: string | null;
   offeringId?: string | null;
+  programId?: string | null;
 }
 export interface BookSessionResult {
   sessionId: string;
@@ -178,6 +179,7 @@ export function useBookSession() {
           topic: input.topic ?? "",
           meeting_url: meetingUrl,
           offering_id: input.offeringId || null,
+          program_id: input.programId || null,
         })
         .select("id")
         .single();
@@ -201,6 +203,8 @@ export function useBookSession() {
       qc.invalidateQueries({ queryKey: bookSessionBookedKey(vars.mentorId, vars.rescheduleId) });
       qc.invalidateQueries({ queryKey: menteeSessionsKey(vars.menteeId) });
       qc.invalidateQueries({ queryKey: ["mentee-dashboard", vars.menteeId] });
+      qc.invalidateQueries({ queryKey: ["mentor", "sessions", vars.mentorId] });
+      qc.invalidateQueries({ queryKey: ["mentor", "dashboard", vars.mentorId] });
     },
   });
 }

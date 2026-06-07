@@ -51,6 +51,7 @@ export interface SessionCardData {
   menteeNotes: string;
   cancellationReason: string;
   mentorFeedback?: { rating: number; comment: string | null } | null;
+  bookedProgram?: ProgramTag | null;
 }
 
 export interface OverflowAction {
@@ -98,7 +99,9 @@ export default function SessionListCard({
     !!data.notes ||
     !!data.menteeNotes ||
     !!data.cancellationReason ||
-    !!extraDetails;
+    !!extraDetails ||
+    !!data.bookedProgram ||
+    data.programs.length === 1;
 
   const rel = isUpcoming ? relativeIST(data.scheduledAt) : null;
 
@@ -220,6 +223,19 @@ export default function SessionListCard({
               </Button>
             </div>
           )} */}
+          {data.bookedProgram ? (
+            <div>
+              <span className="font-medium">Program:</span>{" "}
+              <span className="text-muted-foreground">{data.bookedProgram.name}</span>
+            </div>
+          ) : (
+            data.programs.length === 1 && (
+              <div>
+                <span className="font-medium">Program:</span>{" "}
+                <span className="text-muted-foreground">{data.programs[0].name}</span>
+              </div>
+            )
+          )}
           {data.menteeNotes && (
             <div>
               <span className="font-medium">Mentee notes:</span>{" "}

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,9 +52,42 @@ const BookSession = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data: staticData } = useBookSessionStatic(mentorId);
+  const { data: staticData, isPending, error: staticDataError } = useBookSessionStatic(mentorId);
   const { data: bookedTimes = [] } = useBookedTimes(mentorId, rescheduleId || undefined);
   const bookMutation = useBookSession();
+
+  const { data: menteePrograms = [] } = useMyPrograms();
+  const [mentorProgramIds, setMentorProgramIds] = useState<string[]>([]);
+  const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!mentorId) return;
+    supabase
+      .from("program_mentors")
+      .select("program_id")
+      .eq("mentor_id", mentorId)
+      .then(({ data }) => {
+        if (data) {
+          setMentorProgramIds(data.map((r) => r.program_id));
+        }
+      });
+  }, [mentorId]);
+
+  const sharedPrograms = useMemo(() => {
+    const mentorSet = new Set(mentorProgramIds);
+    return menteePrograms.filter((p) => mentorSet.has(p.id));
+  }, [menteePrograms, mentorProgramIds]);
+
+  useEffect(() => {
+    const urlProgramId = params.get("programId");
+    if (urlProgramId && sharedPrograms.some((p) => p.id === urlProgramId)) {
+      setSelectedProgramId(urlProgramId);
+    } else if (sharedPrograms.length === 1) {
+      setSelectedProgramId(sharedPrograms[0].id);
+    } else if (sharedPrograms.length > 1 && !selectedProgramId) {
+      setSelectedProgramId(sharedPrograms[0].id);
+    }
+  }, [sharedPrograms, params, selectedProgramId]);
 
   const mentor = staticData?.mentor ?? null;
   const slots = staticData?.slots ?? [];
@@ -214,6 +248,7 @@ const BookSession = () => {
         topic: topic.trim(),
         rescheduleId,
         offeringId: activeOffering?.id || null,
+        programId: selectedProgramId,
       });
 
       // Fire-and-forget booking confirmation email
@@ -255,7 +290,37 @@ const BookSession = () => {
     }
   };
 
-  if (!mentor) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
+  if (isPending) {
+    return (
+      <AppLayout>
+        <p className="text-muted-foreground">Loading…</p>
+      </AppLayout>
+    );
+  }
+
+  if (!mentor || staticDataError) {
+    return (
+      <AppLayout>
+        <div className="max-w-2xl mx-auto py-12 text-center">
+          <Card>
+            <CardHeader className="flex flex-col items-center pb-4">
+              <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <AlertCircle className="h-6 w-6 text-destructive" />
+              </div>
+              <CardTitle className="text-xl">Booking Unavailable</CardTitle>
+              <CardDescription className="pt-2 text-center max-w-md">
+                This mentor is not available for booking, or you do not have permission to book sessions with them.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center">
+              <Button onClick={() => navigate("/mentors")}>Back to Mentors Directory</Button>
+            </CardContent>
+          </Card>
+        </div>
+      </AppLayout>
+    );
+  }
+
 
   if (staticData && staticData.offerings && staticData.offerings.length === 0) {
     return (
@@ -694,6 +759,32 @@ const BookSession = () => {
                           maxLength={120}
                         />
                       </div> */}
+                      {sharedPrograms.length > 1 && (
+                        <div className="space-y-2">
+                          <Label htmlFor="program-select" className="text-sm">
+                            Program <span className="text-destructive">*</span>
+                          </Label>
+                          <select
+                            id="program-select"
+                            value={selectedProgramId || ""}
+                            onChange={(e) => setSelectedProgramId(e.target.value || null)}
+                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {sharedPrograms.map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {sharedPrograms.length === 1 && (
+                        <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
+                          Booking this session for program: <span className="font-semibold text-foreground">{sharedPrograms[0].name}</span>
+                        </div>
+                      )}
+
                       <div>
                         <Label htmlFor="notes" className="flex items-center gap-2 text-sm">
                           <Info className="h-3.5 w-3.5" /> What would you like to discuss? (optional)

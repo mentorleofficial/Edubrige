@@ -42,6 +42,39 @@ export const menteeOnboardingSchema = z.object({
     .array(z.string().trim().min(1).max(40))
     .min(1, "Pick at least one mentor area")
     .max(15, "Keep it under 15"),
+  academic_details: z.string().trim().max(500, "Keep it under 500 characters").default(""),
+  github_url: z
+    .string()
+    .trim()
+    .max(255)
+    .transform((v) => {
+      if (!v) return "";
+      let clean = v.replace(/\/+$/, "");
+      if (!/^https?:\/\//i.test(clean)) {
+        clean = `https://${clean}`;
+      }
+      return clean;
+    })
+    .pipe(
+      z.string().url("Must be a valid URL").or(z.literal(""))
+    )
+    .default(""),
+  portfolio_url: z
+    .string()
+    .trim()
+    .max(255)
+    .transform((v) => {
+      if (!v) return "";
+      let clean = v.replace(/\/+$/, "");
+      if (!/^https?:\/\//i.test(clean)) {
+        clean = `https://${clean}`;
+      }
+      return clean;
+    })
+    .pipe(
+      z.string().url("Must be a valid URL").or(z.literal(""))
+    )
+    .default(""),
 });
 
 export type MenteeOnboardingValues = z.infer<typeof menteeOnboardingSchema>;
@@ -55,4 +88,7 @@ export const emptyOnboarding: MenteeOnboardingValues = {
   goals: "",
   interests: [],
   preferred_mentor_areas: [],
+  academic_details: "",
+  github_url: "",
+  portfolio_url: "",
 };

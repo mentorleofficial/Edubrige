@@ -17,6 +17,9 @@ type MenteeProfileUpdate = {
   interests?: string[];
   preferred_mentor_areas?: string[];
   onboarded_at?: string;
+  academic_details?: string;
+  github_url?: string;
+  portfolio_url?: string;
 };
 
 type UserUpdate = {
@@ -42,6 +45,9 @@ export async function fetchMenteeProfile(userId: string): Promise<MenteeProfileD
     interests: p?.interests ?? [],
     preferred_mentor_areas: ((p as any)?.preferred_mentor_areas ?? []) as string[],
     onboarded_at: ((p as any)?.onboarded_at as string | null) ?? null,
+    academic_details: (p as any)?.academic_details ?? "",
+    github_url: (p as any)?.github_url ?? "",
+    portfolio_url: (p as any)?.portfolio_url ?? "",
   };
 }
 
@@ -69,6 +75,9 @@ export async function upsertMenteeProfile(
   if (profile.interests !== undefined) payload.interests = profile.interests;
   if (profile.preferred_mentor_areas !== undefined)
     payload.preferred_mentor_areas = profile.preferred_mentor_areas;
+  if (profile.academic_details !== undefined) payload.academic_details = profile.academic_details;
+  if (profile.github_url !== undefined) payload.github_url = profile.github_url;
+  if (profile.portfolio_url !== undefined) payload.portfolio_url = profile.portfolio_url;
   if (opts?.markOnboarded) payload.onboarded_at = new Date().toISOString();
 
   const { error: pErr } = await supabase

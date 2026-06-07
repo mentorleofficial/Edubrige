@@ -111,3 +111,54 @@ export async function deleteUser(userId: string) {
     user_id: userId,
   });
 }
+
+export type AdminUserDetails = {
+  id: string;
+  full_name: string;
+  email: string;
+  role: AppRole;
+  avatar_url: string | null;
+  created_at: string;
+  is_disabled: boolean;
+  profile: any;
+};
+
+export async function fetchUserProfileAdmin(userId: string, role: AppRole): Promise<AdminUserDetails> {
+  const { data: u, error: uErr } = await supabase
+    .from("users")
+    .select("id, full_name, email, role, avatar_url, created_at, is_disabled")
+    .eq("id", userId)
+    .single();
+
+  if (uErr) throw uErr;
+
+  let profile: any = null;
+  if (role === "mentor") {
+    const { data: p, error: pErr } = await supabase
+      .from("mentor_profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (pErr) throw pErr;
+    profile = p;
+  } else if (role === "mentee") {
+    const { data: p, error: pErr } = await supabase
+      .from("mentee_profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (pErr) throw pErr;
+    profile = p;
+  }
+
+  return {
+    id: u.id,
+    full_name: u.full_name,
+    email: u.email,
+    role: u.role as AppRole,
+    avatar_url: u.avatar_url,
+    created_at: u.created_at,
+    is_disabled: !!u.is_disabled,
+    profile,
+  };
+}

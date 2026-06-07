@@ -119,6 +119,7 @@ export async function fetchProgramMentees(programId: string): Promise<ProgramMem
     .from("users")
     .select("id, full_name, email, avatar_url")
     .in("id", ids)
+    .eq("is_disabled", false)
     .order("full_name");
   return (users || []) as ProgramMember[];
 }
@@ -169,6 +170,7 @@ export async function fetchMyAssignedMentees(
     .from("users")
     .select("id, full_name, email, avatar_url")
     .in("id", ids)
+    .eq("is_disabled", false)
     .order("full_name");
   return (users || []) as ProgramMember[];
 }

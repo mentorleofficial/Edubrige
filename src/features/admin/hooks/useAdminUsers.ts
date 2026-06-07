@@ -6,11 +6,13 @@ import {
   type FetchUsersResult,
   type RoleFilter,
   type StatusFilter,
+  type AppRole,
   createUser,
   fetchAdminUsers,
   setUserDisabled,
   toggleMentorActive,
   deleteUser,
+  fetchUserProfileAdmin,
 } from "../api/users";
 
 const adminUsersKey = (params: FetchUsersParams) =>
@@ -84,6 +86,15 @@ export function useDeleteUser() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
     },
+  });
+}
+
+export function useAdminUserDetails(userId: string | null, role: AppRole | null) {
+  return useQuery({
+    queryKey: ["admin", "user-details", userId, role],
+    queryFn: () => fetchUserProfileAdmin(userId!, role!),
+    enabled: !!userId && !!role,
+    staleTime: 60_000,
   });
 }
 

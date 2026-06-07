@@ -74,7 +74,8 @@ export function useMentorMentees(userId?: string) {
         const { data: us } = await supabase
           .from("users")
           .select("id, full_name, email")
-          .in("id", menteeIds);
+          .in("id", menteeIds)
+          .eq("is_disabled", false);
         (us ?? []).forEach((u) => (userById[u.id as string] = u as MenteeRow));
       }
 
@@ -106,4 +107,35 @@ export function selectMenteeProgramMap(rows: MentorMenteeRow[]) {
     });
   }
   return map;
+}
+
+export interface MenteeProfileForMentor {
+  id: string;
+  full_name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  headline: string | null;
+  goals: string | null;
+  interests: string[] | null;
+  organization_unit: string | null;
+  preferred_mentor_areas: string[] | null;
+  academic_details: string | null;
+  github_url: string | null;
+  portfolio_url: string | null;
+}
+
+export function useMenteeDetailsForMentor(menteeId: string | null) {
+  return useQuery({
+    queryKey: ["mentor", "mentee-details", menteeId],
+    enabled: !!menteeId,
+    staleTime: 60_000,
+    queryFn: async (): Promise<MenteeProfileForMentor> => {
+      const { data, error } = await supabase.rpc("get_mentee_profile_for_mentor", {
+        _mentee_id: menteeId,
+      });
+      if (error) throw error;
+      if (!data || (data as any[]).length === 0) throw new Error("Profile not found or not authorized");
+      return (data as any[])[0] as MenteeProfileForMentor;
+    },
+  });
 }

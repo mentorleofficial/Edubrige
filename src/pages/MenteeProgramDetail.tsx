@@ -135,7 +135,7 @@ const MenteeProgramDetail = () => {
                   <p className="text-xs text-muted-foreground truncate">{assignedMentor.email}</p>
                 </div>
                 <Button asChild size="sm">
-                  <Link to={`/book/${assignedMentor.id}`}>Book session</Link>
+                  <Link to={`/book/${assignedMentor.id}?programId=${program.id}`}>Book session</Link>
                 </Button>
               </div>
             </CardContent>
@@ -186,7 +186,7 @@ const MenteeProgramDetail = () => {
                       <p className="text-xs text-muted-foreground truncate">{m.email}</p>
                     </div>
                     <Button asChild size="sm" variant="outline">
-                      <Link to={`/book/${m.id}`}>Book</Link>
+                      <Link to={`/book/${m.id}?programId=${program.id}`}>Book</Link>
                     </Button>
                   </div>
                 ))}
