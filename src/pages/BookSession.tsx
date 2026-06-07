@@ -112,7 +112,7 @@ const BookSession = () => {
   // Sync title from selected offering
   useEffect(() => {
     if (activeOffering) {
-      setTitle(`${activeOffering.title} · ${activeOffering.duration_minutes} min`);
+      setTitle(activeOffering.title);        // ← Only the title, no duration
     } else {
       setTitle("");
     }
@@ -672,7 +672,7 @@ const BookSession = () => {
               </CardTitle>
               {activeOffering && (
                 <CardDescription>
-                  {activeOffering.title} · {activeOffering.duration_minutes} min · {activeOffering.price === 0 ? "Free" : `₹${activeOffering.price}`}
+                  {activeOffering.title} · min · {activeOffering.price === 0 ? "Free" : `₹${activeOffering.price}`}
                 </CardDescription>
               )}
               {selectedDate && (

@@ -60,7 +60,7 @@ const NextSessionCard = ({ session }: { session: DashSession | null }) => {
             <AvatarFallback>{initials}</AvatarFallback>
           </Avatar>
           <div>
-            <div className="text-xs uppercase tracking-wide text-primary">Next Session</div>
+            <div className="text-xs uppercase tracking-wide text-primary">{session.title}</div>
             <h3 className="text-xl font-semibold" style={{ fontFamily: "var(--font-serif)" }}>
               {session.mentor?.full_name || "Your mentor"}
             </h3>

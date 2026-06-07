@@ -5,6 +5,7 @@ export interface MenteeRow {
   id: string;
   full_name: string;
   email: string;
+  avatar_url?: string | null;
 }
 
 export interface ProgramLite {
@@ -73,7 +74,7 @@ export function useMentorMentees(userId?: string) {
       if (menteeIds.length > 0) {
         const { data: us } = await supabase
           .from("users")
-          .select("id, full_name, email")
+          .select("id, full_name, email, avatar_url")
           .in("id", menteeIds)
           .eq("is_disabled", false);
         (us ?? []).forEach((u) => (userById[u.id as string] = u as MenteeRow));

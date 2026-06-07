@@ -99,7 +99,7 @@ export function AvailabilityPreview({
   const selectedEvents = selected ? getEventsOnDate(selected) : [];
 
   return (
-    <Card className="lg:sticky lg:top-4">
+    <Card className="sticky top-20 lg:top-6 z-10">
       <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
           <Eye className="h-4 w-4 text-muted-foreground" />

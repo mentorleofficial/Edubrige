@@ -239,9 +239,9 @@ const MentorAvailability = () => {
 
             <Card>
               <CardHeader>
-                <CardTitle>Date overrides</CardTitle>
+                <CardTitle>Date-specific availability</CardTitle>
                 <CardDescription>
-                  Add exceptions for specific dates — block a holiday or open custom hours.
+                  Adjust your regular schedule for a specific date.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -254,7 +254,7 @@ const MentorAvailability = () => {
             </Card>
           </div>
 
-          <div>
+          <div className="self-start h-fit">
             <AvailabilityPreview
               slots={slots}
               overrides={overrides}
