@@ -141,6 +141,33 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const [existingResumePath, setExistingResumePath] = useState<string>("");
   const [existingAppId, setExistingAppId] = useState<string | null>(null);
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
+  const [isLoadingResume, setIsLoadingResume] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const fetchResume = async () => {
+      if (!existingResumePath) {
+        setResumeUrl(null);
+        return;
+      }
+      setIsLoadingResume(true);
+      try {
+        const url = await getResumeSignedUrl(existingResumePath);
+        if (active && url) {
+          setResumeUrl(url);
+        }
+      } catch (err) {
+        console.error("Error signing resume URL:", err);
+      } finally {
+        if (active) setIsLoadingResume(false);
+      }
+    };
+    fetchResume();
+    return () => {
+      active = false;
+    };
+  }, [existingResumePath]);
 
   const [pending, setPending] = useState<{ values: FormValues; resumePath: string } | null>(null);
 
@@ -1023,21 +1050,31 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
                       <p className="text-xs text-muted-foreground">Uploaded</p>
                     </div>
                     <div className="flex gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            const url = await getResumeSignedUrl(existingResumePath);
-                            if (url) window.open(url, "_blank");
-                          } catch (err) {
-                            console.error("Error signing url", err);
-                          }
-                        }}
-                      >
-                        View
-                      </Button>
+                      {resumeUrl ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          asChild
+                        >
+                          <a href={resumeUrl} target="_blank" rel="noopener noreferrer">
+                            View
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled
+                        >
+                          {isLoadingResume ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            "View"
+                          )}
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="ghost"

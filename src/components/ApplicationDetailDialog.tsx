@@ -1,6 +1,6 @@
 import { formatISTDate } from "@/lib/datetime";
 import { ensureAbsoluteUrl } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -29,28 +29,35 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
   const [busy, setBusy] = useState(false);
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
 
-  const loadResume = async () => {
-    if (!application?.resume_url) return;
-    const newWindow = window.open("", "_blank");
-    if (!newWindow) {
-      toast({ variant: "destructive", title: "Popup blocked", description: "Please allow popups for this site." });
-      return;
-    }
-    try {
-      const { data, error } = await supabase.storage.from("mentor-resumes").createSignedUrl(application.resume_url, 300);
-      if (error) throw error;
-      if (data?.signedUrl) {
-        setResumeUrl(data.signedUrl);
-        newWindow.location.href = data.signedUrl;
-      } else {
-        newWindow.close();
-        toast({ variant: "destructive", title: "Could not open resume", description: "Signed URL is empty." });
+  const [isLoadingResume, setIsLoadingResume] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const fetchResume = async () => {
+      if (!open || !application?.resume_url) {
+        setResumeUrl(null);
+        return;
       }
-    } catch (err: any) {
-      newWindow.close();
-      toast({ variant: "destructive", title: "Could not open resume", description: err.message });
-    }
-  };
+      setIsLoadingResume(true);
+      try {
+        const { data, error } = await supabase.storage
+          .from("mentor-resumes")
+          .createSignedUrl(application.resume_url, 600); // 10 minutes
+        if (error) throw error;
+        if (active && data?.signedUrl) {
+          setResumeUrl(data.signedUrl);
+        }
+      } catch (err: any) {
+        console.error("Failed to load resume signed URL:", err);
+      } finally {
+        if (active) setIsLoadingResume(false);
+      }
+    };
+    fetchResume();
+    return () => {
+      active = false;
+    };
+  }, [open, application?.resume_url]);
 
   const handleAction = async () => {
     if (!application || !selectedAction) return;
@@ -181,8 +188,16 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
           </div>
 
           {application.resume_url && (
-            <Button variant="outline" size="sm" onClick={loadResume}>
-              <FileText className="mr-2 h-4 w-4" />Open Resume
+            <Button variant="outline" size="sm" asChild disabled={isLoadingResume || !resumeUrl}>
+              {resumeUrl ? (
+                <a href={resumeUrl} target="_blank" rel="noopener noreferrer">
+                  <FileText className="mr-2 h-4 w-4" />Open Resume
+                </a>
+              ) : (
+                <span className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading Resume...
+                </span>
+              )}
             </Button>
           )}
 

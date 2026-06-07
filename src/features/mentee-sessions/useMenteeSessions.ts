@@ -19,6 +19,8 @@ export interface MenteeSessionRow {
   cancelled_at: string | null;
   mentor: { full_name: string; avatar_url: string | null } | null;
   feedback?: { rating: number; comment: string | null; audience: string }[];
+  program_id: string | null;
+  program: { id: string; name: string; color: string; slug: string } | null;
 }
 
 export const menteeSessionsKey = (userId?: string) =>
@@ -30,7 +32,7 @@ export async function fetchMenteeSessions(userId: string): Promise<MenteeSession
   const { data, error } = await supabase
     .from("sessions")
     .select(
-      "id, scheduled_at, duration_minutes, status, mentor_id, title, topic, mentee_notes, notes, meeting_url, cancellation_reason, cancelled_at, mentor:users!sessions_mentor_id_fkey(full_name, avatar_url), feedback(rating, comment, audience)"
+      "id, scheduled_at, duration_minutes, status, mentor_id, title, topic, mentee_notes, notes, meeting_url, cancellation_reason, cancelled_at, mentor:users!sessions_mentor_id_fkey(full_name, avatar_url), feedback(rating, comment, audience), program_id, program:programs(id, name, color, slug)"
     )
     .eq("mentee_id", userId)
     .order("scheduled_at", { ascending: false });

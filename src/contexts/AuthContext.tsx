@@ -86,7 +86,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profileError || !profileData) {
         console.error("[auth] profile fetch failed", profileError);
-        if (window.location.pathname !== "/reset-password") {
+        if (window.location.pathname !== "/reset-password" && window.location.pathname !== "/forgot-password") {
           // Session exists but we can't load the user row (RLS 403, missing row,
           // stale token). Clear the orphaned session to avoid redirect loops.
           setProfile(null);

@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -30,11 +30,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, MoreHorizontal, Search, UserPlus } from "lucide-react";
 import {
   useAdminUsers, useCreateUser, useToggleMentorActive, useSetUserDisabled, useDeleteUser,
-  type RoleFilter, type StatusFilter,
+  useAdminUserDetails, type RoleFilter, type StatusFilter,
 } from "@/features/admin";
 import type { AppRole } from "@/features/admin/api/users";
 import { useAuth } from "@/contexts/AuthContext";
 import { handleError } from "@/lib/handleError";
+import { getResumeSignedUrl } from "@/features/mentor-profile/api/mentorProfile";
 
 const PAGE_SIZE = 25;
 
@@ -72,6 +73,7 @@ const AdminUsers = () => {
   const [newRole, setNewRole] = useState<AppRole>("mentee");
   const [newPassword, setNewPassword] = useState("");
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [detailsUser, setDetailsUser] = useState<{ id: string; role: AppRole } | null>(null);
 
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
@@ -342,6 +344,7 @@ const AdminUsers = () => {
                           <UserRowActions
                             user={u}
                             isSelf={isSelf}
+                            onViewDetails={() => setDetailsUser({ id: u.id, role: u.role })}
                             onSetDisabled={handleSetDisabled}
                             pending={disableMutation.isPending}
                             onDeleteUser={handleDeleteUser}
@@ -372,15 +375,311 @@ const AdminUsers = () => {
           </div>
         </div>
       </div>
+
+      <Dialog open={!!detailsUser} onOpenChange={(o) => { if (!o) setDetailsUser(null); }}>
+        <DialogContent className="max-w-xl md:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>User Details</DialogTitle>
+          </DialogHeader>
+          {detailsUser && (
+            <UserDetailsDialogContent userId={detailsUser.id} role={detailsUser.role} />
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
 
+const UserDetailsDialogContent = ({ userId, role }: { userId: string; role: AppRole }) => {
+  const { data: details, isLoading, error } = useAdminUserDetails(userId, role);
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
+  const [isLoadingResume, setIsLoadingResume] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const fetchResume = async () => {
+      const path = details?.profile?.resume_url;
+      if (!path) {
+        setResumeUrl(null);
+        return;
+      }
+      setIsLoadingResume(true);
+      try {
+        const url = await getResumeSignedUrl(path);
+        if (active && url) {
+          setResumeUrl(url);
+        }
+      } catch (err) {
+        console.error("Error signing resume URL:", err);
+      } finally {
+        if (active) setIsLoadingResume(false);
+      }
+    };
+    if (details) {
+      fetchResume();
+    }
+    return () => {
+      active = false;
+    };
+  }, [details, details?.profile?.resume_url]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !details) {
+    return (
+      <div className="py-6 text-center text-destructive">
+        Failed to load user details.
+      </div>
+    );
+  }
+
+  const { full_name, email, avatar_url, created_at, is_disabled, profile } = details;
+
+  return (
+    <div className="space-y-6 pt-4">
+      {/* Header Profile Summary */}
+      <div className="flex items-center gap-4 pb-4 border-b">
+        <div className="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center text-xl font-bold uppercase overflow-hidden text-slate-700">
+          {avatar_url ? (
+            <img src={avatar_url} alt={full_name} className="h-full w-full object-cover" />
+          ) : (
+            full_name.split(" ").map((s) => s.charAt(0)).slice(0, 2).join("")
+          )}
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold">{full_name}</h3>
+          <p className="text-sm text-muted-foreground">{email}</p>
+          <div className="flex items-center gap-2 mt-1.5">
+            <Badge variant={role === "admin" ? "destructive" : role === "mentor" ? "default" : "secondary"}>
+              {role}
+            </Badge>
+            {is_disabled ? (
+              <Badge variant="outline" className="text-destructive border-destructive/40">Deactivated</Badge>
+            ) : (
+              <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400">Active</Badge>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Account Info */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div>
+          <span className="text-xs uppercase tracking-wide text-muted-foreground block">User ID</span>
+          <span className="font-mono text-xs">{userId}</span>
+        </div>
+        <div>
+          <span className="text-xs uppercase tracking-wide text-muted-foreground block">Joined On</span>
+          <span>{formatISTDate(created_at)}</span>
+        </div>
+      </div>
+
+      {/* Role-Specific Profile Details */}
+      {role === "admin" && (
+        <div className="p-4 bg-muted rounded-lg text-sm text-muted-foreground">
+          No additional profile information is collected for Admin users.
+        </div>
+      )}
+
+      {role === "mentee" && profile && (
+        <div className="space-y-4 pt-2 border-t">
+          <h4 className="font-semibold text-sm uppercase tracking-wider text-slate-500">Mentee Profile</h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            {profile.headline && (
+              <div className="md:col-span-2">
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Headline</span>
+                <span>{profile.headline}</span>
+              </div>
+            )}
+            {profile.bio && (
+              <div className="md:col-span-2">
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Bio</span>
+                <p className="whitespace-pre-wrap">{profile.bio}</p>
+              </div>
+            )}
+            {profile.organization_unit && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Team / Department</span>
+                <span>{profile.organization_unit}</span>
+              </div>
+            )}
+            {profile.academic_details && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Academic Details</span>
+                <span>{profile.academic_details}</span>
+              </div>
+            )}
+            <div className="md:col-span-2">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground block">Goals</span>
+              <p className="whitespace-pre-wrap">{profile.goals}</p>
+            </div>
+            {profile.interests && profile.interests.length > 0 && (
+              <div className="md:col-span-2">
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block mb-1">Interests</span>
+                <div className="flex flex-wrap gap-1">
+                  {profile.interests.map((interest: string) => (
+                    <Badge key={interest} variant="secondary">{interest}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {profile.preferred_mentor_areas && profile.preferred_mentor_areas.length > 0 && (
+              <div className="md:col-span-2">
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block mb-1">Preferred Mentor Areas</span>
+                <div className="flex flex-wrap gap-1">
+                  {profile.preferred_mentor_areas.map((area: string) => (
+                    <Badge key={area} variant="outline">{area}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            {profile.linkedin_url && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">LinkedIn</span>
+                <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+                  {profile.linkedin_url}
+                </a>
+              </div>
+            )}
+            {profile.github_url && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">GitHub</span>
+                <a href={profile.github_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+                  {profile.github_url}
+                </a>
+              </div>
+            )}
+            {profile.portfolio_url && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Portfolio</span>
+                <a href={profile.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+                  {profile.portfolio_url}
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {role === "mentor" && profile && (
+        <div className="space-y-4 pt-2 border-t">
+          <h4 className="font-semibold text-sm uppercase tracking-wider text-slate-500">Mentor Profile</h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            {profile.headline && (
+              <div className="md:col-span-2">
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Headline</span>
+                <span>{profile.headline}</span>
+              </div>
+            )}
+            {profile.bio && (
+              <div className="md:col-span-2">
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Bio</span>
+                <p className="whitespace-pre-wrap">{profile.bio}</p>
+              </div>
+            )}
+            {profile.current_organization && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Organization</span>
+                <span>{profile.current_organization}</span>
+              </div>
+            )}
+            {profile.current_role && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Role</span>
+                <span>{profile.current_role}</span>
+              </div>
+            )}
+            {profile.years_experience !== null && profile.years_experience !== undefined && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Years of Experience</span>
+                <span>{profile.years_experience} {profile.years_experience === 1 ? 'year' : 'years'}</span>
+              </div>
+            )}
+            {profile.timezone && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Timezone</span>
+                <span>{profile.timezone}</span>
+              </div>
+            )}
+            {profile.professional_status && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Professional Status</span>
+                <span>{profile.professional_status}</span>
+              </div>
+            )}
+            {profile.phone && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Phone</span>
+                <span>{profile.phone}</span>
+              </div>
+            )}
+            {profile.linkedin_url && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">LinkedIn</span>
+                <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+                  {profile.linkedin_url}
+                </a>
+              </div>
+            )}
+            {profile.portfolio_url && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Portfolio / Website</span>
+                <a href={profile.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+                  {profile.portfolio_url}
+                </a>
+              </div>
+            )}
+            {profile.resume_url && (
+              <div>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block mb-1">Resume</span>
+                {resumeUrl ? (
+                  <a href={resumeUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+                    View Resume
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground text-xs flex items-center gap-1.5">
+                    {isLoadingResume ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" /> Loading...
+                      </>
+                    ) : (
+                      "No resume available"
+                    )}
+                  </span>
+                )}
+              </div>
+            )}
+            {profile.expertise && profile.expertise.length > 0 && (
+              <div className="md:col-span-2">
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block mb-1">Expertise</span>
+                <div className="flex flex-wrap gap-1">
+                  {profile.expertise.map((exp: string) => (
+                    <Badge key={exp} variant="secondary">{exp}</Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const UserRowActions = ({
-  user, isSelf, onSetDisabled, pending, onDeleteUser, deletePending,
+  user, isSelf, onViewDetails, onSetDisabled, pending, onDeleteUser, deletePending,
 }: {
   user: { id: string; full_name: string; is_disabled: boolean };
   isSelf: boolean;
+  onViewDetails: () => void;
   onSetDisabled: (id: string, disabled: boolean) => void;
   pending: boolean;
   onDeleteUser: (id: string) => void;
@@ -394,21 +693,26 @@ const UserRowActions = ({
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isSelf}>
+          <Button variant="ghost" size="icon" className="h-8 w-8">
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          {user.is_disabled ? (
-            <DropdownMenuItem onClick={() => setConfirmOpen(true)}>Restore user</DropdownMenuItem>
-          ) : (
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setConfirmOpen(true)}>
-              Deactivate user
-            </DropdownMenuItem>
+          <DropdownMenuItem onClick={onViewDetails}>View details</DropdownMenuItem>
+          {!isSelf && (
+            <>
+              {user.is_disabled ? (
+                <DropdownMenuItem onClick={() => setConfirmOpen(true)}>Restore user</DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setConfirmOpen(true)}>
+                  Deactivate user
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setConfirmDeleteOpen(true)}>
+                Delete user
+              </DropdownMenuItem>
+            </>
           )}
-          <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => setConfirmDeleteOpen(true)}>
-            Delete user
-          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 

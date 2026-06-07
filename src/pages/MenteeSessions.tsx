@@ -40,6 +40,7 @@ import SessionHeroCard from "@/components/sessions/SessionHeroCard";
 import SessionListCard, {
   type OverflowAction,
   type SessionCardData,
+  type ProgramTag,
 } from "@/components/sessions/SessionListCard";
 import SessionsToolbar, {
   type SortMode,
@@ -60,7 +61,8 @@ import type { SessionStatus } from "@/features/mentor-sessions/useMentorSessions
 
 function toCardData(
   s: MenteeSessionRow,
-  programs: SessionCardData["programs"]
+  programs: SessionCardData["programs"],
+  bookedProgram?: ProgramTag | null
 ): SessionCardData {
   return {
     id: s.id,
@@ -78,6 +80,9 @@ function toCardData(
     menteeNotes: s.mentee_notes,
     cancellationReason: s.cancellation_reason,
     mentorFeedback: s.feedback?.find((f) => f.audience === "mentee") ?? null,
+    bookedProgram: bookedProgram ?? (s.program
+      ? { name: s.program.name, color: s.program.color, slug: s.program.slug }
+      : null),
   };
 }
 
@@ -87,6 +92,7 @@ const MenteeSessions = () => {
   const { toast } = useToast();
 
   const { data: sessions = [], isLoading } = useMenteeSessions(user?.id);
+  console.log("DEBUG: Mentee Sessions fetch:", sessions);
   const sessionIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
   const { data: ratedSessionIds = new Set<string>() } = useMenteeRatedSessions(
     user?.id,
@@ -200,7 +206,16 @@ const MenteeSessions = () => {
   };
 
   const buildCardActions = (s: MenteeSessionRow, isUpcoming: boolean) => {
-    const data = toCardData(s, mentorPrograms[s.mentor_id] || []);
+    const foundProg = s.program
+      ? { name: s.program.name, color: s.program.color, slug: s.program.slug }
+      : s.program_id
+      ? (mentorPrograms[s.mentor_id] || []).find((p) => p.id === s.program_id)
+      : null;
+
+    const progs = foundProg
+      ? [{ name: foundProg.name, color: foundProg.color, slug: foundProg.slug }]
+      : (mentorPrograms[s.mentor_id] || []);
+    const data = toCardData(s, progs, foundProg);
     const primary: React.ReactNode[] = [];
     const overflow: OverflowAction[] = [];
 

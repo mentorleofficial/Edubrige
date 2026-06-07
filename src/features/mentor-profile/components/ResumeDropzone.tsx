@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { FileText, Upload, X, ExternalLink, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,29 +36,32 @@ const ResumeDropzone = ({ currentPath, pendingFile, onFileChange, onRemoveCurren
     onFileChange(f);
   };
 
-  const openCurrent = async () => {
-    if (!currentPath) return;
-    const newWindow = window.open("", "_blank");
-    if (!newWindow) {
-      setError("Popup blocked. Please allow popups for this site.");
-      return;
-    }
-    setOpening(true);
-    try {
-      const url = await getResumeSignedUrl(currentPath);
-      if (url) {
-        newWindow.location.href = url;
-      } else {
-        newWindow.close();
-        setError("Could not retrieve resume URL.");
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const fetchUrl = async () => {
+      if (!currentPath) {
+        setResumeUrl(null);
+        return;
       }
-    } catch {
-      newWindow.close();
-      setError("Error opening resume.");
-    } finally {
-      setOpening(false);
-    }
-  };
+      setOpening(true);
+      try {
+        const url = await getResumeSignedUrl(currentPath);
+        if (active && url) {
+          setResumeUrl(url);
+        }
+      } catch (err) {
+        console.error("Error signing resume URL:", err);
+      } finally {
+        if (active) setOpening(false);
+      }
+    };
+    fetchUrl();
+    return () => {
+      active = false;
+    };
+  }, [currentPath]);
 
   const hasCurrent = !!currentPath && !pendingFile;
 
@@ -95,9 +98,17 @@ const ResumeDropzone = ({ currentPath, pendingFile, onFileChange, onRemoveCurren
           </div>
         </div>
         <div className="flex gap-1">
-          <Button type="button" variant="ghost" size="icon" onClick={openCurrent} disabled={opening}>
-            {opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <ExternalLink className="h-4 w-4" />}
-          </Button>
+          {resumeUrl ? (
+            <Button variant="ghost" size="icon" asChild>
+              <a href={resumeUrl} target="_blank" rel="noopener noreferrer" title="View resume">
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            </Button>
+          ) : (
+            <Button type="button" variant="ghost" size="icon" disabled>
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </Button>
+          )}
           <Button type="button" variant="ghost" size="sm" onClick={() => ref.current?.click()}>
             Replace
           </Button>

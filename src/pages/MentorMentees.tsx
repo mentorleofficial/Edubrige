@@ -1,13 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import { useMentorMentees, type MentorMenteeRow } from "@/features/mentor-mentees/useMentorMentees";
+import { MenteeDetailsDialog } from "@/features/mentor-mentees/components/MenteeDetailsDialog";
 
 const initials = (n: string) => n.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
 
@@ -16,6 +18,7 @@ const MentorMentees = () => {
   const [params, setParams] = useSearchParams();
   const { data: rows = [], isLoading } = useMentorMentees(user?.id);
   const { data: myPrograms = [] } = useMyPrograms();
+  const [selectedMenteeId, setSelectedMenteeId] = useState<string | null>(null);
 
   const programFilter = params.get("program") || "all";
 
@@ -82,7 +85,17 @@ const MentorMentees = () => {
                           <p className="text-sm font-medium truncate">{r.mentee.full_name}</p>
                           <p className="text-xs text-muted-foreground truncate">{r.mentee.email}</p>
                         </div>
-                        {r.assigned && <Badge variant="secondary" className="text-xs">Assigned</Badge>}
+                        <div className="flex items-center gap-2">
+                          {r.assigned && <Badge variant="secondary" className="text-xs">Assigned</Badge>}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedMenteeId(r.mentee.id)}
+                            className="text-xs h-7 px-2"
+                          >
+                            Details
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </CardContent>
@@ -92,6 +105,14 @@ const MentorMentees = () => {
           )
         }
       </div>
+
+      <MenteeDetailsDialog
+        menteeId={selectedMenteeId}
+        open={!!selectedMenteeId}
+        onOpenChange={(open) => {
+          if (!open) setSelectedMenteeId(null);
+        }}
+      />
     </AppLayout>
   );
 };

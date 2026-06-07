@@ -73,6 +73,9 @@ const MenteeOnboarding = () => {
           goals: data.goals,
           interests: data.interests,
           preferred_mentor_areas: data.preferred_mentor_areas,
+          academic_details: data.academic_details,
+          github_url: data.github_url,
+          portfolio_url: data.portfolio_url,
         });
       })
       .finally(() => !cancelled && setLoading(false));
@@ -108,6 +111,25 @@ const MenteeOnboarding = () => {
           }
           const ok = /linkedin\.com\/(in|pub)\//i.test(cleanL);
           if (!ok) return "Must be a linkedin.com/in/… URL";
+        }
+        if (values.github_url) {
+          let cleanG = values.github_url.trim().replace(/\/+$/, "");
+          if (!/^https?:\/\//i.test(cleanG)) {
+            cleanG = `https://${cleanG}`;
+          }
+          const ok = /github\.com\//i.test(cleanG);
+          if (!ok) return "Must be a github.com/… URL";
+        }
+        if (values.portfolio_url) {
+          let cleanP = values.portfolio_url.trim().replace(/\/+$/, "");
+          if (!/^https?:\/\//i.test(cleanP)) {
+            cleanP = `https://${cleanP}`;
+          }
+          try {
+            new URL(cleanP);
+          } catch {
+            return "Must be a valid portfolio URL";
+          }
         }
         return null;
       default:
@@ -149,6 +171,9 @@ const MenteeOnboarding = () => {
       goals: values.goals,
       interests: values.interests,
       preferred_mentor_areas: values.preferred_mentor_areas,
+      academic_details: values.academic_details,
+      github_url: values.github_url,
+      portfolio_url: values.portfolio_url,
     });
   };
 
@@ -294,17 +319,28 @@ const MenteeOnboarding = () => {
       )}
 
       {step === 2 && (
-        <div className="space-y-2">
-          <Label htmlFor="goals">What do you want to achieve?</Label>
-          <Textarea
-            id="goals"
-            rows={6}
-            value={values.goals}
-            maxLength={800}
-            onChange={(e) => set("goals", e.target.value)}
-            placeholder="e.g. Transition into a product role within 12 months, get feedback on my portfolio, prepare for senior interviews…"
-          />
-          <p className="text-xs text-muted-foreground text-right">{values.goals.length}/800</p>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="goals">What do you want to achieve?</Label>
+            <Textarea
+              id="goals"
+              rows={4}
+              value={values.goals}
+              maxLength={800}
+              onChange={(e) => set("goals", e.target.value)}
+              placeholder="e.g. Transition into a product role within 12 months, get feedback on my portfolio, prepare for senior interviews…"
+            />
+            <p className="text-xs text-muted-foreground text-right">{values.goals.length}/800</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="academic_details">Academic details <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Input
+              id="academic_details"
+              value={values.academic_details}
+              onChange={(e) => set("academic_details", e.target.value)}
+              placeholder="e.g. BS Computer Science @ Stanford University, Class of 2027"
+            />
+          </div>
         </div>
       )}
 
@@ -348,6 +384,38 @@ const MenteeOnboarding = () => {
               placeholder="https://www.linkedin.com/in/your-handle"
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="github">GitHub Profile <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Input
+              id="github"
+              value={values.github_url}
+              onChange={(e) => set("github_url", e.target.value)}
+              onBlur={(e) => {
+                let cleanG = e.target.value.trim().replace(/\/+$/, "");
+                if (cleanG && !/^https?:\/\//i.test(cleanG)) {
+                  cleanG = `https://${cleanG}`;
+                }
+                set("github_url", cleanG);
+              }}
+              placeholder="https://github.com/your-username"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="portfolio">Portfolio URL <span className="text-muted-foreground font-normal">(optional)</span></Label>
+            <Input
+              id="portfolio"
+              value={values.portfolio_url}
+              onChange={(e) => set("portfolio_url", e.target.value)}
+              onBlur={(e) => {
+                let cleanP = e.target.value.trim().replace(/\/+$/, "");
+                if (cleanP && !/^https?:\/\//i.test(cleanP)) {
+                  cleanP = `https://${cleanP}`;
+                }
+                set("portfolio_url", cleanP);
+              }}
+              placeholder="https://your-portfolio.com"
+            />
+          </div>
         </div>
       )}
 
@@ -358,6 +426,7 @@ const MenteeOnboarding = () => {
           {values.organization_unit && <ReviewRow label="Team" value={values.organization_unit} />}
           {values.bio && <ReviewRow label="About" value={values.bio} multiline />}
           <ReviewRow label="Goals" value={values.goals} multiline />
+          {values.academic_details && <ReviewRow label="Academic details" value={values.academic_details} />}
           <div>
             <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Interests</p>
             <div className="flex flex-wrap gap-1">
@@ -371,6 +440,8 @@ const MenteeOnboarding = () => {
             </div>
           </div>
           {values.linkedin_url && <ReviewRow label="LinkedIn" value={values.linkedin_url} />}
+          {values.github_url && <ReviewRow label="GitHub" value={values.github_url} />}
+          {values.portfolio_url && <ReviewRow label="Portfolio" value={values.portfolio_url} />}
         </div>
       )}
     </OnboardingShell>

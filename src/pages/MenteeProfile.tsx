@@ -37,6 +37,9 @@ const MenteeProfile = () => {
   const [goals, setGoals] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
   const [areas, setAreas] = useState<string[]>([]);
+  const [academicDetails, setAcademicDetails] = useState("");
+  const [github, setGithub] = useState("");
+  const [portfolio, setPortfolio] = useState("");
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -50,6 +53,9 @@ const MenteeProfile = () => {
     setGoals(data.goals);
     setInterests(data.interests);
     setAreas(data.preferred_mentor_areas);
+    setAcademicDetails(data.academic_details ?? "");
+    setGithub(data.github_url ?? "");
+    setPortfolio(data.portfolio_url ?? "");
     setHydrated(true);
   }, [data, hydrated]);
 
@@ -88,6 +94,35 @@ const MenteeProfile = () => {
       }
     }
     setLinkedin(cleanLinkedin);
+
+    let cleanGithub = github.trim();
+    if (cleanGithub) {
+      cleanGithub = cleanGithub.replace(/\/+$/, "");
+      if (!/^https?:\/\//i.test(cleanGithub)) {
+        cleanGithub = `https://${cleanGithub}`;
+      }
+      if (!/github\.com\//i.test(cleanGithub)) {
+        toast({ variant: "destructive", title: "Invalid GitHub URL", description: "Must be a github.com/... URL" });
+        return;
+      }
+    }
+    setGithub(cleanGithub);
+
+    let cleanPortfolio = portfolio.trim();
+    if (cleanPortfolio) {
+      cleanPortfolio = cleanPortfolio.replace(/\/+$/, "");
+      if (!/^https?:\/\//i.test(cleanPortfolio)) {
+        cleanPortfolio = `https://${cleanPortfolio}`;
+      }
+      try {
+        new URL(cleanPortfolio);
+      } catch {
+        toast({ variant: "destructive", title: "Invalid Portfolio URL", description: "Must be a valid portfolio URL" });
+        return;
+      }
+    }
+    setPortfolio(cleanPortfolio);
+
     setSaving(true);
     try {
       await upsertMenteeProfile(user.id, {
@@ -99,6 +134,9 @@ const MenteeProfile = () => {
         goals,
         interests,
         preferred_mentor_areas: areas,
+        academic_details: academicDetails,
+        github_url: cleanGithub,
+        portfolio_url: cleanPortfolio,
       });
       await refreshProfile();
       invalidate(user.id);
@@ -165,6 +203,36 @@ const MenteeProfile = () => {
                 placeholder="https://www.linkedin.com/in/…"
               />
             </div>
+            <div className="space-y-2">
+              <Label>GitHub Profile</Label>
+              <Input
+                value={github}
+                onChange={(e) => setGithub(e.target.value)}
+                onBlur={(e) => {
+                  let cleanG = e.target.value.trim().replace(/\/+$/, "");
+                  if (cleanG && !/^https?:\/\//i.test(cleanG)) {
+                    cleanG = `https://${cleanG}`;
+                  }
+                  setGithub(cleanG);
+                }}
+                placeholder="https://github.com/…"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Portfolio URL</Label>
+              <Input
+                value={portfolio}
+                onChange={(e) => setPortfolio(e.target.value)}
+                onBlur={(e) => {
+                  let cleanP = e.target.value.trim().replace(/\/+$/, "");
+                  if (cleanP && !/^https?:\/\//i.test(cleanP)) {
+                    cleanP = `https://${cleanP}`;
+                  }
+                  setPortfolio(cleanP);
+                }}
+                placeholder="https://…"
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -177,6 +245,14 @@ const MenteeProfile = () => {
             <div className="space-y-2">
               <Label>Goals</Label>
               <Textarea rows={4} value={goals} maxLength={800} onChange={(e) => setGoals(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Academic Details</Label>
+              <Input
+                value={academicDetails}
+                onChange={(e) => setAcademicDetails(e.target.value)}
+                placeholder="e.g. BS Computer Science @ Stanford University, Class of 2027"
+              />
             </div>
             <div className="space-y-2">
               <Label>Interests</Label>

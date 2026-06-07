@@ -30,6 +30,16 @@ const ResetPassword = () => {
     });
 
     const initializeSession = async () => {
+      // Check if we already have an active session
+      const { data: { session: existingSession } } = await supabase.auth.getSession();
+      if (existingSession) {
+        if (isSubscribed) {
+          setIsCheckingSession(false);
+          checked = true;
+        }
+        return;
+      }
+
       // Parse implicit flow tokens from the hash fragment
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
       const access_token = hashParams.get("access_token");
@@ -54,6 +64,31 @@ const ResetPassword = () => {
             navigate("/login");
           }
           return;
+        }
+      } else {
+        // Parse PKCE code from the query parameters
+        const searchParams = new URLSearchParams(window.location.search);
+        const code = searchParams.get("code");
+        if (code) {
+          try {
+            const { error } = await supabase.auth.exchangeCodeForSession(code);
+            if (error) throw error;
+            if (isSubscribed) {
+              setIsCheckingSession(false);
+              checked = true;
+            }
+          } catch (error: any) {
+            console.error("Error exchanging code for session:", error);
+            if (isSubscribed) {
+              toast({
+                variant: "destructive",
+                title: "Verification failed",
+                description: error.message || "Failed to exchange verification code for a session.",
+              });
+              navigate("/login");
+            }
+            return;
+          }
         }
       }
 
@@ -189,13 +224,18 @@ const ResetPassword = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
+            {/* Fake fields to prevent browser autofill */}
+            <input type="text" name="email" style={{ display: "none" }} />
+            <input type="password" name="password" style={{ display: "none" }} />
+
             <div className="space-y-2">
               <Label htmlFor="password">New Password</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="••••••••"
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -207,6 +247,7 @@ const ResetPassword = () => {
                 id="confirmPassword"
                 type="password"
                 placeholder="••••••••"
+                autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required

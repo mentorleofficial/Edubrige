@@ -287,6 +287,7 @@ const AdminProgramDetail = () => {
         .from("users")
         .select("id, full_name, email")
         .in("id", activeUserIds)
+        .eq("is_disabled", false)
         .order("full_name");
 
       if (usersErr) {
