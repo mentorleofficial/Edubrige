@@ -23,8 +23,13 @@ export function OverrideList({ overrides, onAdd, onRemove }: Props) {
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("17:00");
 
+  const isTimeRangeInvalid = mode === "custom" && start >= end;
+  const isDuplicateDate = overrides.some((o) => o.date === date);
+
   const submit = () => {
     if (!date) return;
+    if (isTimeRangeInvalid) return;
+    if (isDuplicateDate) return;
     onAdd({
       date,
       is_unavailable: mode === "blocked",
@@ -132,11 +137,23 @@ export function OverrideList({ overrides, onAdd, onRemove }: Props) {
               </div>
             )}
 
+            {isTimeRangeInvalid && (
+              <p className="text-xs text-destructive font-medium pt-1">
+                Start time must be before end time.
+              </p>
+            )}
+
+            {isDuplicateDate && (
+              <p className="text-xs text-destructive font-medium pt-1">
+                An override already exists for this date. Remove the existing one first.
+              </p>
+            )}
+
             <div className="flex gap-2 justify-end pt-2">
               <Button variant="outline" onClick={() => setAdding(false)}>
                 Cancel
               </Button>
-              <Button onClick={submit} disabled={!date} className={mode === "blocked" ? "bg-destructive hover:bg-destructive/90" : ""}>
+              <Button onClick={submit} disabled={!date || isTimeRangeInvalid || isDuplicateDate} className={mode === "blocked" ? "bg-destructive hover:bg-destructive/90" : ""}>
                 Add override
               </Button>
             </div>

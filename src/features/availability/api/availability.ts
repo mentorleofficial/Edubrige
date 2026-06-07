@@ -39,6 +39,54 @@ export async function fetchOverrides(mentorId: string): Promise<DateOverride[]> 
   return (data ?? []) as DateOverride[];
 }
 
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  description: string;
+  event_type: string;
+  start_date: string;
+  end_date: string;
+  sessions: any[] | null;
+  status: string;
+}
+
+export async function fetchMentorEvents(mentorId: string): Promise<CalendarEvent[]> {
+  const [eventsResult, sessionsResult] = await Promise.all([
+    supabase
+      .from("events_programs" as any)
+      .select("id, title, description, event_type, start_date, end_date, sessions, status")
+      .eq("created_by", mentorId)
+      .neq("status", "cancelled"),
+    supabase
+      .from("sessions")
+      .select("id, title, topic, scheduled_at, duration_minutes, status")
+      .eq("mentor_id", mentorId)
+      .eq("status", "booked")
+  ]);
+
+  if (eventsResult.error) throw eventsResult.error;
+  if (sessionsResult.error) throw sessionsResult.error;
+
+  const events = (eventsResult.data ?? []) as CalendarEvent[];
+  
+  const mappedSessions = (sessionsResult.data ?? []).map((s): CalendarEvent => {
+    const start = new Date(s.scheduled_at);
+    const end = new Date(start.getTime() + (s.duration_minutes || 60) * 60 * 1000);
+    return {
+      id: s.id,
+      title: s.title || "Booked Session",
+      description: s.topic || "Mentorship Session",
+      event_type: "session",
+      start_date: s.scheduled_at,
+      end_date: end.toISOString(),
+      sessions: null,
+      status: s.status,
+    };
+  });
+
+  return [...events, ...mappedSessions];
+}
+
 export interface AvailabilitySettings {
   timezone: string;
   buffer_time_minutes: number;

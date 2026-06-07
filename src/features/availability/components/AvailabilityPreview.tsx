@@ -1,11 +1,11 @@
 import { formatIST } from "@/lib/datetime";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Globe, Eye } from "lucide-react";
+import { ChevronLeft, ChevronRight, Globe, Eye, Video } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { WeeklySlot, DateOverride } from "../api/availability";
+import type { WeeklySlot, DateOverride, CalendarEvent } from "../api/availability";
 import {
   getMonthMatrix,
   getRangesForDate,
@@ -15,6 +15,7 @@ import {
   hasAnyAvailability,
   hasAnyAvailabilityWithNotice,
   isSameDay,
+  ymd,
 } from "../previewUtils";
 
 interface Props {
@@ -23,6 +24,7 @@ interface Props {
   timezone: string;
   minNoticeHours?: number;
   bufferTimeMinutes?: number;
+  events?: CalendarEvent[];
 }
 
 const MONTH_NAMES = [
@@ -36,7 +38,8 @@ export function AvailabilityPreview({
   overrides,
   timezone,
   minNoticeHours = 0,
-  bufferTimeMinutes = 0
+  bufferTimeMinutes = 0,
+  events = []
 }: Props) {
   const today = useMemo(() => {
     const t = new Date();
@@ -78,6 +81,22 @@ export function AvailabilityPreview({
 
   const goPrev = () => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1));
   const goNext = () => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1));
+
+  // Helper to fetch events scheduled on a specific date
+  const getEventsOnDate = (date: Date) => {
+    const key = ymd(date);
+    return events.filter((evt) => {
+      const hasSessions = evt.sessions && evt.sessions.length > 0;
+      if (hasSessions) {
+        return evt.sessions.some((s: any) => s.date === key);
+      } else {
+        const startIST = formatIST(new Date(evt.start_date), "yyyy-MM-dd");
+        return startIST === key;
+      }
+    });
+  };
+
+  const selectedEvents = selected ? getEventsOnDate(selected) : [];
 
   return (
     <Card className="lg:sticky lg:top-4">
@@ -123,7 +142,11 @@ export function AvailabilityPreview({
             const isToday = isSameDay(date, today);
             const isBlocked = kind === "blocked";
             const isCustom = kind === "custom";
-            const clickable = available || isBlocked; // allow selecting blocked dates to see badge
+            const dayEvents = getEventsOnDate(date);
+            const hasGroupEvent = dayEvents.some((evt) => evt.event_type !== "session");
+            const hasSession = dayEvents.some((evt) => evt.event_type === "session");
+            const hasEvent = dayEvents.length > 0;
+            const clickable = available || isBlocked || hasEvent;
 
             return (
               <button
@@ -134,7 +157,7 @@ export function AvailabilityPreview({
                 className={cn(
                   "relative aspect-square rounded-full text-xs flex items-center justify-center transition-colors",
                   !inMonth && "text-muted-foreground/40",
-                  inMonth && !available && !isBlocked && "text-muted-foreground/60 cursor-not-allowed",
+                  inMonth && !available && !isBlocked && !hasEvent && "text-muted-foreground/60 cursor-not-allowed",
                   available && !isCustom && !isSelected && "bg-primary/10 text-primary font-medium hover:bg-primary/20",
                   isCustom && !isSelected && "bg-amber-500/10 text-amber-700 dark:text-amber-400 font-medium ring-2 ring-amber-500/60 hover:bg-amber-500/20",
                   isBlocked && !isSelected && "text-muted-foreground line-through",
@@ -143,16 +166,24 @@ export function AvailabilityPreview({
                 )}
               >
                 {date.getDate()}
-                {isBlocked && (
-                  <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-destructive" />
-                )}
+                <div className="absolute bottom-0.5 left-0 right-0 flex justify-center gap-0.5">
+                  {isBlocked && (
+                    <span className="h-1 w-1 rounded-full bg-destructive" />
+                  )}
+                  {hasGroupEvent && (
+                    <span className="h-1 w-1 rounded-full bg-purple-600" />
+                  )}
+                  {hasSession && (
+                    <span className="h-1 w-1 rounded-full bg-blue-600" />
+                  )}
+                </div>
               </button>
             );
           })}
         </div>
 
         {/* Legend */}
-        <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-center gap-3 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-full bg-primary/40" /> Available
           </span>
@@ -161,6 +192,12 @@ export function AvailabilityPreview({
           </span>
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-full bg-destructive" /> Blocked
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full bg-purple-600" /> Event
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full bg-blue-600" /> Session
           </span>
         </div>
 
@@ -184,7 +221,7 @@ export function AvailabilityPreview({
               )}
             </div>
           )}
-          {selected && timeRanges.length === 0 && (
+          {selected && timeRanges.length === 0 && selectedEvents.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-4">
               {selectedKind === "blocked"
                 ? "Marked unavailable on this date."
@@ -203,6 +240,74 @@ export function AvailabilityPreview({
                   {range}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Events on this day list */}
+          {selected && selectedEvents.length > 0 && (
+            <div className="mt-4 border-t pt-4 space-y-2">
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Events on this day
+              </h4>
+              <div className="space-y-2">
+                {selectedEvents.map((evt) => {
+                  const isMulti = evt.sessions && evt.sessions.length > 0;
+                  const session = isMulti ? evt.sessions.find((s: any) => s.date === ymd(selected)) : null;
+                  const formatTime12Hour = (timeStr: string) => {
+                    if (!timeStr) return "";
+                    const [h, m] = timeStr.split(":");
+                    const hr = parseInt(h, 10);
+                    const pm = hr >= 12 ? "PM" : "AM";
+                    return `${hr % 12 || 12}:${m} ${pm}`;
+                  };
+                  const timeLabel = isMulti && session
+                    ? `${formatTime12Hour(session.start_time)} - ${formatTime12Hour(session.end_time)}`
+                    : `${formatIST(new Date(evt.start_date), "h:mm a")} - ${formatIST(new Date(evt.end_date), "h:mm a")}`;
+
+                  const isSession = evt.event_type === "session";
+
+                  return (
+                    <div
+                      key={evt.id}
+                      className={cn(
+                        "p-3 rounded-lg border text-sm space-y-1",
+                        isSession
+                          ? "border-blue-100 bg-blue-500/5 text-blue-950 dark:bg-blue-950/20 dark:border-blue-900/50"
+                          : "border-purple-100 bg-purple-500/5 text-purple-950 dark:bg-purple-950/20 dark:border-purple-900/50"
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          "font-semibold flex items-center gap-1.5",
+                          isSession ? "text-blue-900 dark:text-blue-300" : "text-purple-900 dark:text-purple-300"
+                        )}
+                      >
+                        <Video className={cn("h-3.5 w-3.5 shrink-0", isSession ? "text-blue-600" : "text-purple-600")} />
+                        <span className="truncate">{evt.title}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{evt.description}</p>
+                      <div
+                        className={cn(
+                          "text-[10px] font-semibold flex items-center justify-between pt-1",
+                          isSession ? "text-blue-700 dark:text-blue-400" : "text-purple-700 dark:text-purple-400"
+                        )}
+                      >
+                        <span>{timeLabel}</span>
+                        <span
+                          className={cn(
+                            "uppercase tracking-wider px-1.5 py-0.5 rounded text-[8px]",
+                            isSession
+                              ? "bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-400"
+                              : "bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-400"
+                          )}
+                        >
+                          {evt.event_type?.replace("_", " ")}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </div>

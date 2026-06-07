@@ -58,6 +58,7 @@ const BookSession = () => {
   const mentor = staticData?.mentor ?? null;
   const slots = staticData?.slots ?? [];
   const overrides = staticData?.overrides ?? [];
+  const isCurrentlyUnavailable = slots.length === 0 && !overrides.some((o) => !o.is_unavailable);
   const timezone = staticData?.mentorProfile?.timezone ?? "UTC";
   const [selectedOffering, setSelectedOffering] = useState<BookingOffering | null>(null);
   const activeOffering = selectedOffering ?? staticData?.offerings?.[0] ?? null;
@@ -397,6 +398,18 @@ const BookSession = () => {
             </div>
           </CardContent>
         </Card>
+
+        {isCurrentlyUnavailable && (
+          <div className="text-sm text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">No availability slots configured</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                This mentor has not set up their weekly schedule yet. You can check back later or view other mentors.
+              </p>
+            </div>
+          </div>
+        )}
 
         <p className="flex items-center gap-2 text-xs text-muted-foreground">
           <Globe className="h-3 w-3" /> All times shown in <span className="font-medium">India Standard Time (IST)</span>

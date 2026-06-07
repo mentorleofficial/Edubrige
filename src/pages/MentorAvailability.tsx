@@ -28,6 +28,7 @@ const MentorAvailability = () => {
   const { data, isLoading, isFetching } = useMentorAvailability(user?.id);
   const slots = data?.slots ?? [];
   const overrides = data?.overrides ?? [];
+  const events = data?.events ?? [];
   const timezone = "Asia/Kolkata";
 
   const m = useAvailabilityMutations(user?.id);
@@ -260,6 +261,7 @@ const MentorAvailability = () => {
               timezone={timezone}
               minNoticeHours={minNotice}
               bufferTimeMinutes={bufferTime}
+              events={events}
             />
           </div>
         </div>

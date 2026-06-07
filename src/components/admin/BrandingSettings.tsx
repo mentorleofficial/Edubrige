@@ -28,6 +28,7 @@ interface BrandingRow {
   mentor_community_url: string;
   leaderboard_enabled: boolean;
   site_url: string;
+  supabase_api_url: string;
 }
 
 const DEFAULTS = {
@@ -190,6 +191,7 @@ const BrandingSettings = () => {
         mentor_community_url: draft.mentor_community_url,
         leaderboard_enabled: draft.leaderboard_enabled,
         site_url: draft.site_url,
+        supabase_api_url: draft.supabase_api_url,
       })
       .eq("id", draft.id);
     setSaving(false);
@@ -237,6 +239,17 @@ const BrandingSettings = () => {
               />
               <p className="text-xs text-muted-foreground">
                 The production URL of the web application. Used for links in invitation and review emails.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Supabase API URL</Label>
+              <Input 
+                value={draft.supabase_api_url || ""} 
+                onChange={(e) => update({ supabase_api_url: e.target.value })} 
+                placeholder="http://localhost:54321"
+              />
+              <p className="text-xs text-muted-foreground">
+                The URL of your Supabase API instance. Used by database cron jobs and Edge Functions (e.g. reminders).
               </p>
             </div>
             <div className="space-y-2">

@@ -13,8 +13,10 @@ import {
   copySlotsToDays,
   addOverride,
   deleteOverride,
+  fetchMentorEvents,
   type WeeklySlot,
   type DateOverride,
+  type CalendarEvent,
 } from "@/features/availability/api/availability";
 
 export const mentorAvailabilityKey = (userId?: string) =>
@@ -26,6 +28,7 @@ export interface MentorAvailabilityData {
   timezone: string;
   buffer_time_minutes: number;
   minimum_notice_hours: number;
+  events: CalendarEvent[];
 }
 
 export function useMentorAvailability(userId?: string) {
@@ -34,10 +37,11 @@ export function useMentorAvailability(userId?: string) {
     enabled: !!userId,
     staleTime: 60_000,
     queryFn: async (): Promise<MentorAvailabilityData> => {
-      const [slots, overrides, settings] = await Promise.all([
+      const [slots, overrides, settings, events] = await Promise.all([
         fetchWeeklySlots(userId!),
         fetchOverrides(userId!),
         fetchAvailabilitySettings(userId!),
+        fetchMentorEvents(userId!),
       ]);
       return {
         slots,
@@ -45,6 +49,7 @@ export function useMentorAvailability(userId?: string) {
         timezone: settings.timezone,
         buffer_time_minutes: settings.buffer_time_minutes,
         minimum_notice_hours: settings.minimum_notice_hours,
+        events,
       };
     },
   });
