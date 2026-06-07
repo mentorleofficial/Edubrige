@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBranding } from "@/contexts/BrandingContext";
 import { Navigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 const initials = (name: string) =>
   name.split(" ").map((n) => n[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "M";
@@ -16,6 +17,7 @@ const initials = (name: string) =>
 const MentorLeaderboard = () => {
   const { user, profile } = useAuth();
   const branding = useBranding();
+  const { toast } = useToast();
   const { data: rows = [], isLoading } = useLeaderboard();
   const refresh = useRefreshEngagement();
 
@@ -41,7 +43,23 @@ const MentorLeaderboard = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => refresh.mutate()}
+              onClick={() =>
+                refresh.mutate(undefined, {
+                  onSuccess: (data: any) => {
+                    toast({
+                      title: "Recalculation complete",
+                      description: `Successfully updated ${data.mentors || 0} mentors.`,
+                    });
+                  },
+                  onError: (err) => {
+                    toast({
+                      variant: "destructive",
+                      title: "Recalculation failed",
+                      description: err instanceof Error ? err.message : String(err),
+                    });
+                  },
+                })
+              }
               disabled={refresh.isPending}
             >
               <RefreshCw className={cn("h-4 w-4", refresh.isPending && "animate-spin")} />

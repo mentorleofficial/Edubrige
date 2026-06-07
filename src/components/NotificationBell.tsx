@@ -8,7 +8,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, BellOff, Check, Trash2, Clock } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  Check,
+  Trash2,
+  Clock,
+  CalendarCheck,
+  CalendarX,
+  CalendarClock,
+  CheckCircle2,
+  RefreshCw,
+  FileText,
+  BadgeCheck,
+  XCircle,
+  AlertCircle,
+  type LucideIcon,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 
@@ -20,6 +36,93 @@ interface Notification {
   type: string;
   read: boolean;
   created_at: string;
+}
+
+interface NotifStyle {
+  Icon: LucideIcon;
+  iconClass: string;
+  borderClass: string;
+  bgClass: string;
+}
+
+const TYPE_STYLES: Record<string, NotifStyle> = {
+  session_booked: {
+    Icon: CalendarCheck,
+    iconClass: "text-emerald-600 dark:text-emerald-400",
+    borderClass: "border-l-emerald-500",
+    bgClass: "bg-emerald-50/40 dark:bg-emerald-950/20",
+  },
+  session_cancelled_by_mentor: {
+    Icon: CalendarX,
+    iconClass: "text-red-500 dark:text-red-400",
+    borderClass: "border-l-red-500",
+    bgClass: "bg-red-50/40 dark:bg-red-950/20",
+  },
+  session_cancelled_by_mentee: {
+    Icon: CalendarX,
+    iconClass: "text-red-500 dark:text-red-400",
+    borderClass: "border-l-red-500",
+    bgClass: "bg-red-50/40 dark:bg-red-950/20",
+  },
+  session_rescheduled: {
+    Icon: CalendarClock,
+    iconClass: "text-amber-600 dark:text-amber-400",
+    borderClass: "border-l-amber-500",
+    bgClass: "bg-amber-50/40 dark:bg-amber-950/20",
+  },
+  session_completed: {
+    Icon: CheckCircle2,
+    iconClass: "text-emerald-600 dark:text-emerald-400",
+    borderClass: "border-l-emerald-500",
+    bgClass: "bg-emerald-50/40 dark:bg-emerald-950/20",
+  },
+  session_updated: {
+    Icon: RefreshCw,
+    iconClass: "text-blue-500 dark:text-blue-400",
+    borderClass: "border-l-blue-500",
+    bgClass: "bg-blue-50/40 dark:bg-blue-950/20",
+  },
+  application_submitted: {
+    Icon: FileText,
+    iconClass: "text-violet-600 dark:text-violet-400",
+    borderClass: "border-l-violet-500",
+    bgClass: "bg-violet-50/40 dark:bg-violet-950/20",
+  },
+  application_resubmitted: {
+    Icon: FileText,
+    iconClass: "text-violet-600 dark:text-violet-400",
+    borderClass: "border-l-violet-500",
+    bgClass: "bg-violet-50/40 dark:bg-violet-950/20",
+  },
+  application_approved: {
+    Icon: BadgeCheck,
+    iconClass: "text-emerald-600 dark:text-emerald-400",
+    borderClass: "border-l-emerald-500",
+    bgClass: "bg-emerald-50/40 dark:bg-emerald-950/20",
+  },
+  application_rejected: {
+    Icon: XCircle,
+    iconClass: "text-red-500 dark:text-red-400",
+    borderClass: "border-l-red-500",
+    bgClass: "bg-red-50/40 dark:bg-red-950/20",
+  },
+  application_changes_requested: {
+    Icon: AlertCircle,
+    iconClass: "text-amber-600 dark:text-amber-400",
+    borderClass: "border-l-amber-500",
+    bgClass: "bg-amber-50/40 dark:bg-amber-950/20",
+  },
+};
+
+const DEFAULT_STYLE: NotifStyle = {
+  Icon: Bell,
+  iconClass: "text-muted-foreground",
+  borderClass: "border-l-primary",
+  bgClass: "bg-muted/10",
+};
+
+function getStyle(type: string): NotifStyle {
+  return TYPE_STYLES[type] ?? DEFAULT_STYLE;
 }
 
 const NotificationBell = () => {
@@ -50,7 +153,6 @@ const NotificationBell = () => {
 
     fetchNotifications();
 
-    // Subscribe to notifications changes in real-time
     const channel = supabase
       .channel(`public:notifications:user_id=eq.${user.id}`)
       .on(
@@ -111,7 +213,6 @@ const NotificationBell = () => {
         .eq("id", id);
 
       if (error) throw error;
-      toast({ title: "Notification cleared" });
       fetchNotifications();
     } catch (e: any) {
       toast({ variant: "destructive", title: "Error", description: e.message });
@@ -155,52 +256,63 @@ const NotificationBell = () => {
           </div>
         ) : (
           <div className="divide-y">
-            {notifications.map((notif) => (
-              <div
-                key={notif.id}
-                className={`flex gap-3 p-4 transition-colors hover:bg-muted/40 ${
-                  !notif.read ? "bg-muted/10 font-medium border-l-2 border-primary" : ""
-                }`}
-              >
-                <div className="flex-1 space-y-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs font-semibold leading-tight text-foreground">
-                      {notif.title}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground whitespace-nowrap flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
-                    </span>
+            {notifications.map((notif) => {
+              const { Icon, iconClass, borderClass, bgClass } = getStyle(notif.type);
+              return (
+                <div
+                  key={notif.id}
+                  className={`flex gap-3 p-4 transition-colors hover:bg-muted/40 ${
+                    !notif.read
+                      ? `${bgClass} border-l-2 ${borderClass}`
+                      : ""
+                  }`}
+                >
+                  {/* Type icon */}
+                  <div className="mt-0.5 shrink-0">
+                    <Icon className={`h-4 w-4 ${iconClass}`} />
                   </div>
-                  <p className="text-xs text-muted-foreground leading-normal whitespace-pre-wrap">
-                    {notif.message}
-                  </p>
-                  {!notif.read && (
-                    <div className="pt-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => markAsRead(notif.id)}
-                        className="h-6 text-[10px] px-2 text-primary font-semibold hover:bg-muted"
-                      >
-                        <Check className="mr-1 h-3 w-3" /> Mark as read
-                      </Button>
+
+                  <div className="flex-1 space-y-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="text-xs font-semibold leading-tight text-foreground">
+                        {notif.title}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap flex items-center gap-1 shrink-0">
+                        <Clock className="h-3 w-3" />
+                        {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
+                      </span>
                     </div>
-                  )}
+                    <p className="text-xs text-muted-foreground leading-normal whitespace-pre-wrap break-words">
+                      {notif.message}
+                    </p>
+                    {!notif.read && (
+                      <div className="pt-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => markAsRead(notif.id)}
+                          className="h-6 text-[10px] px-2 text-primary font-semibold hover:bg-muted"
+                        >
+                          <Check className="mr-1 h-3 w-3" /> Mark as read
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col items-center justify-center">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => clearNotification(notif.id)}
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      title="Delete notification"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex flex-col items-center justify-center">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => clearNotification(notif.id)}
-                    className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                    title="Delete notification"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </DropdownMenuContent>

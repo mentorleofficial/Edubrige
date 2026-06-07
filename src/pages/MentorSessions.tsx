@@ -275,7 +275,9 @@ const MentorSessions = () => {
           </button>
         );
       }
+    }
 
+    if (s.status === "booked") {
       overflow.push(
         {
           label: "Mark complete",

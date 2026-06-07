@@ -33,22 +33,22 @@ export async function fetchMyPrograms(
   );
   if (programIds.length === 0) return [];
 
-  const [{ data: programs, error: pErr }, { data: mentors }, { data: mentees }, { data: tags }] =
+  const [{ data: programs, error: pErr }, { data: counts }, { data: tags }] =
     await Promise.all([
       supabase.from("programs").select("*").in("id", programIds).order("starts_on", { ascending: false }),
-      supabase.from("program_mentors").select("program_id").in("program_id", programIds),
-      supabase.from("program_mentees").select("program_id").in("program_id", programIds),
+      // SECURITY DEFINER RPC — returns accurate counts regardless of caller's role
+      supabase.rpc("get_program_member_counts", { program_ids: programIds }),
       supabase.from("program_tags").select("*").in("program_id", programIds),
     ]);
   if (pErr) throw pErr;
 
-  const countBy = (rows: { program_id: string }[] | null) => {
-    const m: Record<string, number> = {};
-    (rows || []).forEach((r) => (m[r.program_id] = (m[r.program_id] || 0) + 1));
-    return m;
-  };
-  const mc = countBy(mentors as any);
-  const ec = countBy(mentees as any);
+  const mc: Record<string, number> = {};
+  const ec: Record<string, number> = {};
+  ((counts as any[]) || []).forEach((r: any) => {
+    mc[r.program_id] = Number(r.mentor_count) || 0;
+    ec[r.program_id] = Number(r.mentee_count) || 0;
+  });
+
   const tagsBy: Record<string, ProgramTag[]> = {};
   (tags || []).forEach((t) => (tagsBy[t.program_id] = [...(tagsBy[t.program_id] || []), t]));
 
@@ -58,6 +58,7 @@ export async function fetchMyPrograms(
     mentee_count: ec[p.id] || 0,
     tags: tagsBy[p.id] || [],
   }));
+
 }
 
 export type ProgramOverview = {
@@ -100,10 +101,19 @@ export async function fetchProgramMentors(programId: string): Promise<ProgramMem
     .eq("program_id", programId);
   const ids = Array.from(new Set((rows || []).map((r) => r.mentor_id).filter(Boolean)));
   if (ids.length === 0) return [];
+  // Only return non-disabled users with an active mentor profile
+  const { data: activeProfiles } = await supabase
+    .from("mentor_profiles")
+    .select("user_id")
+    .in("user_id", ids)
+    .eq("is_active", true);
+  const activeIds = (activeProfiles || []).map((p) => p.user_id);
+  if (activeIds.length === 0) return [];
   const { data: users } = await supabase
     .from("users")
     .select("id, full_name, email, avatar_url")
-    .in("id", ids)
+    .in("id", activeIds)
+    .eq("is_disabled", false)
     .order("full_name");
   return (users || []) as ProgramMember[];
 }

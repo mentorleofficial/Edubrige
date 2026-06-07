@@ -40,14 +40,13 @@ const AdminPrograms = () => {
     setPrograms(data || []);
     if (data?.length) {
       const ids = data.map((p) => p.id);
-      const [{ data: m }, { data: me }] = await Promise.all([
-        supabase.from("program_mentors").select("program_id").in("program_id", ids),
-        supabase.from("program_mentees").select("program_id").in("program_id", ids),
-      ]);
+      const { data: countRows } = await supabase
+        .rpc("get_program_member_counts", { program_ids: ids });
       const c: Record<string, { mentors: number; mentees: number }> = {};
       ids.forEach((id) => (c[id] = { mentors: 0, mentees: 0 }));
-      m?.forEach((r: any) => c[r.program_id].mentors++);
-      me?.forEach((r: any) => c[r.program_id].mentees++);
+      (countRows as any[] || []).forEach((r: any) => {
+        c[r.program_id] = { mentors: Number(r.mentor_count) || 0, mentees: Number(r.mentee_count) || 0 };
+      });
       setCounts(c);
     }
     setLoading(false);
