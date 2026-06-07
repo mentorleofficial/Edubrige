@@ -82,6 +82,13 @@ export function useUpdateSessionStatus(userId?: string) {
         .update(patch as never)
         .eq("id", input.id);
       if (error) throw error;
+
+      if (input.status === "completed") {
+        supabase.functions.invoke("send-feedback-request", {
+          body: { session_id: input.id },
+        }).catch((err) => console.error("send-feedback-request failed:", err));
+      }
+
       return input;
     },
     onMutate: async (input) => {

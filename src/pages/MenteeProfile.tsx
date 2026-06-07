@@ -76,10 +76,18 @@ const MenteeProfile = () => {
 
   const handleSave = async () => {
     if (!user) return;
-    if (linkedin && !/^https?:\/\/(www\.)?linkedin\.com\//i.test(linkedin)) {
-      toast({ variant: "destructive", title: "Invalid LinkedIn URL" });
-      return;
+    let cleanLinkedin = linkedin.trim();
+    if (cleanLinkedin) {
+      cleanLinkedin = cleanLinkedin.replace(/\/+$/, "");
+      if (!/^https?:\/\//i.test(cleanLinkedin)) {
+        cleanLinkedin = `https://${cleanLinkedin}`;
+      }
+      if (!/linkedin\.com\/(in|pub)\//i.test(cleanLinkedin)) {
+        toast({ variant: "destructive", title: "Invalid LinkedIn URL", description: "Must be a linkedin.com/in/... URL" });
+        return;
+      }
     }
+    setLinkedin(cleanLinkedin);
     setSaving(true);
     try {
       await upsertMenteeProfile(user.id, {
@@ -87,7 +95,7 @@ const MenteeProfile = () => {
         headline,
         bio,
         organization_unit: orgUnit,
-        linkedin_url: linkedin,
+        linkedin_url: cleanLinkedin,
         goals,
         interests,
         preferred_mentor_areas: areas,
@@ -144,7 +152,18 @@ const MenteeProfile = () => {
             </div>
             <div className="space-y-2">
               <Label>LinkedIn URL</Label>
-              <Input value={linkedin} onChange={(e) => setLinkedin(e.target.value)} placeholder="https://www.linkedin.com/in/…" />
+              <Input
+                value={linkedin}
+                onChange={(e) => setLinkedin(e.target.value)}
+                onBlur={(e) => {
+                  let cleanL = e.target.value.trim().replace(/\/+$/, "");
+                  if (cleanL && !/^https?:\/\//i.test(cleanL)) {
+                    cleanL = `https://${cleanL}`;
+                  }
+                  setLinkedin(cleanL);
+                }}
+                placeholder="https://www.linkedin.com/in/…"
+              />
             </div>
           </CardContent>
         </Card>

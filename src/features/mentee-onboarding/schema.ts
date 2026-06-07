@@ -13,9 +13,20 @@ export const menteeOnboardingSchema = z.object({
     .string()
     .trim()
     .max(255)
+    .transform((v) => {
+      if (!v) return "";
+      let clean = v.replace(/\/+$/, "");
+      if (!/^https?:\/\//i.test(clean)) {
+        clean = `https://${clean}`;
+      }
+      return clean;
+    })
+    .pipe(
+      z.string().url("Must be a valid URL").or(z.literal(""))
+    )
     .refine(
-      (v) => v === "" || /^https?:\/\/(www\.)?linkedin\.com\//i.test(v),
-      "Enter a valid LinkedIn URL"
+      (v) => !v || /linkedin\.com\/(in|pub)\//i.test(v),
+      "Must be a linkedin.com/in/… URL"
     )
     .default(""),
   goals: z

@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Link2,
   MoreHorizontal,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -49,6 +50,7 @@ export interface SessionCardData {
   notes: string | null;
   menteeNotes: string;
   cancellationReason: string;
+  mentorFeedback?: { rating: number; comment: string | null } | null;
 }
 
 export interface OverflowAction {
@@ -233,6 +235,32 @@ export default function SessionListCard({
           {data.cancellationReason && (
             <div className="text-destructive">
               <span className="font-medium">Cancellation:</span> {data.cancellationReason}
+            </div>
+          )}
+          {data.mentorFeedback && (
+            <div className="mt-2 border-t pt-2 space-y-1">
+              <span className="font-medium flex items-center gap-1.5 text-foreground">
+                Mentor Feedback:
+                <span className="flex gap-0.5">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={cn(
+                        "h-3.5 w-3.5",
+                        star <= data.mentorFeedback!.rating
+                          ? "fill-yellow-500 text-yellow-500"
+                          : "text-muted-foreground/30"
+                      )}
+                    />
+                  ))}
+                </span>
+                <span className="text-xs text-muted-foreground font-normal">({data.mentorFeedback.rating}/5)</span>
+              </span>
+              {data.mentorFeedback.comment && (
+                <p className="text-muted-foreground italic pl-2 border-l-2 border-primary/20">
+                  "{data.mentorFeedback.comment}"
+                </p>
+              )}
             </div>
           )}
 

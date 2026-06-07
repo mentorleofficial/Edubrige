@@ -77,6 +77,7 @@ function toCardData(
     notes: s.notes,
     menteeNotes: s.mentee_notes,
     cancellationReason: s.cancellation_reason,
+    mentorFeedback: s.feedback?.find((f) => f.audience === "mentee") ?? null,
   };
 }
 

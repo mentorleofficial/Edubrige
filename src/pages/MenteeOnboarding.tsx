@@ -102,8 +102,12 @@ const MenteeOnboarding = () => {
       case 4:
         if (values.preferred_mentor_areas.length < 1) return "Pick at least one area";
         if (values.linkedin_url) {
-          const ok = /^https?:\/\/(www\.)?linkedin\.com\//i.test(values.linkedin_url);
-          if (!ok) return "Enter a valid LinkedIn URL";
+          let cleanL = values.linkedin_url.trim().replace(/\/+$/, "");
+          if (!/^https?:\/\//i.test(cleanL)) {
+            cleanL = `https://${cleanL}`;
+          }
+          const ok = /linkedin\.com\/(in|pub)\//i.test(cleanL);
+          if (!ok) return "Must be a linkedin.com/in/… URL";
         }
         return null;
       default:
@@ -129,12 +133,19 @@ const MenteeOnboarding = () => {
 
   const persistDraft = async () => {
     if (!user) return;
+    let cleanLinkedin = values.linkedin_url.trim();
+    if (cleanLinkedin) {
+      cleanLinkedin = cleanLinkedin.replace(/\/+$/, "");
+      if (!/^https?:\/\//i.test(cleanLinkedin)) {
+        cleanLinkedin = `https://${cleanLinkedin}`;
+      }
+    }
     await upsertMenteeProfile(user.id, {
       full_name: values.full_name,
       headline: values.headline,
       bio: values.bio,
       organization_unit: values.organization_unit,
-      linkedin_url: values.linkedin_url,
+      linkedin_url: cleanLinkedin,
       goals: values.goals,
       interests: values.interests,
       preferred_mentor_areas: values.preferred_mentor_areas,
@@ -327,6 +338,13 @@ const MenteeOnboarding = () => {
               id="linkedin"
               value={values.linkedin_url}
               onChange={(e) => set("linkedin_url", e.target.value)}
+              onBlur={(e) => {
+                let cleanL = e.target.value.trim().replace(/\/+$/, "");
+                if (cleanL && !/^https?:\/\//i.test(cleanL)) {
+                  cleanL = `https://${cleanL}`;
+                }
+                set("linkedin_url", cleanL);
+              }}
               placeholder="https://www.linkedin.com/in/your-handle"
             />
           </div>

@@ -34,6 +34,36 @@ const json = (body: unknown, status = 200) => {
   });
 };
 
+const escapeHtml = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+const buildInviteHtml = (appName: string, recipientName: string, role: string, inviteUrl: string) => {
+  const heading = `You've been invited to join ${escapeHtml(appName)}!`;
+  const intro = `Hello ${escapeHtml(recipientName)},<br/><br/>You have been invited to join ${escapeHtml(appName)} as a <strong>${escapeHtml(role)}</strong>. Click the button below to accept the invitation and set up your password.`;
+
+  const cta = `<tr><td align="center" style="padding:8px 24px 0;">
+       <a href="${escapeHtml(inviteUrl)}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Accept Invitation</a>
+     </td></tr>`;
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${heading}</title></head>
+  <body style="margin:0;padding:0;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#0f172a;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;padding:32px 16px;">
+      <tr><td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+          <tr><td style="padding:28px 24px 8px;">
+            <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;">${heading}</h1>
+            <p style="margin:0;font-size:14px;line-height:1.5;color:#475569;">${intro}</p>
+          </td></tr>
+          ${cta}
+          <tr><td style="background:#f8fafc;padding:16px 24px;text-align:center;font-size:11px;color:#94a3b8;margin-top:24px;">
+            Sent by ${escapeHtml(appName)}.
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body></html>`;
+};
+
 function getAppUrl(req: Request, branding?: any): string {
   // 1. Check database-configured site URL first
   if (branding?.site_url) {
@@ -133,12 +163,48 @@ Deno.serve(async (req) => {
           ? `${appUrl}reset-password`
           : `${appUrl}/reset-password`;
 
-        const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
-          data: { full_name, role },
-          redirectTo: redirectUrl,
+        const { data: linkData, error: inviteErr } = await admin.auth.admin.generateLink({
+          type: "invite",
+          email,
+          options: {
+            data: { full_name, role },
+            redirectTo: redirectUrl,
+          },
         });
-        if (error) return json({ error: error.message }, 400);
-        userId = data.user?.id ?? null;
+        if (inviteErr || !linkData?.properties?.action_link) {
+          return json({ error: inviteErr?.message ?? "Failed to generate invitation link" }, 400);
+        }
+        userId = linkData.user?.id ?? null;
+        const actionLink = linkData.properties.action_link;
+
+        const BREVO = Deno.env.get("BREVO_API_KEY");
+        if (!BREVO) {
+          return json({ error: "BREVO_API_KEY not configured" }, 500);
+        }
+
+        const appName = branding?.app_name || "Mentorship Platform";
+        const html = buildInviteHtml(appName, full_name, role, actionLink);
+        const subject = `Invitation to join ${appName} as a ${role}`;
+
+        const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": BREVO.trim(),
+            accept: "application/json",
+          },
+          body: JSON.stringify({
+            sender: { email: "noreply@mentorle.in", name: appName },
+            to: [{ email, name: full_name }],
+            subject,
+            htmlContent: html,
+          }),
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          return json({ error: `Brevo error ${res.status}: ${text}` }, 502);
+        }
 
         // If the invited user is a mentor, create a placeholder application in changes_requested status
         if (role === "mentor") {
