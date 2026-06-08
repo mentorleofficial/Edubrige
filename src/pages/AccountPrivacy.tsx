@@ -1,5 +1,6 @@
 import { formatISTDate, formatISTDateTime } from "@/lib/datetime";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -96,10 +97,10 @@ const AccountPrivacy = () => {
             <CardTitle className="text-lg">Current consent</CardTitle>
             <CardDescription>
               Active policy: {policy ? `v${policy.version}` : "—"}{" "}
-              {policy?.url && (
-                <a href={policy.url} target="_blank" rel="noreferrer" className="underline ml-1">
+              {policy && (
+                <Link to="/privacy-policy" className="underline ml-1">
                   Read policy
-                </a>
+                </Link>
               )}
             </CardDescription>
           </CardHeader>

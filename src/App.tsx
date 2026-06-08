@@ -49,6 +49,7 @@ const AdminPrivacyRequests = lazy(() => import("@/pages/AdminPrivacyRequests"));
 const MentorLeaderboard = lazy(() => import("@/pages/MentorLeaderboard"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
+const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 
 const App = () => (
   <ErrorBoundary>
@@ -101,6 +102,8 @@ const App = () => (
                   <Route path="/mentee/sessions" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><MenteeSessions /></MenteeOnboardingGuard></RoleGuard>} />
                   <Route path="/book/:mentorId" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><BookSession /></MenteeOnboardingGuard></RoleGuard>} />
                   <Route path="/session/:id/feedback" element={<RoleGuard allowedRoles={["mentor", "mentee"]}><SessionFeedback /></RoleGuard>} />
+                  <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+                  <Route path="/privacy-policy/:version" element={<RoleGuard allowedRoles={["admin"]}><PrivacyPolicy /></RoleGuard>} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
