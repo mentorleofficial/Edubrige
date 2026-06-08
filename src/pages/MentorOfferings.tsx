@@ -33,7 +33,6 @@ import {
   Coins,
   Tag,
   Loader2,
-  AlertCircle,
   Play,
   Pause,
   Archive,
@@ -48,10 +47,20 @@ export interface MentorshipOffering {
   price: number;
   currency: string;
   duration_minutes: number;
-  status: string; // 'draft' | 'active' | 'paused' | 'archived'
+  status: string;
   created_at: string;
   updated_at: string;
 }
+
+const CATEGORIES = [
+  "Resume Review",
+  "Portfolio Review",
+  "Career Guidance",
+  "Mock Interview",
+  "Code Review",
+  "General Mentorship",
+  "Project Guidance",
+];
 
 const MentorOfferings = () => {
   const { user, refreshProfile } = useAuth();
@@ -61,15 +70,18 @@ const MentorOfferings = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedOffering, setSelectedOffering] = useState<MentorshipOffering | null>(null);
 
-  // Form State
+  // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [duration, setDuration] = useState("30");
   const [price, setPrice] = useState("0");
   const [status, setStatus] = useState("draft");
-  const [category, setCategory] = useState("mentorship");
+  const [category, setCategory] = useState("General Mentorship");
+  const [customCategory, setCustomCategory] = useState("");
 
-  // Fetch offerings
+  // The resolved category value to save
+  const finalCategory = category === "Other" ? customCategory.trim() : category;
+
   const { data: offerings = [], isLoading } = useQuery<MentorshipOffering[]>({
     queryKey: ["mentor", "offerings", user?.id],
     enabled: !!user?.id,
@@ -79,17 +91,16 @@ const MentorOfferings = () => {
         .select("*")
         .eq("mentor_id", user!.id)
         .order("created_at", { ascending: false });
-
       if (error) throw error;
       return (data as MentorshipOffering[]) ?? [];
     },
   });
 
-  // Mutate offerings
   const saveMutation = useMutation({
-    mutationFn: async (payload: Omit<MentorshipOffering, "id" | "mentor_id" | "created_at" | "updated_at"> & { id?: string }) => {
+    mutationFn: async (
+      payload: Omit<MentorshipOffering, "id" | "mentor_id" | "created_at" | "updated_at"> & { id?: string }
+    ) => {
       if (payload.id) {
-        // Update
         const { error } = await supabase
           .from("mentorship_offerings")
           .update({
@@ -104,7 +115,6 @@ const MentorOfferings = () => {
           .eq("id", payload.id);
         if (error) throw error;
       } else {
-        // Insert
         const { error } = await supabase
           .from("mentorship_offerings")
           .insert({
@@ -134,11 +144,7 @@ const MentorOfferings = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      // We perform an archive action or hard delete
-      const { error } = await supabase
-        .from("mentorship_offerings")
-        .delete()
-        .eq("id", id);
+      const { error } = await supabase.from("mentorship_offerings").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: async () => {
@@ -178,7 +184,8 @@ const MentorOfferings = () => {
     setDuration("30");
     setPrice("0");
     setStatus("draft");
-    setCategory("mentorship");
+    setCategory("General Mentorship");
+    setCustomCategory("");
   };
 
   const handleEdit = (o: MentorshipOffering) => {
@@ -188,7 +195,14 @@ const MentorOfferings = () => {
     setDuration(String(o.duration_minutes));
     setPrice(String(o.price));
     setStatus(o.status);
-    setCategory(o.category);
+    // If saved category isn't in the preset list, treat it as "Other"
+    if (CATEGORIES.includes(o.category)) {
+      setCategory(o.category);
+      setCustomCategory("");
+    } else {
+      setCategory("Other");
+      setCustomCategory(o.category);
+    }
     setDialogOpen(true);
   };
 
@@ -198,6 +212,10 @@ const MentorOfferings = () => {
       toast({ variant: "destructive", title: "Title is required" });
       return;
     }
+    if (category === "Other" && !customCategory.trim()) {
+      toast({ variant: "destructive", title: "Please enter a custom category" });
+      return;
+    }
     saveMutation.mutate({
       id: selectedOffering?.id,
       title: title.trim(),
@@ -205,7 +223,7 @@ const MentorOfferings = () => {
       duration_minutes: Number(duration),
       price: Number(price),
       status,
-      category,
+      category: finalCategory,
       currency: "INR",
     });
   };
@@ -218,7 +236,6 @@ const MentorOfferings = () => {
         return <Badge className="bg-amber-500/15 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/35">Paused</Badge>;
       case "archived":
         return <Badge className="bg-destructive/15 hover:bg-destructive/20 text-destructive border border-destructive/35">Archived</Badge>;
-      case "draft":
       default:
         return <Badge variant="secondary">Draft</Badge>;
     }
@@ -269,22 +286,17 @@ const MentorOfferings = () => {
                       <CardTitle className="text-base font-semibold leading-tight tracking-tight truncate pr-2">
                         {o.title}
                       </CardTitle>
-
                       {o.description && (
                         <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
                           {o.description}
                         </p>
                       )}
                     </div>
-
-                    <div className="flex-shrink-0 pt-0.5">
-                      {getStatusBadge(o.status)}
-                    </div>
+                    <div className="flex-shrink-0 pt-0.5">{getStatusBadge(o.status)}</div>
                   </div>
                 </CardHeader>
 
                 <CardContent className="pt-0 flex-1 flex flex-col">
-                  {/* Metadata */}
                   <div className="flex items-center gap-5 text-sm text-muted-foreground mb-5">
                     <div className="flex items-center gap-1.5">
                       <Clock className="h-4 w-4" />
@@ -298,21 +310,14 @@ const MentorOfferings = () => {
                     </div>
                   </div>
 
-                  {/* Actions */}
                   <div className="mt-auto flex items-center justify-between pt-4 border-t">
-                    {/* Status Controls */}
                     <div className="flex items-center gap-1">
                       {o.status === "active" ? (
                         <Button
                           variant="ghost"
                           size="icon"
                           className="hover:bg-amber-100 hover:text-amber-600 dark:hover:bg-amber-950 dark:hover:text-amber-500"
-                          onClick={() =>
-                            updateStatusMutation.mutate({
-                              id: o.id,
-                              status: "paused",
-                            })
-                          }
+                          onClick={() => updateStatusMutation.mutate({ id: o.id, status: "paused" })}
                         >
                           <Pause className="h-4 w-4" />
                         </Button>
@@ -321,54 +326,33 @@ const MentorOfferings = () => {
                           variant="ghost"
                           size="icon"
                           className="hover:bg-emerald-100 hover:text-emerald-600 dark:hover:bg-emerald-950 dark:hover:text-emerald-500"
-                          onClick={() =>
-                            updateStatusMutation.mutate({
-                              id: o.id,
-                              status: "active",
-                            })
-                          }
+                          onClick={() => updateStatusMutation.mutate({ id: o.id, status: "active" })}
                         >
                           <Play className="h-4 w-4" />
                         </Button>
                       )}
-
                       {o.status !== "archived" && (
                         <Button
                           variant="ghost"
                           size="icon"
                           className="hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
-                          onClick={() =>
-                            updateStatusMutation.mutate({
-                              id: o.id,
-                              status: "archived",
-                            })
-                          }
+                          onClick={() => updateStatusMutation.mutate({ id: o.id, status: "archived" })}
                         >
                           <Archive className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
 
-                    {/* Main Actions */}
                     <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(o)}
-                        className="font-medium"
-                      >
-                        <Edit2 className="h-4 w-4 mr-2" />
-                        Edit
+                      <Button variant="outline" size="sm" onClick={() => handleEdit(o)} className="font-medium">
+                        <Edit2 className="h-4 w-4 mr-2" /> Edit
                       </Button>
-
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                         onClick={() => {
-                          if (confirm("Delete this offering?")) {
-                            deleteMutation.mutate(o.id);
-                          }
+                          if (confirm("Delete this offering?")) deleteMutation.mutate(o.id);
                         }}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -449,21 +433,27 @@ const MentorOfferings = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="category">Category *</Label>
-                  <Select value={category} onValueChange={setCategory}>
+                  <Select value={category} onValueChange={(val) => { setCategory(val); if (val !== "Other") setCustomCategory(""); }}>
                     <SelectTrigger id="category">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Resume Review">Resume Review</SelectItem>
-                      <SelectItem value="Portfolio Review">Portfolio Review</SelectItem>
-                      <SelectItem value="Career Guidance">Career Guidance</SelectItem>
-                      <SelectItem value="Mock Interview">Mock Interview</SelectItem>
-                      <SelectItem value="Code Review">Code Review</SelectItem>
-                      <SelectItem value="General Mentorship">General Mentorship</SelectItem>
-                      <SelectItem value="Project Guidance">Project Guidance</SelectItem>
+                      {CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
                       <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
+                  {category === "Other" && (
+                    <Input
+                      id="custom-category"
+                      placeholder="Enter custom category"
+                      value={customCategory}
+                      onChange={(e) => setCustomCategory(e.target.value)}
+                      className="mt-2"
+                      autoFocus
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -487,9 +477,7 @@ const MentorOfferings = () => {
                 </Button>
                 <Button type="submit" disabled={saveMutation.isPending}>
                   {saveMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…
-                    </>
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
                   ) : (
                     "Save Offering"
                   )}

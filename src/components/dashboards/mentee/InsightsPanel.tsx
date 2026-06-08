@@ -37,7 +37,7 @@ const InsightsPanel = ({ sessions, feedback, programsCount }: Props) => {
   const now = Date.now();
   const next14 = sessions.filter(
     (s) => s.status === "booked" && new Date(s.scheduled_at).getTime() > now &&
-    new Date(s.scheduled_at).getTime() < now + 14 * 24 * 3600 * 1000
+      new Date(s.scheduled_at).getTime() < now + 14 * 24 * 3600 * 1000
   ).length;
 
   return (
@@ -48,16 +48,32 @@ const InsightsPanel = ({ sessions, feedback, programsCount }: Props) => {
       </CardHeader>
       <CardContent className="space-y-4">
         {top ? (
-          <div className="flex items-center gap-3 rounded-md border bg-card/50 p-3">
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={top.avatar ?? undefined} />
-              <AvatarFallback>{top.name.split(" ").map((p) => p[0]).join("").slice(0, 2)}</AvatarFallback>
-            </Avatar>
-            <div className="min-w-0">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Top mentor</div>
-              <div className="truncate text-sm font-semibold">{top.name}</div>
-              <div className="text-xs text-muted-foreground">{top.count} session{top.count > 1 ? "s" : ""}</div>
-            </div>
+          <div className="rounded-md border bg-card/50 p-3">
+            <Link
+              to={`/book/${[...counts.entries()].find(([_, v]) => v.name === top.name)?.[0]}`}
+              className="flex items-center gap-3"
+            >
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={top.avatar ?? undefined} />
+                <AvatarFallback>
+                  {top.name
+                    .split(" ")
+                    .map((p) => p[0])
+                    .join("")
+                    .slice(0, 2)}
+                </AvatarFallback>
+              </Avatar>
+
+              <div className="min-w-0">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  Top mentor
+                </div>
+                <div className="truncate text-sm font-semibold">{top.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {top.count} session{top.count > 1 ? "s" : ""}
+                </div>
+              </div>
+            </Link>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No mentor history yet.</p>
@@ -78,7 +94,9 @@ const InsightsPanel = ({ sessions, feedback, programsCount }: Props) => {
         <div className="flex items-center justify-between rounded-md border bg-card/50 p-3">
           <div className="flex items-center gap-2 text-sm">
             <FolderKanban className="h-4 w-4 text-primary" />
-            <span>Active programs</span>
+            <Link to="/mentee/programs" className="text-sm font-medium">
+              Active programs
+            </Link>
           </div>
           <span className="text-sm font-semibold">{programsCount}</span>
         </div>

@@ -166,7 +166,10 @@ export function useBookSession() {
   const qc = useQueryClient();
   return useMutation<BookSessionResult, Error, BookSessionInput>({
     mutationFn: async (input) => {
-      const meetingUrl = `https://meet.jit.si/mentorle-${crypto.randomUUID()}`;
+      const meetingId =
+        globalThis.crypto?.randomUUID?.() ??
+        `${Date.now()}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
+      const meetingUrl = `https://meet.jit.si/mentorle-${meetingId}`;
 
       const { data: inserted, error } = await supabase
         .from("sessions")
