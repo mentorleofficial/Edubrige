@@ -67,7 +67,7 @@ export async function fetchMentorEvents(mentorId: string): Promise<CalendarEvent
   if (eventsResult.error) throw eventsResult.error;
   if (sessionsResult.error) throw sessionsResult.error;
 
-  const events = (eventsResult.data ?? []) as CalendarEvent[];
+  const events = (eventsResult.data ?? []) as unknown as CalendarEvent[];
   
   const mappedSessions = (sessionsResult.data ?? []).map((s): CalendarEvent => {
     const start = new Date(s.scheduled_at);

@@ -59,7 +59,13 @@ const MentorDashboard = () => {
   const handleSubmitFeedback = async () => {
     if (!pendingRatingSession || rating === 0 || !user) return;
     setSubmitting(true);
-    const rows = [
+    const rows: Array<{
+      session_id: string;
+      submitted_by: string;
+      rating: number;
+      comment: string | null;
+      audience: "mentee" | "admin_private";
+    }> = [
       {
         session_id: pendingRatingSession.id,
         submitted_by: user.id,
