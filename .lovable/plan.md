@@ -1,52 +1,53 @@
-## Problem
+## Find Mentor Page Redesign
 
-Two issues on the mentor dashboard "Pending mentee feedback" card:
+### Goals
+- Tighter, denser layout — no more big gaps between cards
+- Compact portrait cards, 4 per row on desktop (2 on tablet, 1-2 on mobile)
+- New expertise filter alongside existing search + program filter
+- Polished header + filter bar
 
-1. **Wrong count (always shows pending even when rated).** `useMentorDashboardData` fetches feedback with `.eq("audience", "mentor")` — that's feedback submitted BY mentees ABOUT the mentor. The pending-feedback logic in `MentorInsightsPanel` then builds `ratedIds` from `feedback.filter(f => f.submitted_by === userId)`, but no mentor-audience rows are submitted by the mentor → `ratedIds` is always empty → count equals total completed sessions. So the card never hides even after the mentor rates everyone.
+### Layout
 
-2. **No visibility into which mentees are pending.** The card just shows a number with a generic "Share feedback" link to `/mentor/sessions`. The user wants to see who's pending.
-
-## Fix
-
-### 1. Fetch the right feedback rows (`src/features/mentor-dashboard/useMentorDashboardData.ts`)
-
-Replace the single `audience = 'mentor'` query with both audiences so the dashboard has the data it needs:
-
-```ts
-const fbRes = await supabase
-  .from("feedback")
-  .select("id, session_id, rating, comment, created_at, submitted_by, audience")
-  .in("audience", ["mentor", "mentee"])
-  .in("session_id", sessionIds);
+```text
+ ┌──────────────────────────────────────────────┐
+ │  Find a Mentor                                │
+ │  Browse and book sessions                     │
+ ├──────────────────────────────────────────────┤
+ │ [Search…]  [Expertise ▾]  [Program: All | …]  │ ← sticky filter bar
+ │  Active chips: × React  × Design              │
+ ├──────────────────────────────────────────────┤
+ │  ┌────┐ ┌────┐ ┌────┐ ┌────┐                  │
+ │  │card│ │card│ │card│ │card│   ← 4-col grid   │
+ │  └────┘ └────┘ └────┘ └────┘     gap-4        │
+ │  ┌────┐ ┌────┐ ┌────┐ ┌────┐                  │
+ └──────────────────────────────────────────────┘
 ```
 
-Add `audience` to `MentorDashFeedback` type. Existing consumers that only care about `audience='mentor'` (e.g. `RecentFeedbackPanel`) keep working by filtering client-side.
+### Card changes
+- Drop the fixed `width: 260px` + `aspectRatio 3/4` per-card style that forces wide whitespace inside the grid cell
+- Use a proper responsive grid: `grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4`
+- Card becomes `aspect-[3/4]` and fills cell width
+- Keep dark portrait look (full-bleed image, gradient bottom overlay, name + years + Book Now)
+- Add top-left small expertise pill (first tag) for quick scanning
+- Hover: subtle scale + brighter overlay
 
-### 2. Filter mentor-audience consumers (`src/components/dashboards/mentor/RecentFeedbackPanel.tsx`)
+### Filters (new)
 
-Filter incoming `feedback` to `audience === 'mentor'` before rendering so the "Recent Feedback" panel still only shows what mentees said about the mentor.
+1. **Expertise multi-select** — extract unique expertise tags from loaded mentors, render as a Popover with checkable list + search. Active selections shown as removable chips under the filter bar. Filter logic: mentor must contain ALL selected tags (AND).
+2. **Keep existing**: search input (name/expertise), program pills.
+3. **Empty state** when filters return zero: friendly card with "Clear filters" button.
 
-### 3. Show pending mentees inline (`src/components/dashboards/mentor/MentorInsightsPanel.tsx`)
+### Technical scope
 
-- Compute `ratedIds` from `feedback.filter(f => f.submitted_by === userId && f.audience === 'mentee')`.
-- Build `pendingSessions = completedSessions.filter(s => !ratedIds.has(s.id))` (full objects, not just count).
-- If `pendingSessions.length === 0`, render nothing (already handled by the guard once the count is correct).
-- Otherwise render the card with a small list (max 3 visible, "+N more" link to `/mentor/sessions`) showing for each pending session:
-  - Mentee avatar + name (from `s.mentee?.full_name`)
-  - Session date (short format, IST via existing `formatIST*` helpers)
-  - "Rate" button linking to `/session/${s.id}/feedback`
+Files touched:
+- `src/pages/MentorDirectory.tsx` — replace card grid styles, add expertise filter state + Popover, sticky filter bar
+- New small component `src/features/mentors/components/ExpertiseFilter.tsx` — Popover + Command list for multi-select
+- Reuse existing `useMentors`, `Popover`, `Command`, `Badge` (no new deps)
 
-Layout stays compact inside the existing amber bordered card; uses semantic tokens, no hard-coded colors beyond the existing amber accent.
+Out of scope: backend queries, mentor schema, booking flow, other filters (years/availability/sort) — can add later if needed.
 
-## Scope
-
-- `src/features/mentor-dashboard/useMentorDashboardData.ts` — widen feedback query + type.
-- `src/components/dashboards/mentor/RecentFeedbackPanel.tsx` — filter to mentor audience.
-- `src/components/dashboards/mentor/MentorInsightsPanel.tsx` — fix logic, render mentee list.
-- No backend, RLS, schema, or other component changes.
-
-## Verification
-
-- Mentor with all completed sessions rated → card disappears.
-- Mentor with 2 unrated completed sessions → card shows both mentee names with Rate buttons; clicking opens `/session/:id/feedback`; after submitting, dashboard refetch hides that entry.
-- "Recent Feedback" panel still only shows mentee→mentor ratings.
+### Verification
+- Resize preview at desktop/tablet/mobile — cards reflow without empty gutters
+- Pick 2 expertise tags → grid filters to mentors with both; chips render with × to remove
+- Combine with search + program — all three intersect correctly
+- Clearing all filters restores full list
