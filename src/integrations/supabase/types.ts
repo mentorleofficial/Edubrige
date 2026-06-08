@@ -114,6 +114,7 @@ export type Database = {
           sidebar_foreground: string
           sidebar_primary: string
           site_url: string
+          supabase_api_url: string
           updated_at: string
         }
         Insert: {
@@ -135,6 +136,7 @@ export type Database = {
           sidebar_foreground?: string
           sidebar_primary?: string
           site_url?: string
+          supabase_api_url?: string
           updated_at?: string
         }
         Update: {
@@ -156,6 +158,7 @@ export type Database = {
           sidebar_foreground?: string
           sidebar_primary?: string
           site_url?: string
+          supabase_api_url?: string
           updated_at?: string
         }
         Relationships: []
@@ -231,6 +234,143 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      event_participants: {
+        Row: {
+          completion_status: string | null
+          event_id: string
+          id: string
+          progress_data: Json | null
+          registered_at: string
+          user_id: string
+        }
+        Insert: {
+          completion_status?: string | null
+          event_id: string
+          id?: string
+          progress_data?: Json | null
+          registered_at?: string
+          user_id: string
+        }
+        Update: {
+          completion_status?: string | null
+          event_id?: string
+          id?: string
+          progress_data?: Json | null
+          registered_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_participants_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events_programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events_programs: {
+        Row: {
+          banner_image_url: string | null
+          college_name: string
+          created_at: string
+          created_by: string
+          description: string
+          end_date: string
+          event_type: string
+          id: string
+          learning_outcomes: string | null
+          location: string
+          max_participants: number | null
+          meeting_link: string | null
+          participant_count: number
+          prerequisites: string | null
+          registration_deadline: string | null
+          registration_link: string | null
+          sessions: Json | null
+          speaker_github: string | null
+          speaker_image: string | null
+          speaker_linkedin: string | null
+          speaker_name: string | null
+          start_date: string
+          start_time: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          banner_image_url?: string | null
+          college_name?: string
+          created_at?: string
+          created_by: string
+          description: string
+          end_date: string
+          event_type: string
+          id?: string
+          learning_outcomes?: string | null
+          location?: string
+          max_participants?: number | null
+          meeting_link?: string | null
+          participant_count?: number
+          prerequisites?: string | null
+          registration_deadline?: string | null
+          registration_link?: string | null
+          sessions?: Json | null
+          speaker_github?: string | null
+          speaker_image?: string | null
+          speaker_linkedin?: string | null
+          speaker_name?: string | null
+          start_date: string
+          start_time: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          banner_image_url?: string | null
+          college_name?: string
+          created_at?: string
+          created_by?: string
+          description?: string
+          end_date?: string
+          event_type?: string
+          id?: string
+          learning_outcomes?: string | null
+          location?: string
+          max_participants?: number | null
+          meeting_link?: string | null
+          participant_count?: number
+          prerequisites?: string | null
+          registration_deadline?: string | null
+          registration_link?: string | null
+          sessions?: Json | null
+          speaker_github?: string | null
+          speaker_image?: string | null
+          speaker_linkedin?: string | null
+          speaker_name?: string | null
+          start_date?: string
+          start_time?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_programs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feedback: {
         Row: {
@@ -342,8 +482,10 @@ export type Database = {
       }
       mentee_profiles: {
         Row: {
+          academic_details: string
           bio: string
           created_at: string
+          github_url: string
           goals: string | null
           headline: string
           id: string
@@ -351,13 +493,16 @@ export type Database = {
           linkedin_url: string
           onboarded_at: string | null
           organization_unit: string | null
+          portfolio_url: string
           preferred_mentor_areas: string[]
           updated_at: string
           user_id: string
         }
         Insert: {
+          academic_details?: string
           bio?: string
           created_at?: string
+          github_url?: string
           goals?: string | null
           headline?: string
           id?: string
@@ -365,13 +510,16 @@ export type Database = {
           linkedin_url?: string
           onboarded_at?: string | null
           organization_unit?: string | null
+          portfolio_url?: string
           preferred_mentor_areas?: string[]
           updated_at?: string
           user_id: string
         }
         Update: {
+          academic_details?: string
           bio?: string
           created_at?: string
+          github_url?: string
           goals?: string | null
           headline?: string
           id?: string
@@ -379,6 +527,7 @@ export type Database = {
           linkedin_url?: string
           onboarded_at?: string | null
           organization_unit?: string | null
+          portfolio_url?: string
           preferred_mentor_areas?: string[]
           updated_at?: string
           user_id?: string
@@ -1090,6 +1239,8 @@ export type Database = {
           mentor_id: string
           notes: string | null
           offering_id: string | null
+          program_id: string | null
+          reminder_sent_at: string | null
           rescheduled_from_id: string | null
           scheduled_at: string
           status: Database["public"]["Enums"]["session_status"]
@@ -1109,6 +1260,8 @@ export type Database = {
           mentor_id: string
           notes?: string | null
           offering_id?: string | null
+          program_id?: string | null
+          reminder_sent_at?: string | null
           rescheduled_from_id?: string | null
           scheduled_at: string
           status?: Database["public"]["Enums"]["session_status"]
@@ -1128,6 +1281,8 @@ export type Database = {
           mentor_id?: string
           notes?: string | null
           offering_id?: string | null
+          program_id?: string | null
+          reminder_sent_at?: string | null
           rescheduled_from_id?: string | null
           scheduled_at?: string
           status?: Database["public"]["Enums"]["session_status"]
@@ -1154,6 +1309,20 @@ export type Database = {
             columns: ["offering_id"]
             isOneToOne: false
             referencedRelation: "mentorship_offerings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_program_id_fkey"
+            columns: ["program_id"]
+            isOneToOne: false
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sessions_rescheduled_from_id_fkey"
+            columns: ["rescheduled_from_id"]
+            isOneToOne: false
+            referencedRelation: "sessions"
             referencedColumns: ["id"]
           },
         ]
@@ -1276,6 +1445,23 @@ export type Database = {
           scheduled_at: string
         }[]
       }
+      get_mentee_profile_for_mentor: {
+        Args: { _mentee_id: string }
+        Returns: {
+          academic_details: string
+          avatar_url: string
+          bio: string
+          full_name: string
+          github_url: string
+          goals: string
+          headline: string
+          id: string
+          interests: string[]
+          organization_unit: string
+          portfolio_url: string
+          preferred_mentor_areas: string[]
+        }[]
+      }
       get_mentor_booking_info: {
         Args: { _mentor_id: string }
         Returns: {
@@ -1287,6 +1473,14 @@ export type Database = {
           is_active: boolean
           minimum_notice_hours: number
           timezone: string
+        }[]
+      }
+      get_program_member_counts: {
+        Args: { program_ids: string[] }
+        Returns: {
+          mentee_count: number
+          mentor_count: number
+          program_id: string
         }[]
       }
       get_public_mentor: {
