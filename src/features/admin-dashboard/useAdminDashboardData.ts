@@ -9,6 +9,8 @@ export type AdminSessionRow = {
   status: "booked" | "completed" | "cancelled";
   mentor_id: string;
   mentee_id: string;
+  mentor?: { id: string; full_name: string; email: string } | null;
+  mentee?: { id: string; full_name: string; email: string } | null;
 };
 
 export type AdminUserRow = {
@@ -112,7 +114,11 @@ export const useAdminDashboardData = () =>
         supabase.from("feedback").select("rating").eq("audience", "mentor"),
         supabase
           .from("sessions")
-          .select("id, scheduled_at, created_at, duration_minutes, status, mentor_id, mentee_id")
+          .select(
+            `id, scheduled_at, created_at, duration_minutes, status, mentor_id, mentee_id,
+             mentor:users!sessions_mentor_id_fkey(id, full_name, email),
+             mentee:users!sessions_mentee_id_fkey(id, full_name, email)`
+          )
           .gte("created_at", since30),
         supabase
           .from("users")
@@ -149,7 +155,7 @@ export const useAdminDashboardData = () =>
       const ratings = ((avgRatingRes.data ?? []) as { rating: number }[]).map((r) => r.rating);
       const avgRating = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
 
-      const sessions30 = (sess30Res.data as AdminSessionRow[] | null) ?? [];
+      let sessions30 = (sess30Res.data as AdminSessionRow[] | null) ?? [];
       const mentorIds = Array.from(new Set(sessions30.map((s) => s.mentor_id)));
       let mentorsById: Record<string, AdminMentorLite> = {};
       if (mentorIds.length > 0) {
@@ -161,6 +167,23 @@ export const useAdminDashboardData = () =>
           mentorsById[m.id] = m;
         });
       }
+
+      // Ensure mentee names are available as well — fetch if nested select didn't return them
+      const menteeIds = Array.from(new Set(sessions30.map((s) => s.mentee_id)));
+      let menteesById: Record<string, { id: string; full_name: string; email: string }> = {};
+      if (menteeIds.length > 0) {
+        const eres = await supabase.from("users").select("id, full_name, email").in("id", menteeIds);
+        ((eres.data as { id: string; full_name: string; email: string }[] | null) ?? []).forEach((u) => {
+          menteesById[u.id] = u;
+        });
+      }
+
+      // Attach mentor/mentee objects onto sessions when nested fields are missing
+      sessions30 = sessions30.map((s) => ({
+        ...s,
+        mentor: s.mentor ?? (mentorsById[s.mentor_id] ? { id: mentorsById[s.mentor_id].id, full_name: mentorsById[s.mentor_id].full_name, email: "" } : null),
+        mentee: s.mentee ?? menteesById[s.mentee_id] ?? null,
+      }));
 
       const auditRows = (auditRes.data as AdminAuditRow[] | null) ?? [];
       const actorIds = Array.from(
