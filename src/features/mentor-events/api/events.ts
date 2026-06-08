@@ -56,7 +56,7 @@ export async function fetchMentorEvents(mentorUserId: string): Promise<EventProg
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (events || []) as EventProgram[];
+  return (events || []) as unknown as EventProgram[];
 }
 
 // Fetch all events (for admin and mentee listings)
@@ -67,7 +67,7 @@ export async function fetchAllEvents(): Promise<EventProgram[]> {
     .order("created_at", { ascending: false });
 
   if (error) throw error;
-  return (events || []) as EventProgram[];
+  return (events || []) as unknown as EventProgram[];
 }
 
 // Create a new event
@@ -83,7 +83,7 @@ export async function createMentorEvent(eventData: Omit<EventProgram, "id" | "cr
     .single();
 
   if (error) throw error;
-  return data as EventProgram;
+  return data as unknown as EventProgram;
 }
 
 // Update an existing event
@@ -110,7 +110,7 @@ export async function updateMentorEvent(eventId: string, eventData: Partial<Even
     .single();
 
   if (error) throw error;
-  return data as EventProgram;
+  return data as unknown as EventProgram;
 }
 
 // Delete an event
@@ -148,8 +148,9 @@ export async function registerForEvent(eventId: string, userId: string): Promise
 
   if (eventError) throw eventError;
 
-  if (event && event.max_participants) {
-    if (event.participant_count >= event.max_participants) {
+  const ev = event as { max_participants?: number | null; participant_count?: number | null } | null;
+  if (ev && ev.max_participants) {
+    if ((ev.participant_count ?? 0) >= ev.max_participants) {
       throw new Error("This event is full. Registration is no longer available.");
     }
   }

@@ -490,13 +490,14 @@ const MenteeProfile = () => {
               <Separator className="mb-5" />
 
               <div className="flex flex-col items-center text-center">
-                <AvatarUploader
-                  url={avatarUrl}
-                  fallback={initials}
-                  uploading={uploading}
-                  onSelect={handleAvatar}
-                  className="mb-3 scale-90"
-                />
+                <div className="mb-3 scale-90">
+                  <AvatarUploader
+                    url={avatarUrl}
+                    fallback={initials}
+                    uploading={uploading}
+                    onSelect={handleAvatar}
+                  />
+                </div>
                 <p className="font-medium text-[15px]">{fullName || "Your name"}</p>
                 {headline && (
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">
