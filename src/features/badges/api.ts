@@ -75,14 +75,14 @@ export function useLeaderboard() {
         .limit(50);
       if (error) throw error;
       const rows = (data ?? []) as Omit<LeaderboardRow, "mentor">[];
-      const ids = rows.map((r) => r.mentor_id);
-      if (!ids.length) return [];
-      const { data: users } = await supabase
-        .from("users")
-        .select("id, full_name, avatar_url")
-        .in("id", ids);
-      const byId = new Map((users ?? []).map((u: any) => [u.id, u]));
-      return rows.map((r) => ({ ...r, mentor: byId.get(r.mentor_id) ?? null }));
+      if (!rows.length) return [];
+      // list_public_mentors already filters is_active = true — use it as the active-mentor allowlist
+      const { data: users } = await supabase.rpc("list_public_mentors");
+      const byId = new Map((users ?? []).map((u: any) => [u.user_id, { id: u.user_id, full_name: u.full_name, avatar_url: u.avatar_url }]));
+      // Only include rows whose mentor is in the active list
+      return rows
+        .filter((r) => byId.has(r.mentor_id))
+        .map((r) => ({ ...r, mentor: byId.get(r.mentor_id) ?? null }));
     },
     staleTime: 60_000,
   });

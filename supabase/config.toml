@@ -19,3 +19,6 @@ verify_jwt = false
 
 [functions.mentor-application-decision-email]
 verify_jwt = false
+
+[functions.refresh-mentor-engagement]
+verify_jwt = false

@@ -1,7 +1,11 @@
 // Recomputes mentor leaderboard stats (last 30 days) and re-evaluates badge awards.
 // Callable by any authenticated admin; service role used internally for writes.
-import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -35,7 +39,8 @@ Deno.serve(async (req) => {
     // Pull all mentors with active profiles
     const { data: mentors, error: mErr } = await admin
       .from("mentor_profiles")
-      .select("user_id");
+      .select("user_id")
+      .eq("is_active", true);
     if (mErr) throw mErr;
 
     // Pull all completed sessions in window
@@ -49,9 +54,10 @@ Deno.serve(async (req) => {
     // Pull all completed sessions ever (for badge thresholds)
     const { data: allSessions, error: asErr } = await admin
       .from("sessions")
-      .select("id, mentor_id, mentee_id, status")
+      .select("id, mentor_id, mentee_id, status, scheduled_at")
       .eq("status", "completed");
     if (asErr) throw asErr;
+
 
     // Pull all mentor feedback
     const { data: feedback, error: fErr } = await admin
