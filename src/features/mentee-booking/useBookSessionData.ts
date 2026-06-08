@@ -129,7 +129,8 @@ export function useBookedTimes(mentorId?: string, excludeSessionId?: string | nu
       });
       if (error) throw error;
 
-      let list = (data ?? []) as any[];
+      interface BookedTimeRow { id: string; scheduled_at: string; duration_minutes: number }
+      let list = (data ?? []) as BookedTimeRow[];
       if (excludeSessionId) {
         list = list.filter((item) => item.id !== excludeSessionId);
       }
@@ -180,6 +181,7 @@ export function useBookSession() {
           meeting_url: meetingUrl,
           offering_id: input.offeringId || null,
           program_id: input.programId || null,
+          rescheduled_from_id: input.rescheduleId || null,
         })
         .select("id")
         .single();

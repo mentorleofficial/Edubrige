@@ -17,6 +17,7 @@ export interface MenteeSessionRow {
   meeting_url: string;
   cancellation_reason: string;
   cancelled_at: string | null;
+  rescheduled_from_id: string | null;
   mentor: { full_name: string; avatar_url: string | null } | null;
   feedback?: { rating: number; comment: string | null; audience: string }[];
   program_id: string | null;
@@ -29,14 +30,32 @@ export const menteeRatedKey = (userId?: string) =>
   ["mentee", "rated-sessions", userId] as const;
 
 export async function fetchMenteeSessions(userId: string): Promise<MenteeSessionRow[]> {
-  const { data, error } = await supabase
+  const SELECT_WITH_RESCHEDULE =
+    "id, scheduled_at, duration_minutes, status, mentor_id, title, topic, mentee_notes, notes, meeting_url, cancellation_reason, cancelled_at, rescheduled_from_id, mentor:users!sessions_mentor_id_fkey(full_name, avatar_url), feedback(rating, comment, audience), program_id, program:programs(id, name, color, slug)";
+  const SELECT_WITHOUT_RESCHEDULE =
+    "id, scheduled_at, duration_minutes, status, mentor_id, title, topic, mentee_notes, notes, meeting_url, cancellation_reason, cancelled_at, mentor:users!sessions_mentor_id_fkey(full_name, avatar_url), feedback(rating, comment, audience), program_id, program:programs(id, name, color, slug)";
+
+  // .select() must come before .eq() and .order() in Supabase v2
+  let { data, error } = await supabase
     .from("sessions")
-    .select(
-      "id, scheduled_at, duration_minutes, status, mentor_id, title, topic, mentee_notes, notes, meeting_url, cancellation_reason, cancelled_at, mentor:users!sessions_mentor_id_fkey(full_name, avatar_url), feedback(rating, comment, audience), program_id, program:programs(id, name, color, slug)"
-    )
+    .select(SELECT_WITH_RESCHEDULE)
     .eq("mentee_id", userId)
     .order("scheduled_at", { ascending: false });
-  if (error) throw error;
+
+  // If the column doesn't exist yet (migration not applied), fall back gracefully
+  if (error) {
+    const fallback = await supabase
+      .from("sessions")
+      .select(SELECT_WITHOUT_RESCHEDULE)
+      .eq("mentee_id", userId)
+      .order("scheduled_at", { ascending: false });
+    if (fallback.error) throw fallback.error;
+    return ((fallback.data ?? []) as unknown as MenteeSessionRow[]).map((s) => ({
+      ...s,
+      rescheduled_from_id: null,
+    }));
+  }
+
   return (data as unknown as MenteeSessionRow[]) ?? [];
 }
 

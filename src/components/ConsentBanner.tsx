@@ -33,11 +33,9 @@ const ConsentBanner = () => {
               : "Please review our privacy policy."}
           </span>{" "}
           <span className="text-muted-foreground">{policy.summary}</span>{" "}
-          {policy.url && (
-            <a href={policy.url} target="_blank" rel="noreferrer" className="underline">
-              Read full policy
-            </a>
-          )}
+          <Link to="/privacy-policy" className="underline font-semibold">
+            Read full policy
+          </Link>
         </div>
         <Link to="/account/privacy" className="text-xs underline text-muted-foreground">
           Manage

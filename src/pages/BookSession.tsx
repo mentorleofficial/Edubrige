@@ -1,6 +1,7 @@
 import { APP_TZ, formatIST, formatISTDateTime } from "@/lib/datetime";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
@@ -56,6 +57,41 @@ const BookSession = () => {
   const { data: bookedTimes = [] } = useBookedTimes(mentorId, rescheduleId || undefined);
   const bookMutation = useBookSession();
 
+  const { data: originalSession } = useQuery({
+    queryKey: ["session", rescheduleId],
+    queryFn: async () => {
+      if (!rescheduleId) return null;
+      const { data, error } = await supabase
+        .from("sessions")
+        .select("id, status, offering_id, rescheduled_from_id, program_id")
+        .eq("id", rescheduleId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!rescheduleId,
+  });
+
+  useEffect(() => {
+    if (rescheduleId && originalSession) {
+      if (originalSession.status !== "booked") {
+        toast({
+          variant: "destructive",
+          title: "Cannot reschedule",
+          description: "Only booked sessions can be rescheduled.",
+        });
+        navigate("/mentee/sessions");
+      } else if (originalSession.rescheduled_from_id) {
+        toast({
+          variant: "destructive",
+          title: "Cannot reschedule",
+          description: "This session has already been rescheduled once.",
+        });
+        navigate("/mentee/sessions");
+      }
+    }
+  }, [rescheduleId, originalSession, toast, navigate]);
+
   const { data: menteePrograms = [] } = useMyPrograms();
   const [mentorProgramIds, setMentorProgramIds] = useState<string[]>([]);
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
@@ -79,15 +115,19 @@ const BookSession = () => {
   }, [menteePrograms, mentorProgramIds]);
 
   useEffect(() => {
-    const urlProgramId = params.get("programId");
-    if (urlProgramId && sharedPrograms.some((p) => p.id === urlProgramId)) {
-      setSelectedProgramId(urlProgramId);
-    } else if (sharedPrograms.length === 1) {
-      setSelectedProgramId(sharedPrograms[0].id);
-    } else if (sharedPrograms.length > 1 && !selectedProgramId) {
-      setSelectedProgramId(sharedPrograms[0].id);
+    if (rescheduleId && originalSession) {
+      setSelectedProgramId(originalSession.program_id);
+    } else {
+      const urlProgramId = params.get("programId");
+      if (urlProgramId && sharedPrograms.some((p) => p.id === urlProgramId)) {
+        setSelectedProgramId(urlProgramId);
+      } else if (sharedPrograms.length === 1) {
+        setSelectedProgramId(sharedPrograms[0].id);
+      } else if (sharedPrograms.length > 1 && !selectedProgramId) {
+        setSelectedProgramId(sharedPrograms[0].id);
+      }
     }
-  }, [sharedPrograms, params, selectedProgramId]);
+  }, [sharedPrograms, params, selectedProgramId, rescheduleId, originalSession]);
 
   const mentor = staticData?.mentor ?? null;
   const slots = staticData?.slots ?? [];
@@ -101,13 +141,20 @@ const BookSession = () => {
   // Sync selected offering
   useEffect(() => {
     if (staticData?.offerings && staticData.offerings.length > 0) {
-      const qId = params.get("offeringId");
-      const found = staticData.offerings.find((o) => o.id === qId) ?? staticData.offerings[0];
-      if (found && (!selectedOffering || selectedOffering.id !== found.id)) {
-        setSelectedOffering(found);
+      if (rescheduleId && originalSession) {
+        const found = staticData.offerings.find((o) => o.id === originalSession.offering_id);
+        if (found) {
+          setSelectedOffering(found);
+        }
+      } else {
+        const qId = params.get("offeringId");
+        const found = staticData.offerings.find((o) => o.id === qId) ?? staticData.offerings[0];
+        if (found && (!selectedOffering || selectedOffering.id !== found.id)) {
+          setSelectedOffering(found);
+        }
       }
     }
-  }, [staticData?.offerings, params]);
+  }, [staticData?.offerings, params, rescheduleId, originalSession]);
 
   // Sync title from selected offering
   useEffect(() => {
@@ -506,11 +553,25 @@ const BookSession = () => {
           </CardContent>
         </Card>
 
+        {rescheduleId && (
+          <div className="text-sm text-amber-600 dark:text-amber-400 font-medium bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex items-start gap-3">
+            <Info className="h-5 w-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Rescheduling Session</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                The offering and program selection are locked to the details of your original booking.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="space-y-3">
           <div className="flex items-end justify-between gap-3 flex-wrap">
             <div>
               <h2 className="text-xl font-bold">Choose an offering</h2>
-              <p className="text-sm text-muted-foreground">Select one card to continue to the calendar.</p>
+              <p className="text-sm text-muted-foreground">
+                {rescheduleId ? "The offering is locked for rescheduling." : "Select one card to continue to the calendar."}
+              </p>
             </div>
             {activeOffering && (
               <Badge className="rounded-full px-3 py-1 text-xs">
@@ -527,15 +588,19 @@ const BookSession = () => {
                   <button
                     key={offering.id}
                     type="button"
+                    disabled={!!rescheduleId}
                     onClick={() => {
                       setSelectedOffering(offering);
                       setSelectedDate(null);
                       setSelectedTime(null);
                     }}
                     className={cn(
-                      "text-left rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg",
+                      "text-left rounded-2xl border p-4 transition-all duration-200",
+                      !rescheduleId && "hover:-translate-y-0.5 hover:shadow-lg",
                       isSelected
                         ? "border-primary bg-primary/5 shadow-md ring-2 ring-primary/20"
+                        : rescheduleId
+                        ? "border-border bg-card opacity-60 cursor-not-allowed"
                         : "border-border bg-card hover:border-primary/40"
                     )}
                   >
@@ -768,6 +833,7 @@ const BookSession = () => {
                             id="program-select"
                             value={selectedProgramId || ""}
                             onChange={(e) => setSelectedProgramId(e.target.value || null)}
+                            disabled={!!rescheduleId}
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             {sharedPrograms.map((p) => (

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import {
 useCurrentPolicy,
   useAllPolicies,
@@ -24,7 +25,7 @@ const PrivacySettings = () => {
   const updateRetention = useUpdateRetention();
 
   const [version, setVersion] = useState("");
-  const [url, setUrl] = useState("");
+  const [content, setContent] = useState("");
   const [summary, setSummary] = useState("");
   const [makeCurrent, setMakeCurrent] = useState(true);
 
@@ -45,9 +46,9 @@ const PrivacySettings = () => {
       toast({ title: "Version required", variant: "destructive" });
       return;
     }
-    await upsert.mutateAsync({ version: version.trim(), url, summary, makeCurrent });
+    await upsert.mutateAsync({ version: version.trim(), content, summary, makeCurrent });
     setVersion("");
-    setUrl("");
+    setContent("");
     setSummary("");
     toast({ title: "Policy saved" });
   };
@@ -76,8 +77,8 @@ const PrivacySettings = () => {
           <div className="text-sm">
             <span className="font-medium">Current version:</span>{" "}
             {current ? <Badge variant="outline">v{current.version}</Badge> : <span className="text-muted-foreground">none</span>}
-            {current?.url && (
-              <a href={current.url} target="_blank" rel="noreferrer" className="ml-2 underline">
+            {current && (
+              <a href="/privacy-policy" target="_blank" rel="noreferrer" className="ml-2 underline">
                 View
               </a>
             )}
@@ -88,10 +89,18 @@ const PrivacySettings = () => {
               <Label>Version</Label>
               <Input value={version} onChange={(e) => setVersion(e.target.value)} placeholder="e.g. 2.0" />
             </div>
-            <div className="sm:col-span-2">
-              <Label>Policy URL</Label>
-              <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
-            </div>
+          </div>
+          <div>
+            <Label>Privacy Policy Content (Markdown)</Label>
+            <p className="text-xs text-muted-foreground mb-1.5">
+              Use the toolbar to format. Content is stored as Markdown.
+            </p>
+            <MarkdownEditor
+              value={content}
+              onChange={setContent}
+              placeholder={"# Privacy Policy\n\nDefine the terms and policies here..."}
+              rows={14}
+            />
           </div>
           <div>
             <Label>Summary (shown to users)</Label>
@@ -120,11 +129,9 @@ const PrivacySettings = () => {
                     <span className="text-muted-foreground text-xs">
                       {formatISTDate(p.effective_from)}
                     </span>
-                    {p.url && (
-                      <a href={p.url} target="_blank" rel="noreferrer" className="text-xs underline">
-                        link
-                      </a>
-                    )}
+                    <a href={`/privacy-policy/${p.version}`} target="_blank" rel="noreferrer" className="text-xs underline ml-2">
+                      view history
+                    </a>
                   </li>
                 ))}
               </ul>

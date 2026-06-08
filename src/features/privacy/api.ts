@@ -8,6 +8,7 @@ export interface PrivacyPolicy {
   id: string;
   version: string;
   url: string;
+  content: string;
   summary: string;
   effective_from: string;
   is_current: boolean;
@@ -252,14 +253,14 @@ export function useUpdateRetention() {
 export function useUpsertPolicy() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { version: string; url: string; summary: string; makeCurrent: boolean }) => {
+    mutationFn: async (input: { version: string; content: string; summary: string; makeCurrent: boolean }) => {
       if (input.makeCurrent) {
         await supabase.from("privacy_policy").update({ is_current: false }).eq("is_current", true);
       }
       const { error } = await supabase.from("privacy_policy").upsert(
         {
           version: input.version,
-          url: input.url,
+          content: input.content,
           summary: input.summary,
           is_current: input.makeCurrent,
         },

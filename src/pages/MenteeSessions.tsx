@@ -249,11 +249,13 @@ const MenteeSessions = () => {
         />
       );
 
-      overflow.push({
-        label: "Reschedule",
-        icon: <RefreshCw className="h-3.5 w-3.5" />,
-        onClick: () => navigate(`/book/${s.mentor_id}?reschedule=${s.id}`),
-      });
+      if (!s.rescheduled_from_id) {
+        overflow.push({
+          label: "Reschedule",
+          icon: <RefreshCw className="h-3.5 w-3.5" />,
+          onClick: () => navigate(`/book/${s.mentor_id}?reschedule=${s.id}`),
+        });
+      }
       overflow.push({
         label: "Cancel session",
         icon: <X className="h-3.5 w-3.5" />,
@@ -420,13 +422,15 @@ const MenteeSessions = () => {
 
   const heroSecondary = nextSession && (
     <div className="flex flex-wrap gap-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate(`/book/${nextSession.mentor_id}?reschedule=${nextSession.id}`)}
-      >
-        <RefreshCw className="mr-1 h-3.5 w-3.5" /> Reschedule
-      </Button>
+      {!nextSession.rescheduled_from_id && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate(`/book/${nextSession.mentor_id}?reschedule=${nextSession.id}`)}
+        >
+          <RefreshCw className="mr-1 h-3.5 w-3.5" /> Reschedule
+        </Button>
+      )}
       <Button variant="ghost" size="sm" onClick={() => setCancelTarget(nextSession)}>
         <X className="mr-1 h-3.5 w-3.5" /> Cancel
       </Button>

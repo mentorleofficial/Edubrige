@@ -848,6 +848,7 @@ export type Database = {
       }
       privacy_policy: {
         Row: {
+          content: string
           created_at: string
           created_by: string | null
           effective_from: string
@@ -859,6 +860,7 @@ export type Database = {
           version: string
         }
         Insert: {
+          content?: string
           created_at?: string
           created_by?: string | null
           effective_from?: string
@@ -870,6 +872,7 @@ export type Database = {
           version: string
         }
         Update: {
+          content?: string
           created_at?: string
           created_by?: string | null
           effective_from?: string
@@ -1087,6 +1090,7 @@ export type Database = {
           mentor_id: string
           notes: string | null
           offering_id: string | null
+          rescheduled_from_id: string | null
           scheduled_at: string
           status: Database["public"]["Enums"]["session_status"]
           title: string
@@ -1105,6 +1109,7 @@ export type Database = {
           mentor_id: string
           notes?: string | null
           offering_id?: string | null
+          rescheduled_from_id?: string | null
           scheduled_at: string
           status?: Database["public"]["Enums"]["session_status"]
           title?: string
@@ -1123,6 +1128,7 @@ export type Database = {
           mentor_id?: string
           notes?: string | null
           offering_id?: string | null
+          rescheduled_from_id?: string | null
           scheduled_at?: string
           status?: Database["public"]["Enums"]["session_status"]
           title?: string
