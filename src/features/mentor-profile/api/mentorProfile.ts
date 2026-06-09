@@ -8,6 +8,7 @@ export interface MentorProfileData extends MentorProfileFormValues {
   is_active: boolean;
   slug: string | null;
   has_offerings: boolean;
+  allow_mentee_attachments: boolean;
 }
 
 export async function fetchMentorProfile(userId: string): Promise<MentorProfileData> {
@@ -40,6 +41,7 @@ export async function fetchMentorProfile(userId: string): Promise<MentorProfileD
     is_active: p?.is_active ?? false,
     slug: ((p as any)?.slug as string | null) ?? null,
     has_offerings: (activeOfferingsCount ?? 0) > 0,
+    allow_mentee_attachments: p?.allow_mentee_attachments ?? false,
   };
 }
 
@@ -106,4 +108,12 @@ export async function getResumeSignedUrl(path: string): Promise<string | null> {
     .createSignedUrl(path, 60 * 10);
   if (error) return null;
   return data?.signedUrl ?? null;
+}
+
+export async function updateGlobalAttachmentToggle(userId: string, allow: boolean) {
+  const { error } = await supabase
+    .from("mentor_profiles")
+    .update({ allow_mentee_attachments: allow } as any)
+    .eq("user_id", userId);
+  if (error) throw error;
 }
