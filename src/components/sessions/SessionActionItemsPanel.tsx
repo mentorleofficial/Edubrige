@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatISTDate } from "@/lib/datetime";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, ListTodo, Paperclip, X } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  ListTodo,
+  Paperclip,
+  X,
+  FileText,
+  Image as ImageIcon,
+  FolderArchive,
+  Code2,
+  File,
+  Download,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   useSessionActionItems,
@@ -48,10 +60,32 @@ export default function SessionActionItemsPanel({
   const [newFiles, setNewFiles] = useState<File[]>([]);
   const [isUploading, setIsUploading] = useState<string | null>(null);
 
-  const { data: mentorProfile } = useMentorProfile(mentorId);
+  const { data: mentorProfile, refetch: refetchProfile } = useMentorProfile(mentorId);
   const allowMenteeAttachments = mentorProfile?.allow_mentee_attachments ?? false;
 
+  useEffect(() => {
+    refetchProfile();
+  }, [refetchProfile]);
+
   const canEdit = role === "mentor";
+
+  // Dynamic file type icon selector
+  const getFileIcon = (fileName: string) => {
+    const ext = fileName.split(".").pop()?.toLowerCase();
+    if (["jpg", "jpeg", "png", "gif", "svg", "webp"].includes(ext || "")) {
+      return <ImageIcon className="h-3.5 w-3.5 text-blue-500" />;
+    }
+    if (["pdf"].includes(ext || "")) {
+      return <FileText className="h-3.5 w-3.5 text-red-500" />;
+    }
+    if (["zip", "rar", "tar", "gz", "7z"].includes(ext || "")) {
+      return <FolderArchive className="h-3.5 w-3.5 text-amber-500" />;
+    }
+    if (["js", "ts", "jsx", "tsx", "html", "css", "json", "py", "go", "cpp", "c", "sh"].includes(ext || "")) {
+      return <Code2 className="h-3.5 w-3.5 text-emerald-500" />;
+    }
+    return <File className="h-3.5 w-3.5 text-muted-foreground" />;
+  };
 
   const handleAdd = async () => {
     const t = newTitle.trim();
@@ -62,7 +96,8 @@ export default function SessionActionItemsPanel({
         uploadedAttachments = await Promise.all(
           newFiles.map(async (file) => {
             const ext = file.name.split(".").pop();
-            const filePath = `${sessionId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+            // Path includes currentUserId folder for RLS policy alignment
+            const filePath = `${sessionId}/${currentUserId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
             const { error: uploadError } = await supabase.storage
               .from("session-attachments")
               .upload(filePath, file);
@@ -106,7 +141,7 @@ export default function SessionActionItemsPanel({
 
   const handleDelete = async (item: ActionItem) => {
     try {
-      // Delete attachments from storage first if any
+      // Delete attachments from storage first if any (non-blocking)
       const allAttachments = [
         ...(item.mentor_attachments || []),
         ...(item.mentee_attachments || [])
@@ -116,7 +151,11 @@ export default function SessionActionItemsPanel({
           .map((att) => att.url.split("/session-attachments/")[1])
           .filter(Boolean);
         if (paths.length > 0) {
-          await supabase.storage.from("session-attachments").remove(paths);
+          try {
+            await supabase.storage.from("session-attachments").remove(paths);
+          } catch (storageErr) {
+            console.warn("Storage cleanup warning during task deletion:", storageErr);
+          }
         }
       }
 
@@ -151,9 +190,31 @@ export default function SessionActionItemsPanel({
     if (!files || files.length === 0) return;
     setIsUploading(item.id);
     try {
+      // Pre-flight check for mentees to handle race condition when mentor toggles it off
+      if (type === "mentee") {
+        const { data: latestProfile, error: fetchErr } = await supabase
+          .from("mentor_profiles")
+          .select("allow_mentee_attachments")
+          .eq("user_id", mentorId)
+          .single();
+        
+        if (fetchErr) throw fetchErr;
+        if (!latestProfile?.allow_mentee_attachments) {
+          toast({
+            variant: "destructive",
+            title: "Upload disabled",
+            description: "The mentor has disabled reply attachments for this session.",
+          });
+          // Refresh local profile state to update UI
+          refetchProfile();
+          return;
+        }
+      }
+
       const file = files[0];
       const ext = file.name.split(".").pop();
-      const filePath = `${sessionId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
+      // Scoped path includes currentUserId
+      const filePath = `${sessionId}/${currentUserId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("session-attachments")
         .upload(filePath, file);
@@ -197,7 +258,17 @@ export default function SessionActionItemsPanel({
       if (attachment?.url) {
         const pathPart = attachment.url.split("/session-attachments/")[1];
         if (pathPart) {
-          await supabase.storage.from("session-attachments").remove([pathPart]);
+          // Wrapped storage delete so missing/already-deleted files do not block the DB sync
+          try {
+            const { error: storageError } = await supabase.storage
+              .from("session-attachments")
+              .remove([pathPart]);
+            if (storageError) {
+              console.warn("Storage deletion warning:", storageError.message);
+            }
+          } catch (storageErr) {
+            console.warn("Non-blocking storage deletion error:", storageErr);
+          }
         }
       }
 
@@ -236,22 +307,22 @@ export default function SessionActionItemsPanel({
         <p className="text-xs text-muted-foreground">No tasks assigned for this session.</p>
       )}
 
-      <ul className="space-y-2">
+      <ul className="space-y-3">
         {items.map((item) => (
           <li
             key={item.id}
             className={cn(
-              "flex items-start gap-3 rounded-md border p-3 text-sm bg-card shadow-sm",
-              item.status === "done" && "bg-muted/40"
+              "flex items-start gap-3 rounded-xl border p-4 text-sm bg-card shadow-sm transition-all duration-200 hover:shadow-md",
+              item.status === "done" && "bg-muted/40 border-muted"
             )}
           >
             <Checkbox
               checked={item.status === "done"}
               onCheckedChange={() => handleToggle(item)}
-              className="mt-0.5"
+              className="mt-1"
               aria-label="Mark complete"
             />
-            <div className="flex-1 min-w-0 space-y-2">
+            <div className="flex-1 min-w-0 space-y-3">
               <div className="space-y-1">
                 {canEdit ? (
                   <Input
@@ -259,10 +330,13 @@ export default function SessionActionItemsPanel({
                     onBlur={(e) => {
                       if (e.target.value !== item.title) handleInlineEdit(item, { title: e.target.value });
                     }}
-                    className={cn("h-8 border-0 px-0 focus-visible:ring-0 font-medium bg-transparent", item.status === "done" && "line-through text-muted-foreground")}
+                    className={cn(
+                      "h-8 border-0 px-0 focus-visible:ring-0 font-medium bg-transparent text-sm",
+                      item.status === "done" && "line-through text-muted-foreground"
+                    )}
                   />
                 ) : (
-                  <p className={cn("font-medium", item.status === "done" && "line-through text-muted-foreground")}>
+                  <p className={cn("font-medium text-sm", item.status === "done" && "line-through text-muted-foreground")}>
                     {item.title}
                   </p>
                 )}
@@ -274,12 +348,12 @@ export default function SessionActionItemsPanel({
                     }}
                     rows={1}
                     placeholder="Add details…"
-                    className="text-xs border-0 px-0 focus-visible:ring-0 resize-none min-h-0 bg-transparent"
+                    className="text-xs border-0 px-0 focus-visible:ring-0 resize-none min-h-0 bg-transparent text-muted-foreground"
                   />
                 ) : (
                   item.description && <p className="text-xs text-muted-foreground">{item.description}</p>
                 )}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground pt-0.5">
                   {canEdit ? (
                     <Input
                       type="date"
@@ -300,27 +374,44 @@ export default function SessionActionItemsPanel({
               </div>
 
               {/* Attachments Section */}
-              <div className="space-y-2 pt-1 border-t border-muted-foreground/10">
+              <div className="space-y-3 pt-3 border-t border-muted/50">
                 {/* Mentor Attachments */}
                 {item.mentor_attachments && item.mentor_attachments.length > 0 && (
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-semibold text-muted-foreground block">Mentor Attachments:</span>
-                    <div className="flex flex-wrap gap-1.5">
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase">Mentor Attachments</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {item.mentor_attachments.map((att, i) => (
-                        <div key={i} className="flex items-center gap-1.5 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] shadow-sm">
-                          <a href={att.url} target="_blank" rel="noreferrer" className="hover:underline text-primary truncate max-w-[150px]">
-                            {att.name}
-                          </a>
-                          {canEdit && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteAttachment(item, 'mentor', i)}
-                              className="text-muted-foreground hover:text-destructive ml-0.5"
-                              title="Remove attachment"
+                        <div key={i} className="group relative flex items-center justify-between gap-3 rounded-lg border bg-muted/30 hover:bg-muted/50 p-2 text-xs transition-all duration-200 shadow-sm border-muted/60 hover:border-muted-foreground/30">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-background border shadow-xs">
+                              {getFileIcon(att.name)}
+                            </div>
+                            <a href={att.url} target="_blank" rel="noreferrer" className="font-medium hover:underline text-foreground truncate max-w-[130px] sm:max-w-[170px]" title={att.name}>
+                              {att.name}
+                            </a>
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <a
+                              href={att.url}
+                              download
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex h-6 w-6 items-center justify-center rounded hover:bg-background text-muted-foreground hover:text-foreground transition-colors border shadow-xs"
+                              title="Download file"
                             >
-                              <X className="h-2.5 w-2.5" />
-                            </button>
-                          )}
+                              <Download className="h-3.5 w-3.5" />
+                            </a>
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAttachment(item, "mentor", i)}
+                                className="flex h-6 w-6 items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors border shadow-xs"
+                                title="Delete file"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -329,24 +420,41 @@ export default function SessionActionItemsPanel({
 
                 {/* Mentee Attachments */}
                 {item.mentee_attachments && item.mentee_attachments.length > 0 && (
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-semibold text-muted-foreground block">Mentee Attachments:</span>
-                    <div className="flex flex-wrap gap-1.5">
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase">Mentee Attachments</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {item.mentee_attachments.map((att, i) => (
-                        <div key={i} className="flex items-center gap-1.5 rounded-full border bg-muted/40 px-2 py-0.5 text-[11px] shadow-sm">
-                          <a href={att.url} target="_blank" rel="noreferrer" className="hover:underline text-primary truncate max-w-[150px]">
-                            {att.name}
-                          </a>
-                          {!canEdit && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteAttachment(item, 'mentee', i)}
-                              className="text-muted-foreground hover:text-destructive ml-0.5"
-                              title="Remove attachment"
+                        <div key={i} className="group relative flex items-center justify-between gap-3 rounded-lg border bg-muted/30 hover:bg-muted/50 p-2 text-xs transition-all duration-200 shadow-sm border-muted/60 hover:border-muted-foreground/30">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-background border shadow-xs">
+                              {getFileIcon(att.name)}
+                            </div>
+                            <a href={att.url} target="_blank" rel="noreferrer" className="font-medium hover:underline text-foreground truncate max-w-[130px] sm:max-w-[170px]" title={att.name}>
+                              {att.name}
+                            </a>
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <a
+                              href={att.url}
+                              download
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex h-6 w-6 items-center justify-center rounded hover:bg-background text-muted-foreground hover:text-foreground transition-colors border shadow-xs"
+                              title="Download file"
                             >
-                              <X className="h-2.5 w-2.5" />
-                            </button>
-                          )}
+                              <Download className="h-3.5 w-3.5" />
+                            </a>
+                            {!canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAttachment(item, "mentee", i)}
+                                className="flex h-6 w-6 items-center justify-center rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors border shadow-xs"
+                                title="Delete file"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -354,25 +462,25 @@ export default function SessionActionItemsPanel({
                 )}
 
                 {/* File Upload Controls */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 pt-1">
                   {canEdit ? (
                     <>
                       <input
                         type="file"
                         id={`upload-mentor-${item.id}`}
                         className="hidden"
-                        onChange={(e) => handleUploadAttachment(item, 'mentor', e.target.files)}
+                        onChange={(e) => handleUploadAttachment(item, "mentor", e.target.files)}
                       />
                       <Button
                         type="button"
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
-                        className="h-6 px-2 text-[10px]"
+                        className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted gap-1.5 transition-all duration-200 rounded-lg"
                         onClick={() => document.getElementById(`upload-mentor-${item.id}`)?.click()}
                         disabled={isUploading === item.id}
                       >
-                        <Paperclip className="h-3 w-3 mr-1" />
-                        {isUploading === item.id ? "Uploading..." : "Attach File"}
+                        <Paperclip className="h-3.5 w-3.5" />
+                        <span>{isUploading === item.id ? "Uploading..." : "Attach File"}</span>
                       </Button>
                     </>
                   ) : (
@@ -382,18 +490,18 @@ export default function SessionActionItemsPanel({
                           type="file"
                           id={`upload-mentee-${item.id}`}
                           className="hidden"
-                          onChange={(e) => handleUploadAttachment(item, 'mentee', e.target.files)}
+                          onChange={(e) => handleUploadAttachment(item, "mentee", e.target.files)}
                         />
                         <Button
                           type="button"
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          className="h-6 px-2 text-[10px]"
+                          className="h-7 px-2.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted gap-1.5 transition-all duration-200 rounded-lg"
                           onClick={() => document.getElementById(`upload-mentee-${item.id}`)?.click()}
                           disabled={isUploading === item.id}
                         >
-                          <Paperclip className="h-3 w-3 mr-1" />
-                          {isUploading === item.id ? "Uploading..." : "Attach Reply File"}
+                          <Paperclip className="h-3.5 w-3.5" />
+                          <span>{isUploading === item.id ? "Uploading..." : "Attach Reply File"}</span>
                         </Button>
                       </>
                     )
@@ -405,11 +513,11 @@ export default function SessionActionItemsPanel({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 mt-0.5"
                 onClick={() => handleDelete(item)}
                 aria-label="Delete task"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-4 w-4" />
               </Button>
             )}
           </li>
@@ -417,33 +525,37 @@ export default function SessionActionItemsPanel({
       </ul>
 
       {canEdit && (
-        <div className="rounded-md border border-dashed p-3 space-y-2">
-          <Label className="text-xs">Add a follow-up task</Label>
+        <div className="rounded-xl border border-dashed p-4 space-y-3 bg-muted/10 shadow-inner">
+          <Label className="text-xs font-semibold text-muted-foreground">Add a follow-up task</Label>
           <Input
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             placeholder="e.g. Send portfolio draft"
-            className="h-8"
+            className="h-9 rounded-lg"
           />
           <Textarea
             value={newDesc}
             onChange={(e) => setNewDesc(e.target.value)}
             placeholder="Optional details…"
             rows={2}
+            className="rounded-lg"
           />
           
           {/* New files attached representation */}
           {newFiles.length > 0 && (
-            <div className="space-y-1">
-              <span className="text-[10px] font-semibold text-muted-foreground">Files to attach:</span>
-              <div className="flex flex-wrap gap-1.5">
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground tracking-wider uppercase">Files to attach:</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {newFiles.map((file, idx) => (
-                  <div key={idx} className="flex items-center gap-1 rounded-full border bg-muted/40 px-2 py-0.5 text-xs shadow-sm">
-                    <span className="truncate max-w-[120px]">{file.name}</span>
+                  <div key={idx} className="flex items-center justify-between gap-2 rounded-lg border bg-muted/40 p-2 text-xs border-muted shadow-sm">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {getFileIcon(file.name)}
+                      <span className="truncate max-w-[130px] sm:max-w-[180px] font-medium">{file.name}</span>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setNewFiles((prev) => prev.filter((_, i) => i !== idx))}
-                      className="text-muted-foreground hover:text-destructive ml-1"
+                      className="h-5 w-5 flex items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-destructive"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -453,12 +565,12 @@ export default function SessionActionItemsPanel({
             </div>
           )}
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pt-1">
             <Input
               type="date"
               value={newDue}
               onChange={(e) => setNewDue(e.target.value)}
-              className="h-8 w-auto"
+              className="h-9 w-auto rounded-lg text-xs"
             />
             
             <input
@@ -476,19 +588,20 @@ export default function SessionActionItemsPanel({
               type="button"
               variant="outline"
               size="sm"
-              className="h-8"
+              className="h-9 rounded-lg gap-1.5"
               onClick={() => document.getElementById("new-task-files")?.click()}
             >
-              <Paperclip className="mr-1 h-3.5 w-3.5" /> Attach files
+              <Paperclip className="h-3.5 w-3.5" />
+              <span>Attach files</span>
             </Button>
 
             <Button
               size="sm"
               onClick={handleAdd}
               disabled={createMut.isPending || !newTitle.trim()}
-              className="ml-auto"
+              className="ml-auto h-9 rounded-lg"
             >
-              <Plus className="mr-1 h-3 w-3" />
+              <Plus className="mr-1 h-3.5 w-3.5" />
               {createMut.isPending ? "Adding…" : "Add task"}
             </Button>
           </div>
