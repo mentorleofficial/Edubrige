@@ -6,7 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { useToast } from "@/hooks/use-toast";
+import { useMentorProfile, useUpdateGlobalAttachmentToggle } from "@/features/mentor-profile";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -85,6 +93,30 @@ function toCardData(
 const MentorSessions = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const { data: profile, isLoading: isLoadingProfile } = useMentorProfile(user?.id);
+  const updateToggle = useUpdateGlobalAttachmentToggle(user?.id ?? "");
+
+  const handleToggleChange = (checked: boolean) => {
+    updateToggle.mutate(checked, {
+      onSuccess: () => {
+        toast({
+          title: checked ? "Replies attachments enabled" : "Replies attachments disabled",
+          description: checked
+            ? "Mentees can now upload file attachments when replying to action items."
+            : "Mentees can no longer upload file attachments when replying to action items.",
+        });
+      },
+      onError: (err) => {
+        toast({
+          variant: "destructive",
+          title: "Error saving settings",
+          description: err.message,
+        });
+      },
+    });
+  };
 
   const { data: sessions = [], isLoading } = useMentorSessions(user?.id);
   console.log("DEBUG: Mentor Sessions fetch:", sessions);
@@ -489,11 +521,24 @@ const MentorSessions = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold">My Sessions</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage upcoming sessions, share follow-ups, and review past meetings.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold">My Sessions</h1>
+            <p className="text-sm text-muted-foreground">
+              Manage upcoming sessions, share follow-ups, and review past meetings.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 rounded-lg border bg-card p-3 shadow-sm">
+            <Label htmlFor="global-attachments-toggle" className="cursor-pointer font-medium text-sm">
+              Allow mentees to send attachments in replies
+            </Label>
+            <Switch
+              id="global-attachments-toggle"
+              checked={profile?.allow_mentee_attachments ?? false}
+              onCheckedChange={handleToggleChange}
+              disabled={isLoadingProfile || updateToggle.isPending}
+            />
+          </div>
         </div>
 
         <SessionHeroCard

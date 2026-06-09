@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -480,6 +480,42 @@ export type Database = {
         }
         Relationships: []
       }
+      mentee_favorites: {
+        Row: {
+          created_at: string | null
+          id: string
+          mentee_id: string
+          mentor_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          mentee_id: string
+          mentor_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          mentee_id?: string
+          mentor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentee_favorites_mentee_id_fkey"
+            columns: ["mentee_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mentee_favorites_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mentee_profiles: {
         Row: {
           academic_details: string
@@ -540,42 +576,6 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
-        ]
-      }
-      mentee_favorites: {
-        Row: {
-          created_at: string | null
-          id: string
-          mentee_id: string
-          mentor_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          mentee_id: string
-          mentor_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          mentee_id?: string
-          mentor_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "mentee_favorites_mentee_id_fkey"
-            columns: ["mentee_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mentee_favorites_mentor_id_fkey"
-            columns: ["mentor_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
         ]
       }
       mentor_applications: {
@@ -820,6 +820,7 @@ export type Database = {
       }
       mentor_profiles: {
         Row: {
+          allow_mentee_attachments: boolean
           approval_acknowledged_at: string | null
           bio: string | null
           buffer_time_minutes: number
@@ -845,6 +846,7 @@ export type Database = {
           years_experience: number | null
         }
         Insert: {
+          allow_mentee_attachments?: boolean
           approval_acknowledged_at?: string | null
           bio?: string | null
           buffer_time_minutes?: number
@@ -870,6 +872,7 @@ export type Database = {
           years_experience?: number | null
         }
         Update: {
+          allow_mentee_attachments?: boolean
           approval_acknowledged_at?: string | null
           bio?: string | null
           buffer_time_minutes?: number
@@ -1216,7 +1219,9 @@ export type Database = {
           description: string
           due_date: string | null
           id: string
+          mentee_attachments: Json
           mentee_id: string
+          mentor_attachments: Json
           mentor_id: string
           session_id: string
           status: string
@@ -1230,7 +1235,9 @@ export type Database = {
           description?: string
           due_date?: string | null
           id?: string
+          mentee_attachments?: Json
           mentee_id: string
+          mentor_attachments?: Json
           mentor_id: string
           session_id: string
           status?: string
@@ -1244,7 +1251,9 @@ export type Database = {
           description?: string
           due_date?: string | null
           id?: string
+          mentee_attachments?: Json
           mentee_id?: string
+          mentor_attachments?: Json
           mentor_id?: string
           session_id?: string
           status?: string

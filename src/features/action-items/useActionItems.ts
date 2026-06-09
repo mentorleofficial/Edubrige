@@ -3,6 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type ActionItemStatus = "open" | "done";
 
+export interface ActionItemAttachment {
+  name: string;
+  url: string;
+}
+
 export interface ActionItem {
   id: string;
   session_id: string;
@@ -16,6 +21,8 @@ export interface ActionItem {
   created_by: string;
   created_at: string;
   updated_at: string;
+  mentor_attachments: ActionItemAttachment[];
+  mentee_attachments: ActionItemAttachment[];
 }
 
 export const sessionActionItemsKey = (sessionId?: string) =>
@@ -71,6 +78,7 @@ export interface CreateActionItemInput {
   description?: string;
   due_date?: string | null;
   created_by: string;
+  mentor_attachments?: ActionItemAttachment[];
 }
 
 export function useCreateActionItem() {
@@ -87,6 +95,7 @@ export function useCreateActionItem() {
           description: input.description ?? "",
           due_date: input.due_date ?? null,
           created_by: input.created_by,
+          mentor_attachments: input.mentor_attachments ?? [],
         })
         .select()
         .single();
@@ -107,11 +116,11 @@ export function useUpdateActionItem() {
     mutationFn: async (input: {
       id: string;
       session_id: string;
-      patch: Partial<Pick<ActionItem, "title" | "description" | "due_date" | "status" | "completed_at">>;
+      patch: Partial<ActionItem>;
     }) => {
       const { data, error } = await supabase
         .from("session_action_items")
-        .update(input.patch)
+        .update(input.patch as any)
         .eq("id", input.id)
         .select()
         .single();
