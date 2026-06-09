@@ -1,24 +1,59 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, X, UserSearch } from "lucide-react";
-import { useMentors } from "@/features/mentors";
+import { Search, X, UserSearch, Filter, ChevronDown, Heart } from "lucide-react";
+import { useMentors, useMenteeFavorites, useToggleFavorite } from "@/features/mentors";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import ExpertiseFilter from "@/features/mentors/components/ExpertiseFilter";
 import { cn } from "@/lib/utils";
 
 const MentorDirectory = () => {
   const [search, setSearch] = useState("");
   const [selectedExpertise, setSelectedExpertise] = useState<string[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
+  const [experienceRange, setExperienceRange] = useState("");
+  const [priceRange, setPriceRange] = useState("");
+  const [selectedSessionType, setSelectedSessionType] = useState("");
+  const [hasAvailability, setHasAvailability] = useState(false);
+  const [showFavorites, setShowFavorites] = useState(false);
+
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: mentors = [], isLoading } = useMentors();
   const { data: myPrograms = [] } = useMyPrograms();
+  const { data: favorites = [] } = useMenteeFavorites(user?.id);
+  const toggleFavoriteMutation = useToggleFavorite();
+
+  const { data: offerings = [] } = useQuery({
+    queryKey: ["mentorship_offerings", "all-active"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mentorship_offerings")
+        .select("*")
+        .eq("status", "active");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: availability = [] } = useQuery({
+    queryKey: ["mentor_availability", "all-slots"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mentor_availability")
+        .select("mentor_id");
+      if (error) throw error;
+      return data;
+    },
+  });
 
   const [mentorPrograms, setMentorPrograms] = useState<
     Record<string, { id: string; name: string; slug: string; color: string }[]>
@@ -57,25 +92,122 @@ const MentorDirectory = () => {
     return Array.from(set);
   }, [mentors]);
 
+  const offeringsByMentor = useMemo(() => {
+    const map: Record<string, typeof offerings> = {};
+    offerings.forEach((off) => {
+      (map[off.mentor_id] ||= []).push(off);
+    });
+    return map;
+  }, [offerings]);
+
+  const availableMentorIds = useMemo(() => {
+    return new Set(availability.map((a) => a.mentor_id));
+  }, [availability]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return mentors.filter((m) => {
-      const exp = m.mentor_profiles?.[0]?.expertise ?? [];
+      const profile = m.mentor_profiles?.[0];
+      const exp = profile?.expertise ?? [];
+      
+      // 1. Search term filter (searches name, bio, headline, role, company, or expertise)
       const matchesSearch =
         !q ||
         m.full_name.toLowerCase().includes(q) ||
-        exp.some((e) => e.toLowerCase().includes(q));
+        exp.some((e) => e.toLowerCase().includes(q)) ||
+        profile?.bio?.toLowerCase().includes(q) ||
+        profile?.headline?.toLowerCase().includes(q) ||
+        profile?.current_role?.toLowerCase().includes(q) ||
+        profile?.current_organization?.toLowerCase().includes(q);
+
       if (!matchesSearch) return false;
+
+      // 2. Expertise filter (multi-select)
       if (selectedExpertise.length > 0) {
         const has = selectedExpertise.every((tag) => exp.includes(tag));
         if (!has) return false;
       }
+
+      // 3. Active Program filter
       if (activeProgram) {
-        return (mentorPrograms[m.id] || []).some((p) => p.id === activeProgram.id);
+        const inProg = (mentorPrograms[m.id] || []).some((p) => p.id === activeProgram.id);
+        if (!inProg) return false;
       }
+
+      // 4. Experience filter
+      if (experienceRange) {
+        const years = profile?.years_experience ?? 0;
+        if (experienceRange === "0-2" && (years < 0 || years > 2)) return false;
+        if (experienceRange === "3-5" && (years < 3 || years > 5)) return false;
+        if (experienceRange === "6-10" && (years < 6 || years > 10)) return false;
+        if (experienceRange === "10+" && years < 10) return false;
+      }
+
+      // 5. Price filter
+      if (priceRange) {
+        const mentorOfferings = offeringsByMentor[m.id] || [];
+        const hasMatchingPrice = mentorOfferings.some((off) => {
+          const price = off.price ?? 0;
+          if (priceRange === "free") return price === 0;
+          if (priceRange === "0-500") return price > 0 && price <= 500;
+          if (priceRange === "500-1000") return price > 500 && price <= 1000;
+          if (priceRange === "1000-2000") return price > 1000 && price <= 2000;
+          if (priceRange === "2000+") return price > 2000;
+          return true;
+        });
+        if (!hasMatchingPrice) return false;
+      }
+
+      // 6. Session Type filter
+      if (selectedSessionType) {
+        const mentorOfferings = offeringsByMentor[m.id] || [];
+        const hasMatchingType = mentorOfferings.some((off) => {
+          const cat = off.category?.toLowerCase() || "";
+          const title = off.title?.toLowerCase() || "";
+          if (selectedSessionType === "1-on-1") {
+            return cat.includes("1-on-1") || title.includes("1-on-1") || cat.includes("video") || title.includes("video") || cat === "mentorship";
+          }
+          if (selectedSessionType === "group") {
+            return cat.includes("group") || title.includes("group");
+          }
+          if (selectedSessionType === "email") {
+            return cat.includes("email") || title.includes("email") || cat.includes("text") || title.includes("text");
+          }
+          if (selectedSessionType === "review") {
+            return cat.includes("review") || title.includes("review") || cat.includes("code") || title.includes("code") || cat.includes("resume") || title.includes("resume");
+          }
+          return true;
+        });
+        if (!hasMatchingType) return false;
+      }
+
+      // 7. Availability filter
+      if (hasAvailability) {
+        if (!availableMentorIds.has(m.id)) return false;
+      }
+
+      // 8. Favorites filter
+      if (showFavorites) {
+        if (!favorites.includes(m.id)) return false;
+      }
+
       return true;
     });
-  }, [mentors, search, activeProgram, mentorPrograms, selectedExpertise]);
+  }, [
+    mentors,
+    search,
+    activeProgram,
+    mentorPrograms,
+    selectedExpertise,
+    experienceRange,
+    priceRange,
+    selectedSessionType,
+    hasAvailability,
+    showFavorites,
+    favorites,
+    offeringsByMentor,
+    availableMentorIds,
+  ]);
 
   const setProgramFilter = (slug: string | null) => {
     const next = new URLSearchParams(params);
@@ -88,9 +220,22 @@ const MentorDirectory = () => {
     setSearch("");
     setSelectedExpertise([]);
     setProgramFilter(null);
+    setExperienceRange("");
+    setPriceRange("");
+    setSelectedSessionType("");
+    setHasAvailability(false);
+    setShowFavorites(false);
   };
 
-  const hasActiveFilters = search || selectedExpertise.length > 0 || !!activeProgram;
+  const hasActiveFilters =
+    search ||
+    selectedExpertise.length > 0 ||
+    !!activeProgram ||
+    experienceRange ||
+    priceRange ||
+    selectedSessionType ||
+    hasAvailability ||
+    showFavorites;
 
   return (
     <AppLayout>
@@ -109,7 +254,7 @@ const MentorDirectory = () => {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 className="pl-9 h-10"
-                placeholder="Search by name or expertise…"
+                placeholder="Search by name, skill, topic, role, company..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -120,6 +265,17 @@ const MentorDirectory = () => {
               selected={selectedExpertise}
               onChange={setSelectedExpertise}
             />
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="h-10 gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <Filter className="h-4 w-4" />
+              Filters
+              <ChevronDown className={cn("h-3.5 w-3.5 transition-transform duration-200", showFilters && "rotate-180")} />
+            </Button>
 
             {myPrograms.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5">
@@ -158,6 +314,88 @@ const MentorDirectory = () => {
             )}
           </div>
 
+          {/* Expandable Advanced Filters */}
+          {showFilters && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-3 pt-3 border-t border-muted/50 animate-in fade-in slide-in-from-top-2 duration-200">
+              {/* Experience Filter */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Experience</label>
+                <select
+                  value={experienceRange}
+                  onChange={(e) => setExperienceRange(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Any Experience</option>
+                  <option value="0-2">0-2 years</option>
+                  <option value="3-5">3-5 years</option>
+                  <option value="6-10">6-10 years</option>
+                  <option value="10+">10+ years</option>
+                </select>
+              </div>
+
+              {/* Price Range Filter */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Price Range</label>
+                <select
+                  value={priceRange}
+                  onChange={(e) => setPriceRange(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">Any Price</option>
+                  <option value="free">Free</option>
+                  <option value="0-500">₹0 - ₹500</option>
+                  <option value="500-1000">₹500 - ₹1,000</option>
+                  <option value="1000-2000">₹1,000 - ₹2,000</option>
+                  <option value="2000+">₹2,000+</option>
+                </select>
+              </div>
+
+              {/* Session Type Filter */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-muted-foreground">Session Type</label>
+                <select
+                  value={selectedSessionType}
+                  onChange={(e) => setSelectedSessionType(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">All Types</option>
+                  <option value="1-on-1">1-on-1 Video Call</option>
+                  <option value="group">Group Session</option>
+                  <option value="email">Email/Text Support</option>
+                  <option value="review">Project/Code Review</option>
+                </select>
+              </div>
+
+              {/* Checkboxes Group */}
+              <div className="flex flex-col justify-end gap-3 pb-1 md:col-span-1">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="hasAvailability"
+                    checked={hasAvailability}
+                    onChange={(e) => setHasAvailability(e.target.checked)}
+                    className="h-4 w-4 rounded border-input bg-background text-primary focus:ring-ring accent-black cursor-pointer"
+                  />
+                  <label htmlFor="hasAvailability" className="text-sm font-medium leading-none cursor-pointer">
+                    Available Now
+                  </label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="showFavorites"
+                    checked={showFavorites}
+                    onChange={(e) => setShowFavorites(e.target.checked)}
+                    className="h-4 w-4 rounded border-input bg-background text-primary focus:ring-ring accent-black cursor-pointer"
+                  />
+                  <label htmlFor="showFavorites" className="text-sm font-medium leading-none cursor-pointer">
+                    Show Favorites Only
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+
           {selectedExpertise.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
               {selectedExpertise.map((tag) => (
@@ -181,7 +419,7 @@ const MentorDirectory = () => {
           )}
 
           <div className="text-xs text-muted-foreground mt-2">
-            {isLoading ? "Loading…" : `${filtered.length} mentor${filtered.length === 1 ? "" : "s"}`}
+            {isLoading ? "Loading…" : `Showing ${filtered.length} of ${mentors.length} mentor${filtered.length === 1 ? "" : "s"}`}
           </div>
         </div>
 
@@ -214,12 +452,37 @@ const MentorDirectory = () => {
                 .join("")
                 .toUpperCase();
               const topTag = profile?.expertise?.[0];
+              const isFav = favorites.includes(m.id);
+
               return (
                 <Card
                   key={m.id}
                   onClick={() => navigate(`/book/${m.id}`)}
                   className="group relative overflow-hidden cursor-pointer border-0 rounded-2xl aspect-[3/4] bg-[#1a1a2e] hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
                 >
+                  {/* Favorite Toggle Button */}
+                  {user && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleFavoriteMutation.mutate({
+                          userId: user.id,
+                          mentorId: m.id,
+                          isFavorite: isFav,
+                        });
+                      }}
+                      className="absolute top-2.5 right-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white/80 hover:scale-105 hover:bg-black/60 transition-all duration-200"
+                      title={isFav ? "Remove from favorites" : "Add to favorites"}
+                    >
+                      <Heart
+                        className={cn(
+                          "h-4 w-4 stroke-[2.5px] transition-colors",
+                          isFav ? "fill-red-500 text-red-500" : "text-white/95"
+                        )}
+                      />
+                    </button>
+                  )}
+
                   {m.avatar_url ? (
                     <img
                       src={m.avatar_url}
@@ -236,7 +499,7 @@ const MentorDirectory = () => {
                   )}
 
                   {topTag && (
-                    <span className="absolute top-2.5 left-2.5 z-10 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 max-w-[80%] truncate">
+                    <span className="absolute top-2.5 left-2.5 z-10 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 max-w-[65%] truncate">
                       {topTag}
                     </span>
                   )}
