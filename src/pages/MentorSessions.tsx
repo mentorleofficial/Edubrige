@@ -354,16 +354,17 @@ const MentorSessions = () => {
       }
     }
 
+    primary.push(
+      <Button key="action-items" size="sm" variant="outline" onClick={() => setActionItemsTarget(s)}>
+        <ListTodo className="mr-1 h-3.5 w-3.5" /> Action items
+      </Button>
+    );
+
     overflow.push(
       {
         label: "View Mentee Details",
         icon: <User className="h-3.5 w-3.5" />,
         onClick: () => setSelectedMenteeId(s.mentee_id),
-      },
-      {
-        label: "Action items",
-        icon: <ListTodo className="h-3.5 w-3.5" />,
-        onClick: () => setActionItemsTarget(s),
       },
       {
         label: "Edit details",

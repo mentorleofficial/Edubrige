@@ -136,10 +136,10 @@ const MenteeDashboard = () => {
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-semibold" style={{ fontFamily: "var(--font-serif)" }}>
-          Welcome back, {firstName}
+          Welcome back, {firstName}!
         </h2>
         <p className="text-sm text-muted-foreground">
-          Here's a snapshot of your mentorship journey.
+          Here's your learning journey overview
         </p>
       </div>
 

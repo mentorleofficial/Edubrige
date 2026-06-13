@@ -29,7 +29,7 @@ interface MarkdownEditorProps {
 
 // ─── Markdown <-> HTML Helpers ───────────────────────────────────────────────
 
-function markdownToHtml(markdown: string): string {
+export function markdownToHtml(markdown: string): string {
   if (!markdown) return "";
   let html = markdown;
 

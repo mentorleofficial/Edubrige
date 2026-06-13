@@ -12,20 +12,29 @@ import ChipInput from "@/features/mentee-onboarding/components/ChipInput";
 import {
   upsertMenteeProfile,
   uploadMenteeAvatar,
+  uploadMenteeResume,
 } from "@/features/mentee-onboarding/api";
 import {
   useMenteeProfile,
   useInvalidateMenteeProfile,
 } from "@/features/mentee-onboarding/hooks/useMenteeProfileStatus";
 import {
-  Loader2,
-  UserCircle,
-  Target,
-  Link as LinkIcon,
-  Github,
-  Globe,
-  Save,
-  Check,
+  SKILLS, LANGUAGES, INDUSTRIES, SESSION_TYPES, TIME_WINDOWS,
+  MENTOR_QUALITIES, STATUSES, EDUCATION_LEVELS, TIMEZONES,
+} from "@/features/mentee-onboarding/profileOptions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { MonthYearPicker } from "@/components/ui/month-year-picker";
+import {
+  Loader2, UserCircle, Target, Link as LinkIcon, Github, Globe,
+  Save, Check, Briefcase, GraduationCap, Trash2, Plus, FileText,
+  Instagram, MapPin, Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -40,7 +49,7 @@ const SectionCard = ({
 }) => (
   <div
     className={cn(
-      "rounded-xl border border-border/50 bg-card p-6",
+      "rounded-xl border border-border bg-card p-6 shadow-sm",
       className
     )}
   >
@@ -57,11 +66,27 @@ const FieldLabel = ({
 }) => (
   <Label
     htmlFor={htmlFor}
-    className="text-[13px] font-medium text-muted-foreground"
+    className="text-[13px] font-semibold text-foreground/80"
   >
     {children}
   </Label>
 );
+
+type WorkEntry = {
+  company: string;
+  position: string;
+  start_date: string;
+  end_date: string;
+  description: string;
+};
+
+type EducationDetails = {
+  degree: string;
+  field_of_study: string;
+  school: string;
+  start_year: string;
+  end_year: string;
+};
 
 // ────────────────────────────────────────────────────────────────────
 
@@ -74,7 +99,9 @@ const MenteeProfile = () => {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingResume, setUploadingResume] = useState(false);
 
+  // Original fields
   const [fullName, setFullName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [headline, setHeadline] = useState("");
@@ -87,24 +114,60 @@ const MenteeProfile = () => {
   const [academicDetails, setAcademicDetails] = useState("");
   const [github, setGithub] = useState("");
   const [portfolio, setPortfolio] = useState("");
+
+  // New fields
+  const [phone, setPhone] = useState("");
+  const [currentStatus, setCurrentStatus] = useState("");
+  const [educationLevel, setEducationLevel] = useState("");
+  const [location, setLocation] = useState("");
+  const [timezone, setTimezone] = useState("Asia/Kolkata");
+  const [skills, setSkills] = useState<string[]>([]);
+  const [languages, setLanguages] = useState<string[]>([]);
+  const [educationDetails, setEducationDetails] = useState<EducationDetails>({
+    degree: "", field_of_study: "", school: "", start_year: "", end_year: "",
+  });
+  const [workExperience, setWorkExperience] = useState<WorkEntry[]>([]);
+  const [preferredIndustries, setPreferredIndustries] = useState<string[]>([]);
+  const [preferredSessionTypes, setPreferredSessionTypes] = useState<string[]>([]);
+  const [preferredTimeWindows, setPreferredTimeWindows] = useState<string[]>([]);
+  const [preferredMentorQualities, setPreferredMentorQualities] = useState<string[]>([]);
+  const [instagram, setInstagram] = useState("");
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
+
   const [originalData, setOriginalData] = useState<any>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     if (!data || hydrated) return;
+    const d = data as any;
     const initial = {
       fullName: data.full_name || "",
       avatarUrl: data.avatar_url,
-      headline: data.headline || "",
-      bio: data.bio || "",
-      orgUnit: data.organization_unit || "",
-      linkedin: data.linkedin_url || "",
-      goals: data.goals || "",
-      interests: data.interests || [],
-      areas: data.preferred_mentor_areas || [],
-      academicDetails: data.academic_details ?? "",
-      github: data.github_url ?? "",
-      portfolio: data.portfolio_url ?? "",
+      headline: d.headline || "",
+      bio: d.bio || "",
+      orgUnit: d.organization_unit || "",
+      linkedin: d.linkedin_url || "",
+      goals: d.goals || "",
+      interests: d.interests || [],
+      areas: d.preferred_mentor_areas || [],
+      academicDetails: d.academic_details ?? "",
+      github: d.github_url ?? "",
+      portfolio: d.portfolio_url ?? "",
+      phone: d.phone ?? "",
+      currentStatus: d.current_status ?? "",
+      educationLevel: d.education_level ?? "",
+      location: d.location ?? "",
+      timezone: d.timezone ?? "Asia/Kolkata",
+      skills: d.skills ?? [],
+      languages: d.languages ?? [],
+      educationDetails: d.education_details ?? { degree: "", field_of_study: "", school: "", start_year: "", end_year: "" },
+      workExperience: d.work_experience ?? [],
+      preferredIndustries: d.preferred_industries ?? [],
+      preferredSessionTypes: d.preferred_session_types ?? [],
+      preferredTimeWindows: d.preferred_time_windows ?? [],
+      preferredMentorQualities: d.preferred_mentor_qualities ?? [],
+      instagram: d.instagram_url ?? "",
+      resumeUrl: d.resume_url ?? null,
     };
     setFullName(initial.fullName);
     setAvatarUrl(initial.avatarUrl);
@@ -118,6 +181,21 @@ const MenteeProfile = () => {
     setAcademicDetails(initial.academicDetails);
     setGithub(initial.github);
     setPortfolio(initial.portfolio);
+    setPhone(initial.phone);
+    setCurrentStatus(initial.currentStatus);
+    setEducationLevel(initial.educationLevel);
+    setLocation(initial.location);
+    setTimezone(initial.timezone);
+    setSkills(initial.skills);
+    setLanguages(initial.languages);
+    setEducationDetails(initial.educationDetails);
+    setWorkExperience(initial.workExperience);
+    setPreferredIndustries(initial.preferredIndustries);
+    setPreferredSessionTypes(initial.preferredSessionTypes);
+    setPreferredTimeWindows(initial.preferredTimeWindows);
+    setPreferredMentorQualities(initial.preferredMentorQualities);
+    setInstagram(initial.instagram);
+    setResumeUrl(initial.resumeUrl);
     setOriginalData(initial);
     setHydrated(true);
   }, [data, hydrated]);
@@ -134,25 +212,39 @@ const MenteeProfile = () => {
       academicDetails !== originalData.academicDetails ||
       github !== originalData.github ||
       portfolio !== originalData.portfolio ||
+      phone !== originalData.phone ||
+      currentStatus !== originalData.currentStatus ||
+      educationLevel !== originalData.educationLevel ||
+      location !== originalData.location ||
+      timezone !== originalData.timezone ||
+      instagram !== originalData.instagram ||
       JSON.stringify(interests) !== JSON.stringify(originalData.interests) ||
-      JSON.stringify(areas) !== JSON.stringify(originalData.areas)
+      JSON.stringify(areas) !== JSON.stringify(originalData.areas) ||
+      JSON.stringify(skills) !== JSON.stringify(originalData.skills) ||
+      JSON.stringify(languages) !== JSON.stringify(originalData.languages) ||
+      JSON.stringify(educationDetails) !== JSON.stringify(originalData.educationDetails) ||
+      JSON.stringify(workExperience) !== JSON.stringify(originalData.workExperience) ||
+      JSON.stringify(preferredIndustries) !== JSON.stringify(originalData.preferredIndustries) ||
+      JSON.stringify(preferredSessionTypes) !== JSON.stringify(originalData.preferredSessionTypes) ||
+      JSON.stringify(preferredTimeWindows) !== JSON.stringify(originalData.preferredTimeWindows) ||
+      JSON.stringify(preferredMentorQualities) !== JSON.stringify(originalData.preferredMentorQualities)
     );
-  }, [originalData, fullName, headline, bio, orgUnit, linkedin, goals, interests, areas, academicDetails, github, portfolio]);
+  }, [originalData, fullName, headline, bio, orgUnit, linkedin, goals, interests, areas,
+    academicDetails, github, portfolio, phone, currentStatus, educationLevel, location,
+    timezone, skills, languages, educationDetails, workExperience, preferredIndustries,
+    preferredSessionTypes, preferredTimeWindows, preferredMentorQualities, instagram]);
 
   const completeness = useMemo(() => {
     const fields = [
-      fullName,
-      headline,
-      bio,
-      orgUnit,
-      goals,
-      academicDetails,
-      linkedin,
+      fullName, headline, bio, orgUnit, goals, academicDetails, linkedin,
+      currentStatus, location,
       interests.length > 0 ? "x" : "",
       areas.length > 0 ? "x" : "",
+      skills.length > 0 ? "x" : "",
     ];
     return Math.round((fields.filter(Boolean).length / fields.length) * 100);
-  }, [fullName, headline, bio, orgUnit, goals, academicDetails, linkedin, interests, areas]);
+  }, [fullName, headline, bio, orgUnit, goals, academicDetails, linkedin,
+    currentStatus, location, interests, areas, skills]);
 
   const loading = isLoading && !hydrated;
 
@@ -186,11 +278,59 @@ const MenteeProfile = () => {
     }
   };
 
+  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ variant: "destructive", title: "File too large", description: "Resume must be under 10 MB." });
+      return;
+    }
+    setUploadingResume(true);
+    try {
+      const url = await uploadMenteeResume(user.id, file);
+      await upsertMenteeProfile(user.id, { resume_url: url } as any);
+      setResumeUrl(url);
+      toast({ title: "Resume uploaded" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Upload failed", description: e?.message });
+    } finally {
+      setUploadingResume(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveResume = async () => {
+    if (!user) return;
+    try {
+      await upsertMenteeProfile(user.id, { resume_url: null } as any);
+      setResumeUrl(null);
+      toast({ title: "Resume removed" });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Failed", description: e?.message });
+    }
+  };
+
+  const addWorkEntry = () =>
+    setWorkExperience((prev) => [...prev, { company: "", position: "", start_date: "", end_date: "", description: "" }]);
+  const removeWorkEntry = (i: number) =>
+    setWorkExperience((prev) => prev.filter((_, idx) => idx !== i));
+  const updateWorkEntry = (i: number, field: keyof WorkEntry, value: string) =>
+    setWorkExperience((prev) => prev.map((e, idx) => (idx === i ? { ...e, [field]: value } : e)));
+
+  const toggleCheckbox = (
+    list: string[],
+    setList: (v: string[]) => void,
+    value: string
+  ) => {
+    setList(list.includes(value) ? list.filter((v) => v !== value) : [...list, value]);
+  };
+
   const handleSave = async () => {
     if (!user || !hasChanges) return;
     const cleanLinkedin = addProtocol(linkedin);
     const cleanGithub = addProtocol(github);
     const cleanPortfolio = addProtocol(portfolio);
+    const cleanInstagram = addProtocol(instagram);
 
     if (cleanLinkedin && !/linkedin\.com\/(in|pub)\//i.test(cleanLinkedin)) {
       toast({ variant: "destructive", title: "Invalid LinkedIn", description: "Must be a linkedin.com/in/… URL" });
@@ -221,7 +361,21 @@ const MenteeProfile = () => {
         academic_details: academicDetails.trim(),
         github_url: cleanGithub,
         portfolio_url: cleanPortfolio,
-      });
+        phone: phone.trim() || null,
+        current_status: currentStatus || null,
+        education_level: educationLevel || null,
+        location: location.trim() || null,
+        timezone: timezone || null,
+        skills,
+        languages,
+        education_details: educationDetails,
+        work_experience: workExperience,
+        preferred_industries: preferredIndustries,
+        preferred_session_types: preferredSessionTypes,
+        preferred_time_windows: preferredTimeWindows,
+        preferred_mentor_qualities: preferredMentorQualities,
+        instagram_url: cleanInstagram || null,
+      } as any);
       await refreshProfile();
       invalidate(user.id);
       setOriginalData({
@@ -237,6 +391,20 @@ const MenteeProfile = () => {
         academicDetails: academicDetails.trim(),
         github: cleanGithub,
         portfolio: cleanPortfolio,
+        phone: phone.trim(),
+        currentStatus,
+        educationLevel,
+        location: location.trim(),
+        timezone,
+        skills,
+        languages,
+        educationDetails,
+        workExperience,
+        preferredIndustries,
+        preferredSessionTypes,
+        preferredTimeWindows,
+        preferredMentorQualities,
+        instagram: cleanInstagram,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
@@ -294,8 +462,8 @@ const MenteeProfile = () => {
             {/* Photo & Basics */}
             <SectionCard>
               <div className="flex items-center gap-2 mb-1">
-                <UserCircle className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-[15px] font-medium">Photo & basics</h2>
+                <UserCircle className="h-4 w-4 text-primary" />
+                <h2 className="text-[15px] font-semibold">Photo & basics</h2>
               </div>
               <p className="text-xs text-muted-foreground mb-6">
                 How others see you in the mentor directory
@@ -360,10 +528,461 @@ const MenteeProfile = () => {
                   {bio.length}/600
                 </p>
               </div>
+            </SectionCard>
 
-              <Separator className="my-5" />
+            {/* Contact & Status */}
+            <SectionCard>
+              <div className="flex items-center gap-2 mb-1">
+                <MapPin className="h-4 w-4 text-primary" />
+                <h2 className="text-[15px] font-semibold">Contact & status</h2>
+              </div>
+              <p className="text-xs text-muted-foreground mb-6">
+                Your current situation and location
+              </p>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-1.5">
+                  <FieldLabel htmlFor="phone">Phone number</FieldLabel>
+                  <Input
+                    id="phone"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <FieldLabel>Current status</FieldLabel>
+                  <Select value={currentStatus} onValueChange={setCurrentStatus}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUSES.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <FieldLabel htmlFor="location">Location</FieldLabel>
+                  <Input
+                    id="location"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    placeholder="Bangalore, India"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <FieldLabel>Timezone</FieldLabel>
+                  <Select value={timezone} onValueChange={setTimezone}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select timezone…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIMEZONES.map((tz) => (
+                        <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Education */}
+            <SectionCard>
+              <div className="flex items-center gap-2 mb-1">
+                <GraduationCap className="h-4 w-4 text-primary" />
+                <h2 className="text-[15px] font-semibold">Education</h2>
+              </div>
+              <p className="text-xs text-muted-foreground mb-6">
+                Your academic background
+              </p>
+
+              <div className="space-y-1.5 mb-4">
+                <FieldLabel>Education level</FieldLabel>
+                <Select value={educationLevel} onValueChange={setEducationLevel}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select level…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EDUCATION_LEVELS.map((l) => (
+                      <SelectItem key={l} value={l}>{l}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5 mb-4">
+                <FieldLabel htmlFor="academic">Academic / professional background</FieldLabel>
+                <Input
+                  id="academic"
+                  value={academicDetails}
+                  onChange={(e) => setAcademicDetails(e.target.value)}
+                  placeholder="BS Computer Science @ Stanford University, Class of 2027"
+                />
+              </div>
+
+              <div className="border rounded-lg p-4 space-y-3 bg-muted/20">
+                <p className="text-xs font-semibold text-foreground/70 uppercase tracking-wide">Latest degree details</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <FieldLabel htmlFor="edu-degree">Degree</FieldLabel>
+                    <Input
+                      id="edu-degree"
+                      value={educationDetails.degree}
+                      onChange={(e) => setEducationDetails((p) => ({ ...p, degree: e.target.value }))}
+                      placeholder="B.Tech / BSc / MBA…"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <FieldLabel htmlFor="edu-field">Field of study</FieldLabel>
+                    <Input
+                      id="edu-field"
+                      value={educationDetails.field_of_study}
+                      onChange={(e) => setEducationDetails((p) => ({ ...p, field_of_study: e.target.value }))}
+                      placeholder="Computer Science"
+                    />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <FieldLabel htmlFor="edu-school">School / university</FieldLabel>
+                    <Input
+                      id="edu-school"
+                      value={educationDetails.school}
+                      onChange={(e) => setEducationDetails((p) => ({ ...p, school: e.target.value }))}
+                      placeholder="IIT Bombay"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <FieldLabel>Start year</FieldLabel>
+                    {(() => {
+                      const CURRENT_YEAR = new Date().getFullYear();
+                      const YEARS = Array.from({ length: CURRENT_YEAR + 10 - 1950 + 1 }, (_, i) => CURRENT_YEAR + 10 - i);
+                      return (
+                        <Select
+                          value={educationDetails.start_year || ""}
+                          onValueChange={(v) => setEducationDetails((p) => ({ ...p, start_year: v }))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select year" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-[200px]">
+                            {YEARS.map((y) => (
+                              <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      );
+                    })()}
+                  </div>
+                  <div className="space-y-1.5">
+                    <FieldLabel>End year</FieldLabel>
+                    {(() => {
+                      const CURRENT_YEAR = new Date().getFullYear();
+                      const startY = parseInt(educationDetails.start_year, 10) || 1950;
+                      const YEARS = Array.from({ length: CURRENT_YEAR + 10 - startY + 1 }, (_, i) => CURRENT_YEAR + 10 - i).filter(y => y >= startY);
+                      const isPresent = educationDetails.end_year === "present";
+                      return (
+                        <>
+                          <Select
+                            value={isPresent ? "" : (educationDetails.end_year || "")}
+                            onValueChange={(v) => setEducationDetails((p) => ({ ...p, end_year: v }))}
+                            disabled={isPresent}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select year" />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[200px]">
+                              {YEARS.map((y) => (
+                                <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-1">
+                            <Checkbox
+                              checked={isPresent}
+                              onCheckedChange={(c) =>
+                                setEducationDetails((p) => ({ ...p, end_year: c ? "present" : String(new Date().getFullYear()) }))
+                              }
+                            />
+                            Present
+                          </label>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Work Experience */}
+            <SectionCard>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-primary" />
+                  <h2 className="text-[15px] font-semibold">Work experience</h2>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={addWorkEntry} className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" /> Add
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mb-6">
+                Your professional experience
+              </p>
+
+              {workExperience.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No experience added yet. Click "Add" to start.
+                </p>
+              )}
+
+              <div className="space-y-4">
+                {workExperience.map((entry, i) => (
+                  <div key={i} className="border rounded-lg p-4 space-y-3 bg-muted/20 relative">
+                    <button
+                      type="button"
+                      onClick={() => removeWorkEntry(i)}
+                      className="absolute top-3 right-3 text-muted-foreground hover:text-destructive transition-colors"
+                      aria-label="Remove"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-6">
+                      <div className="space-y-1.5">
+                        <FieldLabel>Company / organization</FieldLabel>
+                        <Input
+                          value={entry.company}
+                          onChange={(e) => updateWorkEntry(i, "company", e.target.value)}
+                          placeholder="Acme Corp"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>Position / role</FieldLabel>
+                        <Input
+                          value={entry.position}
+                          onChange={(e) => updateWorkEntry(i, "position", e.target.value)}
+                          placeholder="Software Engineer"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>Start date</FieldLabel>
+                        <MonthYearPicker
+                          value={entry.start_date}
+                          onChange={(val) => updateWorkEntry(i, "start_date", val)}
+                          placeholder="Select start date"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <FieldLabel>End date</FieldLabel>
+                        <MonthYearPicker
+                          value={entry.end_date}
+                          disabled={!entry.end_date}
+                          onChange={(val) => updateWorkEntry(i, "end_date", val)}
+                          placeholder="Select end date"
+                        />
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mt-1">
+                          <Checkbox
+                            checked={!entry.end_date}
+                            onCheckedChange={(c) =>
+                              updateWorkEntry(i, "end_date", c ? "" : entry.start_date)
+                            }
+                          />
+                          I currently work here
+                        </label>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <FieldLabel>Description</FieldLabel>
+                      <Textarea
+                        rows={2}
+                        value={entry.description}
+                        onChange={(e) => updateWorkEntry(i, "description", e.target.value)}
+                        placeholder="What did you do there?"
+                        className="resize-none"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+
+            {/* Skills & Languages */}
+            <SectionCard>
+              <div className="flex items-center gap-2 mb-1">
+                <Settings2 className="h-4 w-4 text-primary" />
+                <h2 className="text-[15px] font-semibold">Skills & languages</h2>
+              </div>
+              <p className="text-xs text-muted-foreground mb-6">
+                Highlight what you know and what languages you speak
+              </p>
+
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <FieldLabel>Skills</FieldLabel>
+                  <ChipInput
+                    value={skills}
+                    onChange={setSkills}
+                    placeholder="Add skill…"
+                    suggestions={SKILLS}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <FieldLabel>Languages</FieldLabel>
+                  <ChipInput
+                    value={languages}
+                    onChange={setLanguages}
+                    placeholder="Add language…"
+                    suggestions={LANGUAGES}
+                  />
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Goals & Interests */}
+            <SectionCard>
+              <div className="flex items-center gap-2 mb-1">
+                <Target className="h-4 w-4 text-primary" />
+                <h2 className="text-[15px] font-semibold">Goals & interests</h2>
+              </div>
+              <p className="text-xs text-muted-foreground mb-6">
+                Help us match you with the most relevant mentors
+              </p>
+
+              <div className="space-y-1.5 mb-4">
+                <FieldLabel htmlFor="goals">Goals</FieldLabel>
+                <Textarea
+                  id="goals"
+                  rows={4}
+                  value={goals}
+                  maxLength={800}
+                  onChange={(e) => setGoals(e.target.value)}
+                  placeholder="What are you hoping to achieve? Career growth, skill development…"
+                  className="resize-none"
+                />
+                <p className="text-[11px] text-muted-foreground text-right">
+                  {goals.length}/800
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-4">
+                <div className="space-y-1.5">
+                  <FieldLabel>Interests</FieldLabel>
+                  <ChipInput
+                    value={interests}
+                    onChange={setInterests}
+                    placeholder="Add interest…"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <FieldLabel>Preferred mentor areas</FieldLabel>
+                  <ChipInput
+                    value={areas}
+                    onChange={setAreas}
+                    placeholder="Add area…"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <FieldLabel>Preferred industries</FieldLabel>
+                <ChipInput
+                  value={preferredIndustries}
+                  onChange={setPreferredIndustries}
+                  placeholder="Add industry…"
+                  suggestions={INDUSTRIES}
+                />
+              </div>
+            </SectionCard>
+
+            {/* Mentorship Preferences */}
+            <SectionCard>
+              <div className="flex items-center gap-2 mb-1">
+                <Target className="h-4 w-4 text-primary" />
+                <h2 className="text-[15px] font-semibold">Mentorship preferences</h2>
+              </div>
+              <p className="text-xs text-muted-foreground mb-6">
+                Tell mentors how you learn best
+              </p>
+
+              <div className="space-y-6">
+                <div>
+                  <FieldLabel>Preferred session types</FieldLabel>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {SESSION_TYPES.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => toggleCheckbox(preferredSessionTypes, setPreferredSessionTypes, t)}
+                        className={cn(
+                          "rounded-full border px-3 py-1 text-xs transition-colors",
+                          preferredSessionTypes.includes(t)
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card hover:border-primary/50"
+                        )}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <FieldLabel>Preferred time windows</FieldLabel>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {TIME_WINDOWS.map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => toggleCheckbox(preferredTimeWindows, setPreferredTimeWindows, t)}
+                        className={cn(
+                          "rounded-full border px-3 py-1 text-xs transition-colors",
+                          preferredTimeWindows.includes(t)
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card hover:border-primary/50"
+                        )}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <FieldLabel>Preferred mentor qualities</FieldLabel>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {MENTOR_QUALITIES.map((q) => (
+                      <button
+                        key={q}
+                        type="button"
+                        onClick={() => toggleCheckbox(preferredMentorQualities, setPreferredMentorQualities, q)}
+                        className={cn(
+                          "rounded-full border px-3 py-1 text-xs transition-colors",
+                          preferredMentorQualities.includes(q)
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : "border-border bg-card hover:border-primary/50"
+                        )}
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Social Links */}
+            <SectionCard>
+              <div className="flex items-center gap-2 mb-1">
+                <LinkIcon className="h-4 w-4 text-primary" />
+                <h2 className="text-[15px] font-semibold">Social links</h2>
+              </div>
+              <p className="text-xs text-muted-foreground mb-6">
+                Your online presence
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <FieldLabel htmlFor="linkedin">
                     <span className="flex items-center gap-1.5">
@@ -403,65 +1022,71 @@ const MenteeProfile = () => {
                     placeholder="yoursite.com"
                   />
                 </div>
+                <div className="space-y-1.5">
+                  <FieldLabel htmlFor="instagram">
+                    <span className="flex items-center gap-1.5">
+                      <Instagram className="h-3.5 w-3.5" /> Instagram
+                    </span>
+                  </FieldLabel>
+                  <Input
+                    id="instagram"
+                    value={instagram}
+                    onChange={(e) => setInstagram(e.target.value)}
+                    placeholder="instagram.com/…"
+                  />
+                </div>
               </div>
             </SectionCard>
 
-            {/* Goals & Interests */}
+            {/* Resume */}
             <SectionCard>
               <div className="flex items-center gap-2 mb-1">
-                <Target className="h-4 w-4 text-muted-foreground" />
-                <h2 className="text-[15px] font-medium">Goals & interests</h2>
+                <FileText className="h-4 w-4 text-primary" />
+                <h2 className="text-[15px] font-semibold">Resume</h2>
               </div>
               <p className="text-xs text-muted-foreground mb-6">
-                Help us match you with the most relevant mentors
+                Upload your resume (PDF or DOCX, max 10 MB)
               </p>
 
-              <div className="space-y-1.5 mb-4">
-                <FieldLabel htmlFor="academic">
-                  Academic / professional background
-                </FieldLabel>
-                <Input
-                  id="academic"
-                  value={academicDetails}
-                  onChange={(e) => setAcademicDetails(e.target.value)}
-                  placeholder="BS Computer Science @ Stanford University, Class of 2027"
-                />
-              </div>
-
-              <div className="space-y-1.5 mb-4">
-                <FieldLabel htmlFor="goals">Goals</FieldLabel>
-                <Textarea
-                  id="goals"
-                  rows={4}
-                  value={goals}
-                  maxLength={800}
-                  onChange={(e) => setGoals(e.target.value)}
-                  placeholder="What are you hoping to achieve? Career growth, skill development…"
-                  className="resize-none"
-                />
-                <p className="text-[11px] text-muted-foreground text-right">
-                  {goals.length}/800
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <FieldLabel>Interests</FieldLabel>
-                  <ChipInput
-                    value={interests}
-                    onChange={setInterests}
-                    placeholder="Add interest…"
-                  />
+              {resumeUrl ? (
+                <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
+                  <FileText className="h-5 w-5 text-primary shrink-0" />
+                  <a
+                    href={resumeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline truncate flex-1"
+                  >
+                    View resume
+                  </a>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive hover:text-destructive shrink-0"
+                    onClick={handleRemoveResume}
+                  >
+                    Remove
+                  </Button>
                 </div>
-                <div className="space-y-1.5">
-                  <FieldLabel>Preferred mentor areas</FieldLabel>
-                  <ChipInput
-                    value={areas}
-                    onChange={setAreas}
-                    placeholder="Add area…"
+              ) : (
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    className="sr-only"
+                    onChange={handleResumeUpload}
+                    disabled={uploadingResume}
                   />
-                </div>
-              </div>
+                  <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                    {uploadingResume ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
+                    ) : (
+                      <><FileText className="h-4 w-4" /> Click to upload resume</>
+                    )}
+                  </div>
+                </label>
+              )}
             </SectionCard>
 
           </div>
@@ -469,7 +1094,7 @@ const MenteeProfile = () => {
           {/* Sidebar */}
           <div className="lg:sticky lg:top-6 space-y-4 self-start">
             <SectionCard>
-              <h2 className="text-[15px] font-medium mb-1">Profile preview</h2>
+              <h2 className="text-[15px] font-semibold mb-1">Profile preview</h2>
               <p className="text-xs text-muted-foreground mb-4">
                 How mentors will see you
               </p>
@@ -504,43 +1129,34 @@ const MenteeProfile = () => {
                     {headline}
                   </p>
                 )}
-                {orgUnit && (
-                  <p className="text-[11px] text-muted-foreground/70 mt-1">{orgUnit}</p>
+                {currentStatus && (
+                  <span className="mt-2 text-xs rounded-full border px-2 py-0.5 text-muted-foreground">
+                    {currentStatus}
+                  </span>
+                )}
+                {location && (
+                  <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> {location}
+                  </p>
                 )}
               </div>
 
-              {(bio || goals) && (
-                <p className="text-xs text-muted-foreground leading-relaxed mt-4 line-clamp-4">
-                  {bio || goals}
-                </p>
+              {skills.length > 0 && (
+                <>
+                  <Separator className="my-4" />
+                  <div>
+                    <p className="text-[11px] text-muted-foreground mb-2 uppercase tracking-wide">Skills</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {skills.slice(0, 6).map((s) => (
+                        <span key={s} className="text-xs rounded-full bg-muted px-2 py-0.5">{s}</span>
+                      ))}
+                      {skills.length > 6 && (
+                        <span className="text-xs text-muted-foreground">+{skills.length - 6}</span>
+                      )}
+                    </div>
+                  </div>
+                </>
               )}
-
-              {interests.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-4 justify-center">
-                  {interests.slice(0, 6).map((item, i) => (
-                    <span
-                      key={i}
-                      className="text-[11px] bg-muted px-2.5 py-1 rounded-full text-muted-foreground"
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </SectionCard>
-
-            <SectionCard className="space-y-2.5">
-              <p className="text-[13px] font-medium text-muted-foreground mb-1">Tips</p>
-              {[
-                "Add a headline to stand out to mentors.",
-                "Specific goals help mentors know how to support you.",
-                "Add at least 3 interests to improve match quality.",
-              ].map((tip, i) => (
-                <p key={i} className="text-xs text-muted-foreground leading-relaxed flex gap-2">
-                  <span className="text-muted-foreground/50 mt-px">•</span>
-                  {tip}
-                </p>
-              ))}
             </SectionCard>
           </div>
 

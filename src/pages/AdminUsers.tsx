@@ -488,9 +488,10 @@ const UserDetailsDialogContent = ({ userId, role }: { userId: string; role: AppR
       )}
 
       {role === "mentee" && profile && (
-        <div className="space-y-4 pt-2 border-t">
+        <div className="space-y-5 pt-2 border-t">
           <h4 className="font-semibold text-sm uppercase tracking-wider text-slate-500">Mentee Profile</h4>
-          
+
+          {/* Basic info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             {profile.headline && (
               <div className="md:col-span-2">
@@ -504,67 +505,253 @@ const UserDetailsDialogContent = ({ userId, role }: { userId: string; role: AppR
                 <p className="whitespace-pre-wrap">{profile.bio}</p>
               </div>
             )}
-            {profile.organization_unit && (
-              <div>
-                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Team / Department</span>
-                <span>{profile.organization_unit}</span>
-              </div>
-            )}
-            {profile.academic_details && (
-              <div>
-                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Academic Details</span>
-                <span>{profile.academic_details}</span>
-              </div>
-            )}
-            <div className="md:col-span-2">
-              <span className="text-xs uppercase tracking-wide text-muted-foreground block">Goals</span>
-              <p className="whitespace-pre-wrap">{profile.goals}</p>
-            </div>
-            {profile.interests && profile.interests.length > 0 && (
+            {profile.goals && (
               <div className="md:col-span-2">
-                <span className="text-xs uppercase tracking-wide text-muted-foreground block mb-1">Interests</span>
-                <div className="flex flex-wrap gap-1">
-                  {profile.interests.map((interest: string) => (
-                    <Badge key={interest} variant="secondary">{interest}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {profile.preferred_mentor_areas && profile.preferred_mentor_areas.length > 0 && (
-              <div className="md:col-span-2">
-                <span className="text-xs uppercase tracking-wide text-muted-foreground block mb-1">Preferred Mentor Areas</span>
-                <div className="flex flex-wrap gap-1">
-                  {profile.preferred_mentor_areas.map((area: string) => (
-                    <Badge key={area} variant="outline">{area}</Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-            {profile.linkedin_url && (
-              <div>
-                <span className="text-xs uppercase tracking-wide text-muted-foreground block">LinkedIn</span>
-                <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
-                  {profile.linkedin_url}
-                </a>
-              </div>
-            )}
-            {profile.github_url && (
-              <div>
-                <span className="text-xs uppercase tracking-wide text-muted-foreground block">GitHub</span>
-                <a href={profile.github_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
-                  {profile.github_url}
-                </a>
-              </div>
-            )}
-            {profile.portfolio_url && (
-              <div>
-                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Portfolio</span>
-                <a href={profile.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
-                  {profile.portfolio_url}
-                </a>
+                <span className="text-xs uppercase tracking-wide text-muted-foreground block">Goals</span>
+                <p className="whitespace-pre-wrap">{profile.goals}</p>
               </div>
             )}
           </div>
+
+          {/* Contact & Status */}
+          {(profile.phone || profile.current_status || profile.location || profile.timezone) && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b pb-1">Contact & Status</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                {profile.current_status && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block">Status</span>
+                    <span>{profile.current_status}</span>
+                  </div>
+                )}
+                {profile.phone && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block">Phone</span>
+                    <span>{profile.phone}</span>
+                  </div>
+                )}
+                {profile.location && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block">Location</span>
+                    <span>{profile.location}</span>
+                  </div>
+                )}
+                {profile.timezone && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block">Timezone</span>
+                    <span>{profile.timezone}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Education */}
+          {(profile.education_level || profile.education_details || profile.academic_details) && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b pb-1">Education</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                {profile.education_level && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block">Level</span>
+                    <span>{profile.education_level}</span>
+                  </div>
+                )}
+                {profile.academic_details && (
+                  <div className="md:col-span-2">
+                    <span className="text-xs text-muted-foreground block">Academic Details</span>
+                    <span>{profile.academic_details}</span>
+                  </div>
+                )}
+                {profile.education_details && (profile.education_details.degree || profile.education_details.school) && (
+                  <div className="md:col-span-2 rounded-lg border bg-muted/30 p-3 space-y-1">
+                    {profile.education_details.degree && (
+                      <p><span className="text-xs text-muted-foreground">Degree: </span>{profile.education_details.degree}{profile.education_details.field_of_study ? ` in ${profile.education_details.field_of_study}` : ""}</p>
+                    )}
+                    {profile.education_details.school && (
+                      <p><span className="text-xs text-muted-foreground">School: </span>{profile.education_details.school}</p>
+                    )}
+                    {(profile.education_details.start_year || profile.education_details.end_year) && (
+                      <p>
+                        <span className="text-xs text-muted-foreground">Period: </span>
+                        {profile.education_details.start_year || "—"}
+                        {" → "}
+                        {profile.education_details.end_year === "present" ? "Present" : (profile.education_details.end_year || "—")}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Work Experience */}
+          {profile.work_experience && profile.work_experience.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b pb-1">Work Experience</p>
+              <div className="space-y-2">
+                {profile.work_experience.map((exp: any, i: number) => {
+                  const fmtDate = (d: string) => {
+                    if (!d) return null;
+                    const [y, m] = d.split("-").map(Number);
+                    if (!y) return d;
+                    return new Date(y, (m || 1) - 1, 1).toLocaleDateString(undefined, { month: "short", year: "numeric" });
+                  };
+                  return (
+                    <div key={i} className="rounded-lg border bg-muted/30 p-3 text-sm space-y-0.5">
+                      <p className="font-medium">{exp.position || exp.title || "—"} {exp.company ? `@ ${exp.company}` : ""}</p>
+                      {(exp.start_date || exp.end_date) && (
+                        <p className="text-xs text-muted-foreground">
+                          {fmtDate(exp.start_date) || "—"} → {exp.end_date ? fmtDate(exp.end_date) : "Present"}
+                        </p>
+                      )}
+                      {exp.description && <p className="text-xs text-muted-foreground mt-1">{exp.description}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Skills & Languages */}
+          {((profile.skills && profile.skills.length > 0) || (profile.languages && profile.languages.length > 0)) && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b pb-1">Skills & Languages</p>
+              <div className="space-y-2">
+                {profile.skills && profile.skills.length > 0 && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block mb-1">Skills</span>
+                    <div className="flex flex-wrap gap-1">
+                      {profile.skills.map((s: string) => <Badge key={s} variant="secondary">{s}</Badge>)}
+                    </div>
+                  </div>
+                )}
+                {profile.languages && profile.languages.length > 0 && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block mb-1">Languages</span>
+                    <div className="flex flex-wrap gap-1">
+                      {profile.languages.map((l: string) => <Badge key={l} variant="outline">{l}</Badge>)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Interests & Preferences */}
+          {(
+            (profile.interests && profile.interests.length > 0) ||
+            (profile.preferred_industries && profile.preferred_industries.length > 0) ||
+            (profile.preferred_mentor_areas && profile.preferred_mentor_areas.length > 0) ||
+            (profile.preferred_session_types && profile.preferred_session_types.length > 0) ||
+            (profile.preferred_time_windows && profile.preferred_time_windows.length > 0) ||
+            (profile.preferred_mentor_qualities && profile.preferred_mentor_qualities.length > 0)
+          ) && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b pb-1">Interests & Preferences</p>
+              <div className="space-y-2">
+                {profile.interests && profile.interests.length > 0 && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block mb-1">Interests</span>
+                    <div className="flex flex-wrap gap-1">
+                      {profile.interests.map((v: string) => <Badge key={v} variant="secondary">{v}</Badge>)}
+                    </div>
+                  </div>
+                )}
+                {profile.preferred_industries && profile.preferred_industries.length > 0 && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block mb-1">Industries</span>
+                    <div className="flex flex-wrap gap-1">
+                      {profile.preferred_industries.map((v: string) => <Badge key={v} variant="secondary">{v}</Badge>)}
+                    </div>
+                  </div>
+                )}
+                {profile.preferred_mentor_areas && profile.preferred_mentor_areas.length > 0 && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block mb-1">Preferred Mentor Areas</span>
+                    <div className="flex flex-wrap gap-1">
+                      {profile.preferred_mentor_areas.map((v: string) => <Badge key={v} variant="outline">{v}</Badge>)}
+                    </div>
+                  </div>
+                )}
+                {profile.preferred_session_types && profile.preferred_session_types.length > 0 && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block mb-1">Session Types</span>
+                    <div className="flex flex-wrap gap-1">
+                      {profile.preferred_session_types.map((v: string) => <Badge key={v} variant="outline">{v}</Badge>)}
+                    </div>
+                  </div>
+                )}
+                {profile.preferred_time_windows && profile.preferred_time_windows.length > 0 && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block mb-1">Preferred Time Windows</span>
+                    <div className="flex flex-wrap gap-1">
+                      {profile.preferred_time_windows.map((v: string) => <Badge key={v} variant="outline">{v}</Badge>)}
+                    </div>
+                  </div>
+                )}
+                {profile.preferred_mentor_qualities && profile.preferred_mentor_qualities.length > 0 && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block mb-1">Mentor Qualities</span>
+                    <div className="flex flex-wrap gap-1">
+                      {profile.preferred_mentor_qualities.map((v: string) => <Badge key={v} variant="outline">{v}</Badge>)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Organization (legacy) */}
+          {profile.organization_unit && (
+            <div className="text-sm">
+              <span className="text-xs text-muted-foreground block">Team / Department</span>
+              <span>{profile.organization_unit}</span>
+            </div>
+          )}
+
+          {/* Social Links */}
+          {(profile.linkedin_url || profile.github_url || profile.portfolio_url || profile.instagram_url) && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground border-b pb-1">Links</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                {profile.linkedin_url && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block">LinkedIn</span>
+                    <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{profile.linkedin_url}</a>
+                  </div>
+                )}
+                {profile.github_url && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block">GitHub</span>
+                    <a href={profile.github_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{profile.github_url}</a>
+                  </div>
+                )}
+                {profile.portfolio_url && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block">Portfolio</span>
+                    <a href={profile.portfolio_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{profile.portfolio_url}</a>
+                  </div>
+                )}
+                {profile.instagram_url && (
+                  <div>
+                    <span className="text-xs text-muted-foreground block">Instagram</span>
+                    <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">{profile.instagram_url}</a>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Resume */}
+          {profile.resume_url && (
+            <div className="text-sm">
+              <span className="text-xs text-muted-foreground block mb-1">Resume</span>
+              <a href={profile.resume_url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-all">
+                View Resume
+              </a>
+            </div>
+          )}
         </div>
       )}
 

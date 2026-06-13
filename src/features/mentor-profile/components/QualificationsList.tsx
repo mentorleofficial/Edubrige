@@ -2,8 +2,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GraduationCap, Plus, Trash2 } from "lucide-react";
 import type { QualificationValue } from "../schema";
+
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from(
+  { length: CURRENT_YEAR + 10 - 1950 + 1 },
+  (_, i) => CURRENT_YEAR + 10 - i
+);
 
 interface Props {
   value: QualificationValue[];
@@ -39,6 +46,7 @@ const QualificationsList = ({ value, onChange }: Props) => {
 
       {value.map((q, i) => {
         const isPresent = q.end_year === "present";
+        const endYearOptions = YEARS.filter((y) => y >= (q.start_year as number));
         return (
           <div key={i} className="relative rounded-lg border bg-card p-5">
             <div className="absolute right-3 top-3">
@@ -77,24 +85,43 @@ const QualificationsList = ({ value, onChange }: Props) => {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Start year *</Label>
-                  <Input
-                    type="number"
-                    min={1950}
-                    max={new Date().getFullYear() + 10}
-                    value={q.start_year}
-                    onChange={(e) => update(i, { start_year: Number(e.target.value) })}
-                  />
+                  <Select
+                    value={String(q.start_year)}
+                    onValueChange={(v) => {
+                      const newStart = Number(v);
+                      const patch: Partial<QualificationValue> = { start_year: newStart };
+                      if (!isPresent && (q.end_year as number) < newStart) {
+                        patch.end_year = newStart;
+                      }
+                      update(i, patch);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select year" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px]">
+                      {YEARS.map((y) => (
+                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">End year</Label>
-                  <Input
-                    type="number"
-                    min={1950}
-                    max={new Date().getFullYear() + 10}
+                  <Select
+                    value={isPresent ? "" : String((q.end_year as number) || "")}
+                    onValueChange={(v) => update(i, { end_year: Number(v) })}
                     disabled={isPresent}
-                    value={isPresent ? "" : (q.end_year as number) || ""}
-                    onChange={(e) => update(i, { end_year: Number(e.target.value) })}
-                  />
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select year" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px]">
+                      {endYearOptions.map((y) => (
+                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
                     <Checkbox
                       checked={isPresent}

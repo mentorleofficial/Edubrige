@@ -166,3 +166,20 @@ export function useToggleActionItem() {
       },
     });
 }
+
+/** Returns a Set of session IDs that have at least one action item assigned to the mentee. */
+export function useMenteeActionItemSessionIds(menteeId?: string) {
+  return useQuery({
+    queryKey: ["mentee-action-item-sessions", menteeId],
+    enabled: !!menteeId,
+    staleTime: 30_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("session_action_items")
+        .select("session_id")
+        .eq("mentee_id", menteeId!);
+      if (error) throw error;
+      return new Set((data ?? []).map((r: any) => r.session_id as string));
+    },
+  });
+}

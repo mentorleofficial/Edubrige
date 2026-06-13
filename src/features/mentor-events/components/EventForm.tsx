@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { Label } from "@/components/ui/label";
 import { 
   FileText, 
@@ -351,16 +352,15 @@ export default function EventForm({
 
               <div>
                 <Label htmlFor="description">Description *</Label>
-                <Textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  placeholder="Describe what attendees will learn..."
-                  rows={3}
-                  required
-                  className="mt-1.5"
-                />
+                <div className="mt-1.5">
+                  <MarkdownEditor
+                    value={formData.description}
+                    onChange={(value) => setFormData(prev => ({ ...prev, description: value }))}
+                    placeholder="Describe what attendees will learn..."
+                    rows={5}
+                  />
+                  <p className="text-xs text-right text-muted-foreground mt-1">{formData.description.length} chars</p>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

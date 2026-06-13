@@ -162,7 +162,7 @@ export function OverrideList({ overrides, onAdd, onRemove }: Props) {
       ) : (
         <Button variant="outline" onClick={() => setAdding(true)} className="w-full">
           <Plus className="h-4 w-4 mr-2" />
-          Add date override
+          Add availability
         </Button>
       )}
     </div>

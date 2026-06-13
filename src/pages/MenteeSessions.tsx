@@ -58,6 +58,7 @@ import {
   type MenteeSessionRow,
 } from "@/features/mentee-sessions/useMenteeSessions";
 import type { SessionStatus } from "@/features/mentor-sessions/useMentorSessions";
+import { useMenteeActionItemSessionIds } from "@/features/action-items/useActionItems";
 
 function toCardData(
   s: MenteeSessionRow,
@@ -99,6 +100,7 @@ const MenteeSessions = () => {
     sessionIds
   );
   const { data: myPrograms = [] } = useMyPrograms();
+  const { data: sessionsWithItems = new Set<string>() } = useMenteeActionItemSessionIds(user?.id);
 
   const mentorIds = useMemo(
     () => Array.from(new Set(sessions.map((s) => s.mentor_id))),
@@ -287,11 +289,13 @@ const MenteeSessions = () => {
       }
     }
 
-    overflow.push({
-      label: "View tasks",
-      icon: <ListTodo className="h-3.5 w-3.5" />,
-      onClick: () => setActionItemsTarget(s),
-    });
+    if (sessionsWithItems.has(s.id)) {
+      primary.push(
+        <Button key="tasks" size="sm" variant="outline" onClick={() => setActionItemsTarget(s)}>
+          <ListTodo className="mr-1 h-3.5 w-3.5" /> View tasks
+        </Button>
+      );
+    }
 
     return { data, primary, overflow };
   };

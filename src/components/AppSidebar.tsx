@@ -24,6 +24,7 @@ import {
   Lock,
   Tag,
   CalendarDays,
+  CalendarPlus,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -102,6 +103,7 @@ const AppSidebar = () => {
     { title: "Programs", icon: FolderKanban, path: "/mentee/programs" },
     { title: "Events", icon: CalendarDays, path: "/mentee/events" },
     { title: "Find Mentors", icon: GraduationCap, path: "/mentors" },
+    { title: "Book Session", icon: CalendarPlus, path: "/mentee/book" },
     { title: "My Sessions", icon: BookOpen, path: "/mentee/sessions" },
     { title: "Privacy & My Data", icon: Shield, path: "/account/privacy" },
   ];
