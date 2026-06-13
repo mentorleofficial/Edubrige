@@ -13,30 +13,85 @@ type Decision = "approved" | "rejected" | "changes_requested";
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
+const buildApprovedHtml = (appName: string, recipientName: string, notes: string, loginUrl: string) => {
+  const safe = (s: string) => escapeHtml(s);
+  const safeNotes = notes ? escapeHtml(notes) : "";
+  const notesBlock = safeNotes
+    ? `<tr><td style="padding:8px 24px 0;">
+         <div style="background:#f8fafc;border-radius:8px;padding:14px 16px;font-size:14px;color:#334155;">
+           <strong style="color:#0f172a;">Reviewer notes:</strong><br/>${safeNotes}
+         </div>
+       </td></tr>` : "";
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Welcome to ${safe(appName)} Mentorship Program</title></head>
+  <body style="margin:0;padding:0;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#0f172a;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;padding:32px 16px;">
+      <tr><td align="center">
+        <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+          <tr><td style="padding:28px 24px 8px;">
+            <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;">Welcome to ${safe(appName)} Mentorship Program</h1>
+            <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#475569;">Dear ${safe(recipientName)},</p>
+            <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#475569;">
+              <strong>Congratulations!</strong><br/>
+              We are pleased to inform you that your application to become a mentor with ${safe(appName)} has been approved.
+            </p>
+            <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#475569;">
+              We are excited to welcome you to the ${safe(appName)} Mentorship Program, where your knowledge, experience, and guidance can help learners build confidence, make informed career decisions, and move closer to their goals.
+            </p>
+            <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#475569;">
+              As an approved mentor, you may be invited to support learners through mentoring conversations, career guidance, industry insights, portfolio or interview preparation, and other relevant mentoring activities based on your expertise.
+            </p>
+          </td></tr>
+          <tr><td style="padding:0 24px 8px;">
+            <div style="background:#f8fafc;border-radius:8px;padding:14px 16px;font-size:14px;color:#334155;">
+              <strong style="color:#0f172a;display:block;margin-bottom:8px;">Next steps:</strong>
+              <ul style="margin:0;padding-left:18px;line-height:1.8;">
+                <li>Our team will connect with you to complete the mentor onboarding process.</li>
+                <li>You may be asked to update or confirm your availability, mentoring areas, and preferred mode of engagement.</li>
+                <li>Once onboarding is complete, suitable mentoring opportunities will be shared with you.</li>
+              </ul>
+            </div>
+          </td></tr>
+          <tr><td style="padding:8px 24px 8px;">
+            <p style="margin:0 0 4px;font-size:14px;line-height:1.6;color:#475569;">
+              We look forward to working with you and creating meaningful impact together.
+            </p>
+            <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#475569;">
+              Warm regards,<br/>
+              <strong>Team ${safe(appName)}</strong>
+            </p>
+          </td></tr>
+          ${notesBlock}
+          <tr><td align="center" style="padding:8px 24px 16px;">
+            <a href="${safe(loginUrl)}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Sign in</a>
+          </td></tr>
+          <tr><td style="background:#f8fafc;padding:16px 24px;text-align:center;font-size:11px;color:#94a3b8;">
+            Sent by ${safe(appName)}.
+          </td></tr>
+        </table>
+      </td></tr>
+    </table>
+  </body></html>`;
+};
+
 const buildHtml = (appName: string, recipientName: string, decision: Decision, notes: string, loginUrl: string) => {
+  if (decision === "approved") return buildApprovedHtml(appName, recipientName, notes, loginUrl);
+
   const safeNotes = notes ? escapeHtml(notes) : "";
   const heading =
-    decision === "approved" ? `Welcome aboard, ${escapeHtml(recipientName)}!`
-    : decision === "rejected" ? `Update on your ${escapeHtml(appName)} mentor application`
+    decision === "rejected" ? `Update on your ${escapeHtml(appName)} mentor application`
     : `We need a few more details on your ${escapeHtml(appName)} application`;
 
   const intro =
-    decision === "approved"
-      ? `Your application to mentor on ${escapeHtml(appName)} has been approved. You can now sign in, complete your profile, and start accepting bookings.`
-      : decision === "rejected"
-        ? `Thank you for applying to mentor on ${escapeHtml(appName)}. After review, we're unable to move forward with your application at this time.`
-        : `Thanks for applying! Before we can approve your application, we need some additional information.`;
+    decision === "rejected"
+      ? `Thank you for applying to mentor on ${escapeHtml(appName)}. After review, we're unable to move forward with your application at this time.`
+      : `Thanks for applying! Before we can approve your application, we need some additional information.`;
 
-  const cta =
-    decision === "approved"
-      ? `<tr><td align="center" style="padding:8px 24px 0;">
-           <a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Sign in</a>
-         </td></tr>`
-      : decision === "changes_requested"
-        ? `<tr><td align="center" style="padding:8px 24px 0;">
-             <a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Open Dashboard</a>
-           </td></tr>`
-        : "";
+  const cta = decision === "changes_requested"
+    ? `<tr><td align="center" style="padding:8px 24px 0;">
+         <a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Open Dashboard</a>
+       </td></tr>`
+    : "";
 
   const notesBlock = safeNotes
     ? `<tr><td style="padding:16px 24px 0;">
@@ -170,7 +225,7 @@ Deno.serve(async (req) => {
 
     const html = buildHtml(appName, app.full_name, decision!, notes, loginUrl);
     const subject =
-      decision === "approved" ? `You're approved to mentor on ${appName}`
+      decision === "approved" ? `Welcome to ${appName} Mentorship Program`
       : decision === "rejected" ? `Update on your ${appName} application`
       : `Action needed on your ${appName} application`;
 

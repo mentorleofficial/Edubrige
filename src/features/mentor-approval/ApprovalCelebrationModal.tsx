@@ -28,13 +28,14 @@ const ApprovalCelebrationModal = () => {
 
   const firstName = fullName.split(" ")[0] || "there";
   const topExpertise = expertise.slice(0, 3).join(", ") || "career growth";
-  const defaultCaption = `Excited to share that I've joined ${branding.app_name} as a mentor! 🚀\n\nIf you're looking for guidance in ${topExpertise}, let's connect.\n\nCheck out my profile: ${profileUrl}`;
+  const appNameHashtag = branding.app_name.replace(/\s+/g, "");
+  const defaultCaption = `I look forward to guiding learners, sharing practical industry insights, and supporting young talent as they prepare for their academic and career journeys.\n\nIf you are looking for guidance in ${topExpertise}, feel free to connect with me.\n\nCheck out my mentor profile here: ${profileUrl}\n\n#Mentorship #${appNameHashtag} #CareerGuidance #LearningAndDevelopment #GivingBack`;
   const [caption, setCaption] = useState(defaultCaption);
 
   useEffect(() => {
     setCaption(defaultCaption);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileUrl, expertise.join(","), branding.app_name]);
+  }, [profileUrl, expertise.join(","), branding.app_name, appNameHashtag]);
 
   useEffect(() => {
     if (show && !fired.current) {
@@ -75,7 +76,7 @@ const ApprovalCelebrationModal = () => {
           </div>
           <DialogTitle className="text-2xl">Congratulations, {firstName}! 🎉</DialogTitle>
           <DialogDescription className="text-base">
-            Your mentor profile has been approved on {branding.app_name}. Time to share the news!
+            Your mentor profile has been approved. It's time to share this milestone with your professional network and let others know that you are mentoring learners through {branding.app_name}.
           </DialogDescription>
         </DialogHeader>
 
