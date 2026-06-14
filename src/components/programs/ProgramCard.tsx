@@ -1,10 +1,11 @@
 import { formatISTDate } from "@/lib/datetime";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Calendar, Users } from "lucide-react";
 import type { ProgramWithCounts } from "@/features/programs/api";
+
 type Props = {
   program: ProgramWithCounts;
   basePath: "/mentor/programs" | "/mentee/programs";
@@ -12,60 +13,103 @@ type Props = {
 };
 
 const ProgramCard = ({ program, basePath, cta }: Props) => {
-  const hsl = program.color || "221 83% 53%";
   const detailHref = `${basePath}/${program.slug}`;
+
   return (
-    <Card className="overflow-hidden hover:shadow-md transition-shadow group">
-      <div className="h-1.5 w-full" style={{ backgroundColor: `hsl(${hsl})` }} />
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-lg">
-            <Link to={detailHref} className="hover:underline">
-              {program.name}
+    <Card className="group overflow-hidden border border-border/60 hover:border-border hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 bg-card">
+      <div className="p-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <div className="flex-1 min-w-0">
+            <Link
+              to={detailHref}
+              className="block hover:underline"
+            >
+              <h3 className="text-xl font-semibold tracking-tight text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                {program.name}
+              </h3>
             </Link>
-          </CardTitle>
-          <Badge variant="secondary" className="capitalize shrink-0">
+          </div>
+
+          <Badge
+            variant="secondary"
+            className="capitalize shrink-0 mt-1 font-medium"
+          >
             {program.status}
           </Badge>
         </div>
-        {program.description ? (
-          <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{program.description}</p>
-        ) : null}
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <Users className="h-3.5 w-3.5" />
-            {program.mentor_count} mentors · {program.mentee_count} mentees
-          </span>
-          {program.starts_on ? (
-            <span className="inline-flex items-center gap-1">
-              <Calendar className="h-3.5 w-3.5" />
-              {formatISTDate(program.starts_on)}
-              {program.ends_on ? ` – ${formatISTDate(program.ends_on)}` : ""}
-            </span>
-          ) : null}
+
+        {/* Description */}
+        {program.description && (
+          <p className="text-muted-foreground text-[15px] line-clamp-3 mb-5">
+            {program.description}
+          </p>
+        )}
+
+        {/* Meta Info */}
+        <div className="space-y-3 mb-6">
+          <div className="flex items-center gap-5 text-sm text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <Users className="h-4 w-4" />
+              <span>
+                <strong className="text-foreground">{program.mentor_count}</strong> mentors
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Users className="h-4 w-4" />
+              <span>
+                <strong className="text-foreground">{program.mentee_count}</strong> mentees
+              </span>
+            </div>
+          </div>
+
+          {program.starts_on && (
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Calendar className="h-4 w-4" />
+              <span>
+                {formatISTDate(program.starts_on)}
+                {program.ends_on && ` — ${formatISTDate(program.ends_on)}`}
+              </span>
+            </div>
+          )}
         </div>
+
+        {/* Tags */}
         {program.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1">
-            {program.tags.slice(0, 5).map((t) => (
-              <Badge key={t.id} variant="outline" className="text-xs">{t.label}</Badge>
+          <div className="flex flex-wrap gap-1.5 mb-6">
+            {program.tags.slice(0, 4).map((t) => (
+              <Badge
+                key={t.id}
+                variant="outline"
+                className="text-xs font-medium px-2.5 py-0.5"
+              >
+                {t.label}
+              </Badge>
             ))}
+            {program.tags.length > 4 && (
+              <Badge variant="outline" className="text-xs font-medium px-2.5 py-0.5">
+                +{program.tags.length - 4}
+              </Badge>
+            )}
           </div>
         )}
-        <div className="flex gap-2 pt-1">
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-2">
           <Button variant="outline" size="sm" asChild className="flex-1">
-            <Link to={detailHref}>
-              Open <ArrowRight className="ml-1 h-3.5 w-3.5" />
+            <Link to={detailHref} className="flex items-center justify-center gap-2">
+              View Program
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
             </Link>
           </Button>
+
           {cta && (
             <Button size="sm" asChild className="flex-1">
               <Link to={cta.to}>{cta.label}</Link>
             </Button>
           )}
         </div>
-      </CardContent>
+      </div>
     </Card>
   );
 };
