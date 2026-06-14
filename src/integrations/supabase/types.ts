@@ -1621,6 +1621,22 @@ export type Database = {
           years_experience: number
         }[]
       }
+      list_public_offerings: {
+        Args: never
+        Returns: {
+          category: string
+          description: string
+          duration_minutes: number
+          id: string
+          mentor_avatar_url: string
+          mentor_current_role: string
+          mentor_full_name: string
+          mentor_id: string
+          price: number
+          status: string
+          title: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "mentor" | "mentee"

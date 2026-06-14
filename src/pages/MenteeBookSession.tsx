@@ -169,16 +169,14 @@ export default function MenteeBookSession() {
                       <span>{o.duration_minutes} min</span>
                     </div>
                     {o.description && (
-                      <div className="px-5 pb-5 pt-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-gray-500 hover:text-gray-900 w-full text-xs font-medium h-8"
-                          onClick={() => setDetailOffering(o)}
-                        >
-                          Learn more
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-gray-500 hover:text-gray-900 text-xs font-medium h-8 px-2"
+                        onClick={() => setDetailOffering(o)}
+                      >
+                        Learn more
+                      </Button>
                     )}
                   </div>
 

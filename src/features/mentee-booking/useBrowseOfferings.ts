@@ -25,16 +25,24 @@ export function useBrowseOfferings() {
     queryKey: ["browse-offerings"],
     staleTime: 60_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("mentorship_offerings")
-        .select(`
-          id, title, description, duration_minutes, price, category, status, mentor_id,
-          mentor:users!mentorship_offerings_mentor_id_fkey(id, full_name, avatar_url, mentor_profiles(current_role))
-        `)
-        .eq("status", "active")
-        .order("created_at", { ascending: false });
+      const { data, error } = await supabase.rpc("list_public_offerings" as any);
       if (error) throw error;
-      return (data ?? []) as BrowseOffering[];
+      return ((data as any[]) ?? []).map((row): BrowseOffering => ({
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        duration_minutes: row.duration_minutes,
+        price: Number(row.price ?? 0),
+        category: row.category,
+        status: row.status,
+        mentor_id: row.mentor_id,
+        mentor: {
+          id: row.mentor_id,
+          full_name: row.mentor_full_name,
+          avatar_url: row.mentor_avatar_url,
+          mentor_profiles: [{ current_role: row.mentor_current_role ?? null }],
+        },
+      }));
     },
   });
 }
