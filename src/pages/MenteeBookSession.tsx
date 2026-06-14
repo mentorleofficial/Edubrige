@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, Clock, Coins, Tag } from "lucide-react";
+import { Search, Clock, Calendar, Tag } from "lucide-react";
 import { markdownToHtml } from "@/components/ui/markdown-editor";
 import { useBrowseOfferings, type BrowseOffering } from "@/features/mentee-booking/useBrowseOfferings";
 import BookingModal from "@/components/sessions/BookingModal";
@@ -54,10 +54,10 @@ export default function MenteeBookSession() {
 
   return (
     <AppLayout>
-      <div className="max-w-6xl mx-auto px-5 py-10 space-y-8">
+      <div className="max-w-6xl mx-auto px-5 space-y-5">
         <div>
-          <h1 className="text-[22px] font-medium tracking-tight">Book a session</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-3xl font-bold tracking-tight">Book a session</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
             Browse offerings from all available mentors and book instantly
           </p>
         </div>
@@ -101,9 +101,9 @@ export default function MenteeBookSession() {
 
         {/* Grid */}
         {isLoading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-52 rounded-2xl" />
+              <Skeleton key={i} className="h-[340px] rounded-3xl" />
             ))}
           </div>
         ) : filtered.length === 0 ? (
@@ -113,80 +113,103 @@ export default function MenteeBookSession() {
             <p className="text-sm mt-1">Try adjusting the search or filters.</p>
           </div>
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((o) => (
               <div
                 key={o.id}
-                className="rounded-2xl border bg-card overflow-hidden flex flex-col hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200"
+                className="group bg-white border border-gray-200 rounded-[10px] overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-all duration-200"
               >
-                <div className="h-1 bg-gradient-to-r from-primary to-primary/40" />
-                <div className="p-5 flex flex-col flex-1 gap-3">
-                  {/* Mentor row */}
-                  <div className="flex items-center gap-2">
-                    <Avatar className="h-8 w-8 shrink-0">
+                {/* Mentor Header - Matching the screenshot */}
+                <div className="p-5 pb-3 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12 ring-1 ring-gray-100">
                       <AvatarImage src={o.mentor?.avatar_url ?? undefined} />
-                      <AvatarFallback className="text-xs">{initials(o.mentor?.full_name)}</AvatarFallback>
+                      <AvatarFallback className="text-sm font-medium bg-gray-50">
+                        {initials(o.mentor?.full_name)}
+                      </AvatarFallback>
                     </Avatar>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">{o.mentor?.full_name ?? "Mentor"}</p>
+                    <div>
+                      <p className="font-semibold text-base leading-none">
+                        {o.mentor?.full_name ?? "Mentor"}
+                      </p>
+                      {o.mentor?.mentor_profiles?.[0]?.current_role && (
+                        <p className="text-sm text-gray-500 mt-0.5">
+                          {o.mentor.mentor_profiles[0].current_role}
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  {/* Offering info */}
-                  <div>
-                    <h3 className="font-semibold text-sm leading-tight">{o.title}</h3>
-                    {o.category && (
-                      <Badge variant="secondary" className="mt-1 text-[10px] rounded-full">
-                        <Tag className="h-2.5 w-2.5 mr-1" />{o.category}
-                      </Badge>
-                    )}
-                  </div>
+                  {o.category && (
+                    <Badge
+                      variant="secondary"
+                      className="mt-4 text-xs px-3 py-1 rounded-full font-medium border border-gray-100 bg-gray-50"
+                    >
+                      {o.category}
+                    </Badge>
+                  )}
+                </div>
+
+                {/* Main Content */}
+                <div className="p-5 flex flex-col flex-1">
+                  <h3 className="text-xl font-semibold leading-tight tracking-tight text-gray-900 mb-1">
+                    {o.title}
+                  </h3>
 
                   {o.description && (
-                    <p className="text-xs text-muted-foreground line-clamp-2 flex-1">
+                    <p className="text-gray-600 text-[15px] line-clamp-2 mt-1 mb-5">
                       {stripMarkdown(o.description)}
                     </p>
                   )}
 
-                  {/* Price / duration */}
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mt-auto">
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" /> {o.duration_minutes} min
-                    </span>
-                    <span className="flex items-center gap-1 font-semibold text-foreground">
-                      <Coins className="h-3.5 w-3.5" />
-                      {o.price === 0 ? "Free" : `₹${o.price}`}
-                    </span>
+                  {/* Meta Info */}
+                  <div className="flex items-center gap-5 text-sm text-gray-500 mt-auto mb-6">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="h-4 w-4" />
+                      <span>{o.duration_minutes} min</span>
+                    </div>
+                    {o.description && (
+                      <div className="px-5 pb-5 pt-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-gray-500 hover:text-gray-900 w-full text-xs font-medium h-8"
+                          onClick={() => setDetailOffering(o)}
+                        >
+                          Learn more
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-1">
-                    {o.description && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1 text-xs"
-                        onClick={() => setDetailOffering(o)}
-                      >
-                        Learn more
-                      </Button>
-                    )}
+
+
+                  {/* Footer with Price + Book Button */}
+                  <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
+                    <div className="flex items-center gap-1">
+                      <span className="text-2xl font-semibold text-gray-900">₹</span>
+                      <span className="text-2xl font-semibold text-gray-900">
+                        {o.price === 0 ? "Free" : o.price}
+                      </span>
+                    </div>
+
                     <Button
-                      size="sm"
-                      className="flex-1 text-xs"
+                      size="lg"
+                      className="px-8 rounded-2xl bg-black hover:bg-black/90 text-white font-medium shadow-sm"
                       onClick={() => setBookTarget(o)}
                     >
-                      Book
+                      Book Now
                     </Button>
                   </div>
                 </div>
+
               </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Learn more dialog */}
+      {/* Learn more dialog - kept as is */}
       <Dialog open={!!detailOffering} onOpenChange={(open) => !open && setDetailOffering(null)}>
         <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
           <DialogHeader>
