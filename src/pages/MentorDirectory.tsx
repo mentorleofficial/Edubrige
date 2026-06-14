@@ -12,6 +12,7 @@ import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import ExpertiseFilter from "@/features/mentors/components/ExpertiseFilter";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const MentorDirectory = () => {
@@ -443,6 +444,7 @@ const MentorDirectory = () => {
             </Button>
           </div>
         ) : (
+          <TooltipProvider delayDuration={150}>
           <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {filtered.map((m) => {
               const profile = m.mentor_profiles?.[0];
@@ -451,7 +453,10 @@ const MentorDirectory = () => {
                 .map((n) => n[0])
                 .join("")
                 .toUpperCase();
-              const topTag = profile?.expertise?.[0];
+              const topTag = profile?.current_role;
+              const expertiseTags = profile?.expertise ?? [];
+              const visibleTags = expertiseTags.slice(0, 2);
+              const remainingCount = expertiseTags.length - visibleTags.length;
               const isFav = favorites.includes(m.id);
 
               return (
@@ -505,15 +510,53 @@ const MentorDirectory = () => {
                   )}
 
                   <div
-                    className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-3 pt-12"
+                    className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-3 pt-14"
                     style={{
                       background:
-                        "linear-gradient(to top, rgba(0,0,0,0.92) 50%, rgba(0,0,0,0.4) 80%, transparent 100%)",
+                        "linear-gradient(to top, rgba(0,0,0,0.94) 55%, rgba(0,0,0,0.45) 82%, transparent 100%)",
                     }}
                   >
                     <h3 className="font-bold text-white text-[15px] leading-tight truncate">
                       {m.full_name}
                     </h3>
+
+                    {expertiseTags.length > 0 && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div
+                            className="flex items-center gap-1 mt-1.5 flex-nowrap overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {visibleTags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="rounded-full bg-white/15 text-white/90 text-[9.5px] font-medium px-1.5 py-0.5 truncate max-w-[70px]"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                            {remainingCount > 0 && (
+                              <span className="rounded-full bg-white/20 text-white text-[9.5px] font-semibold px-1.5 py-0.5 whitespace-nowrap">
+                                +{remainingCount}
+                              </span>
+                            )}
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-[240px]">
+                          <div className="flex flex-wrap gap-1">
+                            {expertiseTags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="rounded-full bg-muted text-foreground text-[10px] px-1.5 py-0.5"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+
                     <div className="flex items-center justify-between gap-2 mt-2">
                       {profile?.years_experience ? (
                         <div className="text-[11px] text-white/75 whitespace-nowrap">
@@ -541,6 +584,7 @@ const MentorDirectory = () => {
               );
             })}
           </div>
+          </TooltipProvider>
         )}
       </div>
     </AppLayout>

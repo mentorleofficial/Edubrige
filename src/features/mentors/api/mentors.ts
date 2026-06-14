@@ -9,6 +9,9 @@ export interface MentorWithProfile {
     bio: string | null;
     expertise: string[] | null;
     years_experience: number | null;
+    current_role: string | null;
+    headline: string | null;
+    current_organization: string | null;
   }[];
 }
 
@@ -30,6 +33,9 @@ export async function fetchActiveMentors(): Promise<MentorWithProfile[]> {
         bio: row.bio,
         expertise: row.expertise,
         years_experience: row.years_experience,
+        current_role: row.current_role ?? null,
+        headline: row.headline ?? null,
+        current_organization: null,
       },
     ],
   }));
