@@ -417,6 +417,41 @@ export type Database = {
           },
         ]
       }
+      general_feedback: {
+        Row: {
+          category: Database["public"]["Enums"]["general_feedback_category"]
+          created_at: string
+          id: string
+          message: string
+          resolved: boolean
+          user_id: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["general_feedback_category"]
+          created_at?: string
+          id?: string
+          message: string
+          resolved?: boolean
+          user_id: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["general_feedback_category"]
+          created_at?: string
+          id?: string
+          message?: string
+          resolved?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "general_feedback_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jwt_config: {
         Row: {
           algorithm: string
@@ -1656,6 +1691,11 @@ export type Database = {
       dsr_kind: "export" | "correction" | "deletion" | "withdrawal"
       dsr_status: "pending" | "in_review" | "completed" | "rejected"
       feedback_audience: "mentor" | "mentee" | "admin_private"
+      general_feedback_category:
+        | "feedback"
+        | "concern"
+        | "suggestion"
+        | "review"
       outbound_event_status: "pending" | "sent" | "failed"
       session_status: "booked" | "completed" | "cancelled" | "no_show"
     }
@@ -1796,6 +1836,12 @@ export const Constants = {
       dsr_kind: ["export", "correction", "deletion", "withdrawal"],
       dsr_status: ["pending", "in_review", "completed", "rejected"],
       feedback_audience: ["mentor", "mentee", "admin_private"],
+      general_feedback_category: [
+        "feedback",
+        "concern",
+        "suggestion",
+        "review",
+      ],
       outbound_event_status: ["pending", "sent", "failed"],
       session_status: ["booked", "completed", "cancelled", "no_show"],
     },

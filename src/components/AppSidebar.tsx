@@ -26,6 +26,7 @@ import {
   CalendarDays,
   CalendarPlus,
   ListTodo,
+  MessageCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -71,6 +72,7 @@ const AppSidebar = () => {
     { title: "Sessions", icon: BookOpen, path: "/admin/sessions" },
     { title: "Events", icon: CalendarDays, path: "/admin/events" },
     { title: "Feedback", icon: Star, path: "/admin/feedback" },
+    { title: "Platform Feedback", icon: MessageCircle, path: "/admin/general-feedback" },
     { title: "Leaderboard", icon: Trophy, path: "/mentor/leaderboard" },
     { title: "Settings", icon: Settings, path: "/admin/settings" },
     { title: "Privacy Requests", icon: ShieldCheck, path: "/admin/privacy-requests" },

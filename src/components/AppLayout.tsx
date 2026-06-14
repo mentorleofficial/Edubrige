@@ -3,6 +3,7 @@ import AppSidebar from "@/components/AppSidebar";
 import ApprovalCelebrationModal from "@/features/mentor-approval/ApprovalCelebrationModal";
 import ConsentBanner from "@/components/ConsentBanner";
 import NotificationBell from "@/components/NotificationBell";
+import FeedbackWidget from "@/components/FeedbackWidget";
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
@@ -19,6 +20,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
         </main>
       </div>
       <ApprovalCelebrationModal />
+      <FeedbackWidget />
     </SidebarProvider>
   );
 };
