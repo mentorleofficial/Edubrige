@@ -6,7 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, X, UserSearch, Filter, ChevronDown, Heart } from "lucide-react";
+import { Search, X, UserSearch, Filter, ChevronDown, Heart, Share2, Check } from "lucide-react";
+import { toast } from "sonner";
 import { useMentors, useMenteeFavorites, useToggleFavorite } from "@/features/mentors";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,6 +25,7 @@ const MentorDirectory = () => {
   const [selectedSessionType, setSelectedSessionType] = useState("");
   const [hasAvailability, setHasAvailability] = useState(false);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [sharedId, setSharedId] = useState<string | null>(null);
 
   const [params, setParams] = useSearchParams();
   const navigate = useNavigate();
@@ -465,28 +467,53 @@ const MentorDirectory = () => {
                   onClick={() => navigate(`/book/${m.id}`)}
                   className="group relative overflow-hidden cursor-pointer border-0 rounded-2xl aspect-[3/4] bg-[#1a1a2e] hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
                 >
-                  {/* Favorite Toggle Button */}
-                  {user && (
+                  {/* Share & Favorite Toggle Buttons */}
+                  <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5">
                     <button
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        toggleFavoriteMutation.mutate({
-                          userId: user.id,
-                          mentorId: m.id,
-                          isFavorite: isFav,
-                        });
+                        const url = `${window.location.origin}/mentors/${m.id}`;
+                        try {
+                          await navigator.clipboard.writeText(url);
+                          setSharedId(m.id);
+                          toast.success("Link copied to clipboard");
+                          setTimeout(() => setSharedId((cur) => (cur === m.id ? null : cur)), 1500);
+                        } catch {
+                          toast.error("Could not copy link");
+                        }
                       }}
-                      className="absolute top-2.5 right-2.5 z-20 flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white/80 hover:scale-105 hover:bg-black/60 transition-all duration-200"
-                      title={isFav ? "Remove from favorites" : "Add to favorites"}
+                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white/90 hover:scale-105 hover:bg-black/60 transition-all duration-200"
+                      title="Copy share link"
+                      aria-label="Copy share link"
                     >
-                      <Heart
-                        className={cn(
-                          "h-4 w-4 stroke-[2.5px] transition-colors",
-                          isFav ? "fill-red-500 text-red-500" : "text-white/95"
-                        )}
-                      />
+                      {sharedId === m.id ? (
+                        <Check className="h-4 w-4 stroke-[2.5px]" />
+                      ) : (
+                        <Share2 className="h-4 w-4 stroke-[2.5px]" />
+                      )}
                     </button>
-                  )}
+                    {user && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavoriteMutation.mutate({
+                            userId: user.id,
+                            mentorId: m.id,
+                            isFavorite: isFav,
+                          });
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white/80 hover:scale-105 hover:bg-black/60 transition-all duration-200"
+                        title={isFav ? "Remove from favorites" : "Add to favorites"}
+                      >
+                        <Heart
+                          className={cn(
+                            "h-4 w-4 stroke-[2.5px] transition-colors",
+                            isFav ? "fill-red-500 text-red-500" : "text-white/95"
+                          )}
+                        />
+                      </button>
+                    )}
+                  </div>
 
                   {m.avatar_url ? (
                     <img
