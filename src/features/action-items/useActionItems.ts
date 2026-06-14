@@ -43,7 +43,7 @@ export function useSessionActionItems(sessionId?: string) {
         .eq("session_id", sessionId!)
         .order("created_at", { ascending: true });
       if (error) throw error;
-      return (data ?? []) as ActionItem[];
+      return (data ?? []) as unknown as ActionItem[];
     },
   });
 }
@@ -96,11 +96,11 @@ export function useCreateActionItem() {
           due_date: input.due_date ?? null,
           created_by: input.created_by,
           mentor_attachments: input.mentor_attachments ?? [],
-        })
+        } as any)
         .select()
         .single();
       if (error) throw error;
-      return data as ActionItem;
+      return data as unknown as ActionItem;
     },
     onSuccess: (item) => {
       qc.invalidateQueries({ queryKey: sessionActionItemsKey(item.session_id) });
@@ -125,7 +125,7 @@ export function useUpdateActionItem() {
         .select()
         .single();
       if (error) throw error;
-      return data as ActionItem;
+      return data as unknown as ActionItem;
     },
     onSuccess: (item) => {
       qc.invalidateQueries({ queryKey: sessionActionItemsKey(item.session_id) });
