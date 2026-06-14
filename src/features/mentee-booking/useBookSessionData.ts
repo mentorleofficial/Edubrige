@@ -7,6 +7,13 @@ export interface BookingMentor {
   full_name: string | null;
   avatar_url: string | null;
   email: string | null;
+  headline: string | null;
+  current_role: string | null;
+  current_organization: string | null;
+  bio: string | null;
+  expertise: string[] | null;
+  years_experience: number | null;
+  linkedin_url: string | null;
 }
 export interface BookingSlot {
   id: string;
@@ -93,6 +100,13 @@ export function useBookSessionStatic(mentorId?: string) {
             full_name: info.full_name,
             avatar_url: info.avatar_url,
             email: info.email,
+            headline: (info as any).headline ?? null,
+            current_role: (info as any).current_role ?? null,
+            current_organization: (info as any).current_organization ?? null,
+            bio: (info as any).bio ?? null,
+            expertise: (info as any).expertise ?? null,
+            years_experience: (info as any).years_experience ?? null,
+            linkedin_url: (info as any).linkedin_url ?? null,
           }
           : null,
         mentorProfile: info

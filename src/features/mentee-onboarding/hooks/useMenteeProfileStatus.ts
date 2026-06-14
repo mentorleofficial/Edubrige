@@ -15,7 +15,9 @@ export function useMenteeProfile(userId: string | undefined) {
 export function useMenteeProfileStatus(userId: string | undefined) {
   const q = useMenteeProfile(userId);
   return {
-    loading: q.isLoading,
+    // Treat "no user yet" / disabled query as loading so guards don't
+    // briefly think the profile is incomplete during auth hydration.
+    loading: !userId || q.isPending,
     isComplete: !!q.data?.onboarded_at,
     data: q.data,
   };

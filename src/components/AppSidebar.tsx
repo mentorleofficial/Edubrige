@@ -25,6 +25,7 @@ import {
   Tag,
   CalendarDays,
   CalendarPlus,
+  ListTodo,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { useOpenActionItemsCount } from "@/features/action-items/useActionItems";
 
 const AppSidebar = () => {
   const { profile, signOut, mentorActive, isApproved, profileCompleteness } = useAuth();
@@ -97,6 +99,8 @@ const AppSidebar = () => {
     { title: "Offerings", icon: Tag, path: "/mentor/offerings" },
   ];
 
+  const { data: openTasksCount = 0 } = useOpenActionItemsCount(profile?.id, "mentee");
+
   const menteeItems = [
     { title: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
     { title: "My Profile", icon: User, path: "/mentee/profile" },
@@ -105,6 +109,7 @@ const AppSidebar = () => {
     { title: "Find Mentors", icon: GraduationCap, path: "/mentors" },
     { title: "Book Session", icon: CalendarPlus, path: "/mentee/book" },
     { title: "My Sessions", icon: BookOpen, path: "/mentee/sessions" },
+    { title: "My Tasks", icon: ListTodo, path: "/mentee/tasks", badge: openTasksCount || undefined },
     { title: "Privacy & My Data", icon: Shield, path: "/account/privacy" },
   ];
 

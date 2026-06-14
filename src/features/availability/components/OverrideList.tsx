@@ -45,9 +45,7 @@ export function OverrideList({ overrides, onAdd, onRemove }: Props) {
 
   return (
     <div className="space-y-3">
-      {overrides.length === 0 && !adding && (
-        <p className="text-sm text-muted-foreground">No date overrides yet.</p>
-      )}
+      {overrides.length === 0 && !adding && <p className="text-sm text-muted-foreground">No date overrides yet.</p>}
 
       {overrides.map((o) => (
         <div
@@ -63,9 +61,7 @@ export function OverrideList({ overrides, onAdd, onRemove }: Props) {
               )}
             </div>
             <div>
-              <p className="font-medium text-sm">
-                {format(parseISO(o.date), "EEE, MMM d, yyyy")}
-              </p>
+              <p className="font-medium text-sm">{format(parseISO(o.date), "EEE, MMM d, yyyy")}</p>
               <p className="text-xs text-muted-foreground mt-1">
                 {o.is_unavailable
                   ? "Fully unavailable"
@@ -83,7 +79,9 @@ export function OverrideList({ overrides, onAdd, onRemove }: Props) {
         <Card className="border-primary/50 bg-primary/5">
           <CardContent className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label htmlFor="override-date" className="font-semibold text-sm">Date</Label>
+              <Label htmlFor="override-date" className="font-semibold text-sm">
+                Date
+              </Label>
               <Input
                 id="override-date"
                 type="date"
@@ -99,10 +97,11 @@ export function OverrideList({ overrides, onAdd, onRemove }: Props) {
                 <button
                   type="button"
                   onClick={() => setMode("blocked")}
-                  className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-colors ${mode === "blocked"
+                  className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-colors ${
+                    mode === "blocked"
                       ? "border-destructive bg-destructive/10 text-destructive"
                       : "border-border text-muted-foreground hover:border-destructive/50"
-                    }`}
+                  }`}
                 >
                   <Ban className="h-4 w-4" />
                   <span className="text-sm font-medium">Block day</span>
@@ -110,10 +109,11 @@ export function OverrideList({ overrides, onAdd, onRemove }: Props) {
                 <button
                   type="button"
                   onClick={() => setMode("custom")}
-                  className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-colors ${mode === "custom"
+                  className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-colors ${
+                    mode === "custom"
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border text-muted-foreground hover:border-primary/50"
-                    }`}
+                  }`}
                 >
                   <Clock className="h-4 w-4" />
                   <span className="text-sm font-medium">Custom hours</span>
@@ -138,9 +138,7 @@ export function OverrideList({ overrides, onAdd, onRemove }: Props) {
             )}
 
             {isTimeRangeInvalid && (
-              <p className="text-xs text-destructive font-medium pt-1">
-                Start time must be before end time.
-              </p>
+              <p className="text-xs text-destructive font-medium pt-1">Start time must be before end time.</p>
             )}
 
             {isDuplicateDate && (
@@ -153,8 +151,12 @@ export function OverrideList({ overrides, onAdd, onRemove }: Props) {
               <Button variant="outline" onClick={() => setAdding(false)}>
                 Cancel
               </Button>
-              <Button onClick={submit} disabled={!date || isTimeRangeInvalid || isDuplicateDate} className={mode === "blocked" ? "bg-destructive hover:bg-destructive/90" : ""}>
-                Add override
+              <Button
+                onClick={submit}
+                disabled={!date || isTimeRangeInvalid || isDuplicateDate}
+                className={mode === "blocked" ? "bg-destructive hover:bg-destructive/90" : ""}
+              >
+                Add Availability
               </Button>
             </div>
           </CardContent>

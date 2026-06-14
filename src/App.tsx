@@ -51,6 +51,7 @@ const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
 const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const MenteeBookSession = lazy(() => import("@/pages/MenteeBookSession"));
+const MenteeTasks = lazy(() => import("@/pages/MenteeTasks"));
 
 const App = () => (
   <ErrorBoundary>
@@ -103,6 +104,7 @@ const App = () => (
                   <Route path="/mentee/sessions" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><MenteeSessions /></MenteeOnboardingGuard></RoleGuard>} />
                   <Route path="/book/:mentorId" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><BookSession /></MenteeOnboardingGuard></RoleGuard>} />
                   <Route path="/mentee/book" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><MenteeBookSession /></MenteeOnboardingGuard></RoleGuard>} />
+                  <Route path="/mentee/tasks" element={<RoleGuard allowedRoles={["mentee"]}><MenteeOnboardingGuard><MenteeTasks /></MenteeOnboardingGuard></RoleGuard>} />
                   <Route path="/session/:id/feedback" element={<RoleGuard allowedRoles={["mentor", "mentee"]}><SessionFeedback /></RoleGuard>} />
                   <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                   <Route path="/privacy-policy/:version" element={<RoleGuard allowedRoles={["admin"]}><PrivacyPolicy /></RoleGuard>} />

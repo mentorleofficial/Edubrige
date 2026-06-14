@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import {
@@ -23,6 +24,7 @@ import {
   BadgeCheck,
   XCircle,
   AlertCircle,
+  ListTodo,
   type LucideIcon,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -112,6 +114,16 @@ const TYPE_STYLES: Record<string, NotifStyle> = {
     borderClass: "border-l-amber-500",
     bgClass: "bg-amber-50/40 dark:bg-amber-950/20",
   },
+  action_item_assigned: {
+    Icon: ListTodo,
+    iconClass: "text-primary",
+    borderClass: "border-l-primary",
+    bgClass: "bg-primary/5",
+  },
+};
+
+const NOTIF_ROUTES: Record<string, string> = {
+  action_item_assigned: "/mentee/tasks",
 };
 
 const DEFAULT_STYLE: NotifStyle = {
@@ -128,8 +140,20 @@ function getStyle(type: string): NotifStyle {
 const NotificationBell = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+
+  const handleClickNotification = async (n: Notification) => {
+    const route = NOTIF_ROUTES[n.type];
+    if (!n.read) {
+      try {
+        await supabase.from("notifications").update({ read: true }).eq("id", n.id);
+        fetchNotifications();
+      } catch {}
+    }
+    if (route) navigate(route);
+  };
 
   const fetchNotifications = useCallback(async () => {
     if (!user?.id) return;
@@ -261,7 +285,8 @@ const NotificationBell = () => {
               return (
                 <div
                   key={notif.id}
-                  className={`flex gap-3 p-4 transition-colors hover:bg-muted/40 ${
+                  onClick={() => handleClickNotification(notif)}
+                  className={`flex gap-3 p-4 transition-colors hover:bg-muted/40 ${NOTIF_ROUTES[notif.type] ? "cursor-pointer" : ""} ${
                     !notif.read
                       ? `${bgClass} border-l-2 ${borderClass}`
                       : ""
@@ -290,7 +315,7 @@ const NotificationBell = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => markAsRead(notif.id)}
+                          onClick={(e) => { e.stopPropagation(); markAsRead(notif.id); }}
                           className="h-6 text-[10px] px-2 text-primary font-semibold hover:bg-muted"
                         >
                           <Check className="mr-1 h-3 w-3" /> Mark as read
@@ -303,7 +328,7 @@ const NotificationBell = () => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => clearNotification(notif.id)}
+                      onClick={(e) => { e.stopPropagation(); clearNotification(notif.id); }}
                       className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                       title="Delete notification"
                     >

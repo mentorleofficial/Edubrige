@@ -1556,13 +1556,20 @@ export type Database = {
         Args: { _mentor_id: string }
         Returns: {
           avatar_url: string
+          bio: string
           buffer_time_minutes: number
+          current_organization: string
+          current_role: string
           email: string
+          expertise: string[]
           full_name: string
+          headline: string
           id: string
           is_active: boolean
+          linkedin_url: string
           minimum_notice_hours: number
           timezone: string
+          years_experience: number
         }[]
       }
       get_program_member_counts: {

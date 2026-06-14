@@ -106,6 +106,7 @@ export function useCreateActionItem() {
       qc.invalidateQueries({ queryKey: sessionActionItemsKey(item.session_id) });
       qc.invalidateQueries({ queryKey: userOpenActionItemsKey(item.mentor_id, "mentor") });
       qc.invalidateQueries({ queryKey: userOpenActionItemsKey(item.mentee_id, "mentee") });
+      qc.invalidateQueries({ queryKey: ["mentee-tasks", item.mentee_id] });
     },
   });
 }
@@ -131,6 +132,7 @@ export function useUpdateActionItem() {
       qc.invalidateQueries({ queryKey: sessionActionItemsKey(item.session_id) });
       qc.invalidateQueries({ queryKey: userOpenActionItemsKey(item.mentor_id, "mentor") });
       qc.invalidateQueries({ queryKey: userOpenActionItemsKey(item.mentee_id, "mentee") });
+      qc.invalidateQueries({ queryKey: ["mentee-tasks", item.mentee_id] });
     },
   });
 }
@@ -150,6 +152,7 @@ export function useDeleteActionItem() {
       qc.invalidateQueries({ queryKey: sessionActionItemsKey(input.session_id) });
       qc.invalidateQueries({ queryKey: userOpenActionItemsKey(input.mentor_id, "mentor") });
       qc.invalidateQueries({ queryKey: userOpenActionItemsKey(input.mentee_id, "mentee") });
+      qc.invalidateQueries({ queryKey: ["mentee-tasks", input.mentee_id] });
     },
   });
 }
