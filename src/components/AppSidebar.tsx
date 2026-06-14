@@ -87,7 +87,7 @@ const AppSidebar = () => {
     { title: "Events", icon: CalendarDays, path: "/mentor/events" },
     { title: "Programs", icon: FolderKanban, path: "/mentor/programs" },
     { title: "My Mentees", icon: UsersRound, path: "/mentor/mentees" },
-    { title: "Sessions", icon: BookOpen, path: "/mentor/sessions" },
+    { title: "Bookings", icon: BookOpen, path: "/mentor/sessions" },
     ...(branding.leaderboard_enabled
       ? [{ title: "Leaderboard", icon: Trophy, path: "/mentor/leaderboard" }]
       : []),
@@ -132,8 +132,8 @@ const AppSidebar = () => {
     role === "admin"
       ? adminItems
       : role === "mentor"
-      ? getMentorItems()
-      : menteeItems;
+        ? getMentorItems()
+        : menteeItems;
   const initials = profile?.full_name?.split(" ").map((n) => n[0]).join("").toUpperCase() || "?";
 
   return (
@@ -168,8 +168,8 @@ const AppSidebar = () => {
                         item.isLocked
                           ? `${item.title} (Locked - Complete Profile)`
                           : item.badge
-                          ? `${item.title} (${item.badge})`
-                          : item.title
+                            ? `${item.title} (${item.badge})`
+                            : item.title
                       }
                       onClick={() => {
                         if (item.isLocked) {
@@ -186,7 +186,7 @@ const AppSidebar = () => {
                       className={cn(
                         "gap-3 transition-all duration-200",
                         item.isLocked &&
-                          "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-sidebar-foreground"
+                        "opacity-50 cursor-not-allowed hover:bg-transparent hover:text-sidebar-foreground"
                       )}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
