@@ -1612,6 +1612,7 @@ export type Database = {
         Returns: {
           avatar_url: string
           bio: string
+          current_role: string
           expertise: string[]
           full_name: string
           headline: string
