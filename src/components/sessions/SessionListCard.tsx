@@ -129,7 +129,7 @@ export default function SessionListCard({
         <div className="min-w-0 flex-1 space-y-1.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-semibold text-sm truncate">{data.counterpartyName}</span>
-            <SessionStatusDot status={data.status} />
+            <SessionStatusDot status={data.status} isUpcoming={isUpcoming} />
             {data.programs.map((p) => (
               <ProgramBadge
                 key={p.slug}

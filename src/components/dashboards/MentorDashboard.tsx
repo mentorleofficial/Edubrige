@@ -29,7 +29,7 @@ import RecentFeedbackPanel from "./mentor/RecentFeedbackPanel";
 import RecentActivityFeed from "./mentor/RecentActivityFeed";
 
 const MentorDashboard = () => {
-  const { user, isApproved, profileCompleteness } = useAuth();
+  const { user, profile, isApproved, profileCompleteness } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
   const { data, isLoading } = useMentorDashboardData(user?.id);
@@ -133,6 +133,8 @@ const MentorDashboard = () => {
     };
   }, [data]);
 
+  const firstName = profile?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
+
   if (isLoading || !data) {
     return (
       <div className="space-y-4">
@@ -151,6 +153,15 @@ const MentorDashboard = () => {
   return (
     <TooltipProvider>
     <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-semibold" style={{ fontFamily: "var(--font-serif)" }}>
+          Welcome back, {firstName}!
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          Here's what's happening with your content and sessions
+        </p>
+      </div>
+
       {data?.profile && (
         <MentorProfileCompletionModal
           profileData={data.profile}

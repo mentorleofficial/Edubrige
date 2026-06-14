@@ -5,7 +5,7 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { MarkdownEditor } from "@/components/ui/markdown-editor";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -53,13 +53,14 @@ export interface MentorshipOffering {
 }
 
 const CATEGORIES = [
+  "General Mentorship",
   "Resume Review",
   "Portfolio Review",
   "Career Guidance",
   "Mock Interview",
   "Code Review",
-  "General Mentorship",
   "Project Guidance",
+  "Other",
 ];
 
 const MentorOfferings = () => {
@@ -77,10 +78,6 @@ const MentorOfferings = () => {
   const [price, setPrice] = useState("0");
   const [status, setStatus] = useState("draft");
   const [category, setCategory] = useState("General Mentorship");
-  const [customCategory, setCustomCategory] = useState("");
-
-  // The resolved category value to save
-  const finalCategory = category === "Other" ? customCategory.trim() : category;
 
   const { data: offerings = [], isLoading } = useQuery<MentorshipOffering[]>({
     queryKey: ["mentor", "offerings", user?.id],
@@ -185,7 +182,6 @@ const MentorOfferings = () => {
     setPrice("0");
     setStatus("draft");
     setCategory("General Mentorship");
-    setCustomCategory("");
   };
 
   const handleEdit = (o: MentorshipOffering) => {
@@ -195,14 +191,7 @@ const MentorOfferings = () => {
     setDuration(String(o.duration_minutes));
     setPrice(String(o.price));
     setStatus(o.status);
-    // If saved category isn't in the preset list, treat it as "Other"
-    if (CATEGORIES.includes(o.category)) {
-      setCategory(o.category);
-      setCustomCategory("");
-    } else {
-      setCategory("Other");
-      setCustomCategory(o.category);
-    }
+    setCategory(CATEGORIES.includes(o.category) ? o.category : "Other");
     setDialogOpen(true);
   };
 
@@ -212,10 +201,6 @@ const MentorOfferings = () => {
       toast({ variant: "destructive", title: "Title is required" });
       return;
     }
-    if (category === "Other" && !customCategory.trim()) {
-      toast({ variant: "destructive", title: "Please enter a custom category" });
-      return;
-    }
     saveMutation.mutate({
       id: selectedOffering?.id,
       title: title.trim(),
@@ -223,7 +208,7 @@ const MentorOfferings = () => {
       duration_minutes: Number(duration),
       price: Number(price),
       status,
-      category: finalCategory,
+      category,
       currency: "INR",
     });
   };
@@ -366,15 +351,15 @@ const MentorOfferings = () => {
         )}
 
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+            <DialogHeader className="shrink-0">
               <DialogTitle>{selectedOffering ? "Edit Offering" : "Add Offering"}</DialogTitle>
               <DialogDescription>
                 Fill in the details for this session offering. Offerings represent different services mentees can book.
               </DialogDescription>
             </DialogHeader>
 
-            <form onSubmit={handleSubmit} className="space-y-4 py-2">
+            <form id="offering-form" onSubmit={handleSubmit} className="space-y-4 py-2 overflow-y-auto flex-1 pr-1">
               <div className="space-y-1.5">
                 <Label htmlFor="title">Title *</Label>
                 <Input
@@ -389,14 +374,13 @@ const MentorOfferings = () => {
 
               <div className="space-y-1.5">
                 <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  placeholder="Describe what this session covers, how you will help, and what the mentee should prepare..."
+                <MarkdownEditor
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  maxLength={500}
+                  onChange={setDescription}
+                  placeholder="Describe what this session covers, how you will help, and what the mentee should prepare..."
+                  rows={4}
                 />
+                <p className="text-xs text-right text-muted-foreground">{description.length}/1000</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
@@ -433,7 +417,7 @@ const MentorOfferings = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label htmlFor="category">Category *</Label>
-                  <Select value={category} onValueChange={(val) => { setCategory(val); if (val !== "Other") setCustomCategory(""); }}>
+                  <Select value={category} onValueChange={setCategory}>
                     <SelectTrigger id="category">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
@@ -441,19 +425,8 @@ const MentorOfferings = () => {
                       {CATEGORIES.map((cat) => (
                         <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                       ))}
-                      <SelectItem value="Other">Other</SelectItem>
                     </SelectContent>
                   </Select>
-                  {category === "Other" && (
-                    <Input
-                      id="custom-category"
-                      placeholder="Enter custom category"
-                      value={customCategory}
-                      onChange={(e) => setCustomCategory(e.target.value)}
-                      className="mt-2"
-                      autoFocus
-                    />
-                  )}
                 </div>
 
                 <div className="space-y-1.5">
@@ -471,19 +444,20 @@ const MentorOfferings = () => {
                 </div>
               </div>
 
-              <DialogFooter className="pt-4 border-t">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={saveMutation.isPending}>
-                  {saveMutation.isPending ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
-                  ) : (
-                    "Save Offering"
-                  )}
-                </Button>
-              </DialogFooter>
             </form>
+
+            <DialogFooter className="shrink-0 pt-4 border-t">
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" form="offering-form" disabled={saveMutation.isPending}>
+                {saveMutation.isPending ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+                ) : (
+                  "Save Offering"
+                )}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

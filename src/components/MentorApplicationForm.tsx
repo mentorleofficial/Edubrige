@@ -481,6 +481,11 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
         }
         if (appErr) throw appErr;
 
+        // Fire-and-forget: send "thank you for applying" email
+        supabase.functions.invoke("mentor-application-submitted-email", {
+          body: { full_name: values.full_name, email: user.email || values.email },
+        }).catch(() => {/* best-effort */});
+
         const { error: userErr } = await supabase
           .from("users")
           .update({ full_name: values.full_name })
@@ -597,6 +602,11 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
         current_role: pending.values.current_role || null,
       });
       if (insErr) console.error("application insert failed", insErr);
+
+      // Fire-and-forget: send "thank you for applying" email
+      supabase.functions.invoke("mentor-application-submitted-email", {
+        body: { full_name: pending.values.full_name, email: pending.values.email },
+      }).catch(() => {/* best-effort */});
 
       const { error: profErr } = await supabase.from("mentor_profiles").upsert(
         {

@@ -28,6 +28,10 @@ import {
   Trophy,
 } from "lucide-react";
 import { formatISTDateTime, formatIST } from "@/lib/datetime";
+import { markdownToHtml } from "@/components/ui/markdown-editor";
+
+const stripMarkdown = (md: string) =>
+  markdownToHtml(md).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 import {
   useAllEvents,
   useMenteeRegistrations,
@@ -347,7 +351,7 @@ export default function MenteeEvents() {
 
                       {/* Description */}
                       <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                        {event.description}
+                        {stripMarkdown(event.description)}
                       </p>
 
                       {/* Quick Specs */}
@@ -565,9 +569,10 @@ export default function MenteeEvents() {
                       <BookOpen className="h-4 w-4 text-primary" />
                       About this Event
                     </h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line">
-                      {selectedEvent.description}
-                    </p>
+                    <div
+                      className="text-sm text-muted-foreground leading-relaxed [&_h1]:text-base [&_h1]:font-bold [&_h2]:text-sm [&_h2]:font-semibold [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 space-y-2"
+                      dangerouslySetInnerHTML={{ __html: markdownToHtml(selectedEvent.description) }}
+                    />
                   </div>
 
                   {/* Prerequisites Section */}

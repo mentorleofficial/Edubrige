@@ -20,6 +20,22 @@ type MenteeProfileUpdate = {
   academic_details?: string;
   github_url?: string;
   portfolio_url?: string;
+  // Extended fields
+  phone?: string | null;
+  current_status?: string | null;
+  education_level?: string | null;
+  location?: string | null;
+  timezone?: string | null;
+  skills?: string[];
+  languages?: string[];
+  education_details?: object | null;
+  work_experience?: object[];
+  preferred_industries?: string[];
+  preferred_session_types?: string[];
+  preferred_time_windows?: string[];
+  preferred_mentor_qualities?: string[];
+  instagram_url?: string | null;
+  resume_url?: string | null;
 };
 
 type UserUpdate = {
@@ -79,11 +95,39 @@ export async function upsertMenteeProfile(
   if (profile.github_url !== undefined) payload.github_url = profile.github_url;
   if (profile.portfolio_url !== undefined) payload.portfolio_url = profile.portfolio_url;
   if (opts?.markOnboarded) payload.onboarded_at = new Date().toISOString();
+  // Extended fields
+  const ext = profile as Record<string, unknown>;
+  if (ext.phone !== undefined) payload.phone = ext.phone as string | null;
+  if (ext.current_status !== undefined) payload.current_status = ext.current_status as string | null;
+  if (ext.education_level !== undefined) payload.education_level = ext.education_level as string | null;
+  if (ext.location !== undefined) payload.location = ext.location as string | null;
+  if (ext.timezone !== undefined) payload.timezone = ext.timezone as string | null;
+  if (ext.skills !== undefined) payload.skills = ext.skills as string[];
+  if (ext.languages !== undefined) payload.languages = ext.languages as string[];
+  if (ext.education_details !== undefined) payload.education_details = ext.education_details as object | null;
+  if (ext.work_experience !== undefined) payload.work_experience = ext.work_experience as object[];
+  if (ext.preferred_industries !== undefined) payload.preferred_industries = ext.preferred_industries as string[];
+  if (ext.preferred_session_types !== undefined) payload.preferred_session_types = ext.preferred_session_types as string[];
+  if (ext.preferred_time_windows !== undefined) payload.preferred_time_windows = ext.preferred_time_windows as string[];
+  if (ext.preferred_mentor_qualities !== undefined) payload.preferred_mentor_qualities = ext.preferred_mentor_qualities as string[];
+  if (ext.instagram_url !== undefined) payload.instagram_url = ext.instagram_url as string | null;
+  if (ext.resume_url !== undefined) payload.resume_url = ext.resume_url as string | null;
 
   const { error: pErr } = await supabase
     .from("mentee_profiles")
     .upsert(payload, { onConflict: "user_id" });
   if (pErr) throw pErr;
+}
+
+export async function uploadMenteeResume(userId: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "pdf";
+  const path = `resumes/${userId}/${Date.now()}.${ext}`;
+  const { error } = await supabase.storage
+    .from("mentee-resumes")
+    .upload(path, file, { contentType: file.type, upsert: true });
+  if (error) throw error;
+  const { data } = supabase.storage.from("mentee-resumes").getPublicUrl(path);
+  return data.publicUrl;
 }
 
 export async function uploadMenteeAvatar(userId: string, file: File): Promise<string> {

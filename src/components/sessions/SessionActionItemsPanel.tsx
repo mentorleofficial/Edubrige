@@ -18,6 +18,8 @@ import {
   Code2,
   File,
   Download,
+  CheckCircle2,
+  Clock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -48,7 +50,7 @@ export default function SessionActionItemsPanel({
   role,
 }: Props) {
   const { toast } = useToast();
-  const { data: items = [], isLoading } = useSessionActionItems(sessionId);
+  const { data: items = [], isLoading, refetch } = useSessionActionItems(sessionId);
   const createMut = useCreateActionItem();
   const updateMut = useUpdateActionItem();
   const deleteMut = useDeleteActionItem();
@@ -62,6 +64,11 @@ export default function SessionActionItemsPanel({
 
   const { data: mentorProfile, refetch: refetchProfile } = useMentorProfile(mentorId);
   const allowMenteeAttachments = mentorProfile?.allow_mentee_attachments ?? false;
+
+  // Refresh data every time the panel opens (sessionId changes = new dialog open).
+  useEffect(() => {
+    refetch();
+  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     refetchProfile();
@@ -509,17 +516,51 @@ export default function SessionActionItemsPanel({
                 </div>
               </div>
             </div>
-            {canEdit && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0 mt-0.5"
-                onClick={() => handleDelete(item)}
-                aria-label="Delete task"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            )}
+            <div className="flex flex-col items-end gap-1 shrink-0 mt-0.5">
+              {canEdit ? (
+                <button
+                  type="button"
+                  onClick={() => handleToggle(item)}
+                  title="Click to toggle status"
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors cursor-pointer",
+                    item.status === "done"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20"
+                      : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+                  )}
+                >
+                  {item.status === "done"
+                    ? <CheckCircle2 className="h-3 w-3" />
+                    : <Clock className="h-3 w-3" />}
+                  {item.status === "done" ? "Completed" : "Pending"}
+                </button>
+              ) : (
+                <span
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                    item.status === "done"
+                      ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : "border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                  )}
+                >
+                  {item.status === "done"
+                    ? <CheckCircle2 className="h-3 w-3" />
+                    : <Clock className="h-3 w-3" />}
+                  {item.status === "done" ? "Completed" : "Pending"}
+                </span>
+              )}
+              {canEdit && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
+                  onClick={() => handleDelete(item)}
+                  aria-label="Delete task"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </li>
         ))}
       </ul>

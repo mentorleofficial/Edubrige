@@ -521,52 +521,97 @@ export type Database = {
           academic_details: string
           bio: string
           created_at: string
+          current_status: string | null
+          education_details: Json | null
+          education_level: string | null
           github_url: string
           goals: string | null
           headline: string
           id: string
+          instagram_url: string | null
           interests: string[] | null
+          languages: string[] | null
           linkedin_url: string
+          location: string | null
           onboarded_at: string | null
           organization_unit: string | null
+          phone: string | null
           portfolio_url: string
+          preferred_industries: string[] | null
           preferred_mentor_areas: string[]
+          preferred_mentor_qualities: string[] | null
+          preferred_session_types: string[] | null
+          preferred_time_windows: string[] | null
+          resume_url: string | null
+          skills: string[] | null
+          timezone: string | null
           updated_at: string
           user_id: string
+          work_experience: Json | null
         }
         Insert: {
           academic_details?: string
           bio?: string
           created_at?: string
+          current_status?: string | null
+          education_details?: Json | null
+          education_level?: string | null
           github_url?: string
           goals?: string | null
           headline?: string
           id?: string
+          instagram_url?: string | null
           interests?: string[] | null
+          languages?: string[] | null
           linkedin_url?: string
+          location?: string | null
           onboarded_at?: string | null
           organization_unit?: string | null
+          phone?: string | null
           portfolio_url?: string
+          preferred_industries?: string[] | null
           preferred_mentor_areas?: string[]
+          preferred_mentor_qualities?: string[] | null
+          preferred_session_types?: string[] | null
+          preferred_time_windows?: string[] | null
+          resume_url?: string | null
+          skills?: string[] | null
+          timezone?: string | null
           updated_at?: string
           user_id: string
+          work_experience?: Json | null
         }
         Update: {
           academic_details?: string
           bio?: string
           created_at?: string
+          current_status?: string | null
+          education_details?: Json | null
+          education_level?: string | null
           github_url?: string
           goals?: string | null
           headline?: string
           id?: string
+          instagram_url?: string | null
           interests?: string[] | null
+          languages?: string[] | null
           linkedin_url?: string
+          location?: string | null
           onboarded_at?: string | null
           organization_unit?: string | null
+          phone?: string | null
           portfolio_url?: string
+          preferred_industries?: string[] | null
           preferred_mentor_areas?: string[]
+          preferred_mentor_qualities?: string[] | null
+          preferred_session_types?: string[] | null
+          preferred_time_windows?: string[] | null
+          resume_url?: string | null
+          skills?: string[] | null
+          timezone?: string | null
           updated_at?: string
           user_id?: string
+          work_experience?: Json | null
         }
         Relationships: [
           {

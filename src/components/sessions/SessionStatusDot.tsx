@@ -2,14 +2,18 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { SessionStatus } from "@/features/mentor-sessions/useMentorSessions";
 
-const STATUS_META: Record<
-  SessionStatus,
-  { label: string; dot: string; tone: string }
-> = {
+type EffectiveStatus = SessionStatus | "pending_review";
+
+const STATUS_META: Record<EffectiveStatus, { label: string; dot: string; tone: string }> = {
   booked: {
-    label: "Booked",
+    label: "Upcoming",
     dot: "bg-primary",
     tone: "border-primary/30 bg-primary/5 text-primary",
+  },
+  pending_review: {
+    label: "Pending",
+    dot: "bg-amber-500",
+    tone: "border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-400",
   },
   completed: {
     label: "Completed",
@@ -30,11 +34,15 @@ const STATUS_META: Record<
 
 interface Props {
   status: SessionStatus;
+  /** When true the session is in the future; false = past but still booked → shows "Pending". */
+  isUpcoming?: boolean;
   className?: string;
 }
 
-export default function SessionStatusDot({ status, className }: Props) {
-  const meta = STATUS_META[status] ?? STATUS_META.booked;
+export default function SessionStatusDot({ status, isUpcoming, className }: Props) {
+  const effectiveStatus: EffectiveStatus =
+    status === "booked" && isUpcoming === false ? "pending_review" : status;
+  const meta = STATUS_META[effectiveStatus] ?? STATUS_META.booked;
   return (
     <Badge
       variant="outline"

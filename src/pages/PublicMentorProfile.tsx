@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import BookingModal from "@/components/sessions/BookingModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { markdownToHtml } from "@/components/ui/markdown-editor";
 import { Helmet } from "react-helmet-async";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -89,34 +92,24 @@ const PublicMentorProfile = () => {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [rating, setRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
+  const [offeringDetail, setOfferingDetail] = useState<any>(null);
+  const [bookingModalOpen, setBookingModalOpen] = useState(false);
+  const [bookingOffering, setBookingOffering] = useState<any>(null);
   const { data: mentorBadges = [] } = useMentorBadges(mentor?.user_id);
   const bookingTargetId = mentor?.user_id ?? mentorId;
 
-  const getBookingPath = (offeringId?: string) => {
-    if (!bookingTargetId) return "/book";
-    const params = new URLSearchParams();
-    if (offeringId) params.set("offeringId", offeringId);
-    const query = params.toString();
-    return `/book/${bookingTargetId}${query ? `?${query}` : ""}`;
-  };
-
-  const handleBook = (offeringId?: string) => {
-    const bookingPath = getBookingPath(offeringId);
-
+  const handleBook = (offering?: any) => {
     if (!user) {
-      navigate(`/login?redirect=${encodeURIComponent(bookingPath)}`);
+      const profilePath = mentor?.slug ? `/mentors/${mentor.slug}` : `/mentors/${bookingTargetId}`;
+      navigate(`/login?redirect=${encodeURIComponent(profilePath)}`);
       return;
     }
-
-    if (role === "mentee") {
-      navigate(bookingPath);
+    if (role !== "mentee") {
+      toast({ title: "Booking unavailable", description: "Only mentee accounts can book sessions from this page." });
       return;
     }
-
-    toast({
-      title: "Booking unavailable",
-      description: "Only mentee accounts can book sessions from this page.",
-    });
+    setBookingOffering(offering ?? null);
+    setBookingModalOpen(true);
   };
 
   // Fetch active offerings
@@ -191,9 +184,7 @@ const PublicMentorProfile = () => {
     fetch();
   }, [mentorId]);
 
-  const onBook = () => {
-    handleBook();
-  };
+  const onBook = () => handleBook();
 
   if (loading) {
     return (
@@ -427,9 +418,18 @@ const PublicMentorProfile = () => {
                           </h3>
 
                           {o.description && (
-                            <p className="mt-3 text-sm text-muted-foreground">
-                              {o.description}
-                            </p>
+                            <div className="mt-3">
+                              <div
+                                className="text-sm text-muted-foreground line-clamp-3 [&_h1]:text-sm [&_h2]:text-sm [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+                                dangerouslySetInnerHTML={{ __html: markdownToHtml(o.description) }}
+                              />
+                              <button
+                                onClick={() => setOfferingDetail(o)}
+                                className="mt-1 text-xs text-primary hover:underline"
+                              >
+                                Learn more
+                              </button>
+                            </div>
                           )}
 
                           <div className="mt-6 flex items-center justify-between">
@@ -450,9 +450,7 @@ const PublicMentorProfile = () => {
 
                           <Button
                             className="mt-6 w-full"
-                            onClick={() => {
-                              handleBook(o.id);
-                            }}
+                            onClick={() => handleBook(o)}
                           >
                             Book Session
                           </Button>
@@ -462,6 +460,33 @@ const PublicMentorProfile = () => {
                   </div>
                 </section>
               )}
+
+              {/* OFFERING DETAIL DIALOG */}
+              <Dialog open={!!offeringDetail} onOpenChange={(open) => !open && setOfferingDetail(null)}>
+                <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>{offeringDetail?.title}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    {offeringDetail?.description && (
+                      <div
+                        className="text-sm text-muted-foreground [&_h1]:text-base [&_h1]:font-bold [&_h2]:text-sm [&_h2]:font-semibold [&_strong]:font-semibold [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 leading-relaxed space-y-2"
+                        dangerouslySetInnerHTML={{ __html: markdownToHtml(offeringDetail.description) }}
+                      />
+                    )}
+                    <div className="flex gap-6 pt-3 border-t text-sm font-medium">
+                      <span>{offeringDetail?.duration_minutes} min</span>
+                      <span>{offeringDetail?.price === 0 ? "Free" : `₹${offeringDetail?.price}`}</span>
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={() => { const o = offeringDetail; setOfferingDetail(null); handleBook(o); }}
+                    >
+                      Book Session
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
               {/* EXPERIENCE */}
               {mentor.experiences.length > 0 && (
@@ -599,6 +624,15 @@ const PublicMentorProfile = () => {
         </div>
 
       </div>
+
+      {mentor && (
+        <BookingModal
+          mentorId={mentor.user_id}
+          offeringId={bookingOffering?.id}
+          open={bookingModalOpen}
+          onOpenChange={(open) => { if (!open) { setBookingModalOpen(false); setBookingOffering(null); } }}
+        />
+      )}
     </TooltipProvider>
   );
 };
