@@ -12,6 +12,7 @@ import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import ExpertiseFilter from "@/features/mentors/components/ExpertiseFilter";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 const MentorDirectory = () => {
