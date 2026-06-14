@@ -115,7 +115,7 @@ export async function upsertMenteeProfile(
 
   const { error: pErr } = await supabase
     .from("mentee_profiles")
-    .upsert(payload, { onConflict: "user_id" });
+    .upsert(payload as any, { onConflict: "user_id" });
   if (pErr) throw pErr;
 }
 

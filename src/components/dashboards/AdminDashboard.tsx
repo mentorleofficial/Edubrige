@@ -52,7 +52,7 @@ const AdminDashboard = () => {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <WeekSchedule sessions={data.sessions30} />
+          <WeekSchedule sessions={data.sessions30 as any} />
         </div>
         <PlatformHealth
           jwtEnabled={data.jwtEnabled}
