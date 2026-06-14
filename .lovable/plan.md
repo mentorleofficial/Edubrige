@@ -1,53 +1,24 @@
-## Find Mentor Page Redesign
+## Goal
+On the Find Mentor page cards:
+1. Top-left tag should display the mentor's **current_role** (instead of the first expertise tag).
+2. Below the mentor name, show expertise tags — first 2 visible with a "+N" chip if more — and a tooltip on hover showing all tags.
 
-### Goals
-- Tighter, denser layout — no more big gaps between cards
-- Compact portrait cards, 4 per row on desktop (2 on tablet, 1-2 on mobile)
-- New expertise filter alongside existing search + program filter
-- Polished header + filter bar
+## Changes
 
-### Layout
+### 1. `supabase/migrations/<new>.sql` — extend `list_public_mentors` RPC
+Add `current_role text` to the RETURNS TABLE and SELECT clause so the frontend gets `current_role` along with existing fields. Recreate function preserving existing filtering logic.
 
-```text
- ┌──────────────────────────────────────────────┐
- │  Find a Mentor                                │
- │  Browse and book sessions                     │
- ├──────────────────────────────────────────────┤
- │ [Search…]  [Expertise ▾]  [Program: All | …]  │ ← sticky filter bar
- │  Active chips: × React  × Design              │
- ├──────────────────────────────────────────────┤
- │  ┌────┐ ┌────┐ ┌────┐ ┌────┐                  │
- │  │card│ │card│ │card│ │card│   ← 4-col grid   │
- │  └────┘ └────┘ └────┘ └────┘     gap-4        │
- │  ┌────┐ ┌────┐ ┌────┐ ┌────┐                  │
- └──────────────────────────────────────────────┘
-```
+### 2. `src/features/mentors/api/mentors.ts`
+- Add `current_role: string | null` to `MentorWithProfile.mentor_profiles[0]`.
+- Map `row.current_role` from the RPC response.
 
-### Card changes
-- Drop the fixed `width: 260px` + `aspectRatio 3/4` per-card style that forces wide whitespace inside the grid cell
-- Use a proper responsive grid: `grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4`
-- Card becomes `aspect-[3/4]` and fills cell width
-- Keep dark portrait look (full-bleed image, gradient bottom overlay, name + years + Book Now)
-- Add top-left small expertise pill (first tag) for quick scanning
-- Hover: subtle scale + brighter overlay
+### 3. `src/pages/MentorDirectory.tsx`
+- Replace the top-left chip's `topTag = profile?.expertise?.[0]` with `profile?.current_role`.
+- Below `<h3>{m.full_name}</h3>`, render a row of expertise tags:
+  - First 2 tags shown as small pill chips (`bg-white/15 text-white/90 text-[10px]`), truncated.
+  - If more than 2, append a `+N` chip.
+  - Wrap the row in a shadcn `Tooltip` whose content lists all tags; on hover anywhere over the row, the full list shows.
+- Adjust the bottom gradient/padding minimally so tags + name + footer (yrs/Book) all fit within the card.
 
-### Filters (new)
-
-1. **Expertise multi-select** — extract unique expertise tags from loaded mentors, render as a Popover with checkable list + search. Active selections shown as removable chips under the filter bar. Filter logic: mentor must contain ALL selected tags (AND).
-2. **Keep existing**: search input (name/expertise), program pills.
-3. **Empty state** when filters return zero: friendly card with "Clear filters" button.
-
-### Technical scope
-
-Files touched:
-- `src/pages/MentorDirectory.tsx` — replace card grid styles, add expertise filter state + Popover, sticky filter bar
-- New small component `src/features/mentors/components/ExpertiseFilter.tsx` — Popover + Command list for multi-select
-- Reuse existing `useMentors`, `Popover`, `Command`, `Badge` (no new deps)
-
-Out of scope: backend queries, mentor schema, booking flow, other filters (years/availability/sort) — can add later if needed.
-
-### Verification
-- Resize preview at desktop/tablet/mobile — cards reflow without empty gutters
-- Pick 2 expertise tags → grid filters to mentors with both; chips render with × to remove
-- Combine with search + program — all three intersect correctly
-- Clearing all filters restores full list
+## Out of scope
+Backend changes beyond extending the RPC; no schema migrations to tables; no filter logic changes.
