@@ -43,11 +43,11 @@ export function useMenteeRegistrations(userId?: string) {
     staleTime: 30_000,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("event_participants" as any)
+        .from("event_participants")
         .select("event_id, registered_at, completion_status, progress_data")
         .eq("user_id", userId!);
       if (error) throw error;
-      return data;
+      return (data ?? []) as { event_id: string; registered_at: string; completion_status: string | null; progress_data: any }[];
     }
   });
 }

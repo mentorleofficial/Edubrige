@@ -382,6 +382,8 @@ export type Database = {
           created_at: string
           id: string
           rating: number
+          responded_at: string | null
+          response: string | null
           session_id: string
           submitted_by: string
         }
@@ -391,6 +393,8 @@ export type Database = {
           created_at?: string
           id?: string
           rating: number
+          responded_at?: string | null
+          response?: string | null
           session_id: string
           submitted_by: string
         }
@@ -400,6 +404,8 @@ export type Database = {
           created_at?: string
           id?: string
           rating?: number
+          responded_at?: string | null
+          response?: string | null
           session_id?: string
           submitted_by?: string
         }
@@ -1579,32 +1585,32 @@ export type Database = {
           academic_details: string
           avatar_url: string
           bio: string
-          current_status: string | null
-          education_details: Json | null
-          education_level: string | null
+          current_status: string
+          education_details: Json
+          education_level: string
           email: string
           full_name: string
           github_url: string
           goals: string
           headline: string
           id: string
-          instagram_url: string | null
+          instagram_url: string
           interests: string[]
           languages: string[]
-          linkedin_url: string | null
-          location: string | null
+          linkedin_url: string
+          location: string
           organization_unit: string
-          phone: string | null
+          phone: string
           portfolio_url: string
           preferred_industries: string[]
           preferred_mentor_areas: string[]
           preferred_mentor_qualities: string[]
           preferred_session_types: string[]
           preferred_time_windows: string[]
-          resume_url: string | null
+          resume_url: string
           skills: string[]
-          timezone: string | null
-          work_experience: Json | null
+          timezone: string
+          work_experience: Json
         }[]
       }
       get_mentor_booking_info: {
@@ -1659,6 +1665,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_feedback_subject: {
+        Args: { _feedback_id: string; _user_id: string }
         Returns: boolean
       }
       is_program_member: {

@@ -17,6 +17,8 @@ interface FeedbackRow {
   audience: Audience;
   created_at: string;
   submitted_by: string;
+  response: string | null;
+  responded_at: string | null;
   session: {
     id: string;
     scheduled_at: string;
@@ -52,7 +54,7 @@ const AdminFeedback = () => {
       const { data } = await supabase
         .from("feedback")
         .select(
-          "id, rating, comment, audience, created_at, submitted_by, session:sessions!feedback_session_id_fkey(id, scheduled_at, mentor:users!sessions_mentor_id_fkey(full_name), mentee:users!sessions_mentee_id_fkey(full_name)), submitter:users!feedback_submitted_by_fkey(full_name)"
+          "id, rating, comment, audience, created_at, submitted_by, response, responded_at, session:sessions!feedback_session_id_fkey(id, scheduled_at, mentor:users!sessions_mentor_id_fkey(full_name), mentee:users!sessions_mentee_id_fkey(full_name)), submitter:users!feedback_submitted_by_fkey(full_name)"
         )
         .order("created_at", { ascending: false })
         .limit(500);
@@ -143,13 +145,14 @@ const AdminFeedback = () => {
                   <TableHead>Audience</TableHead>
                   <TableHead>Rating</TableHead>
                   <TableHead>Comment</TableHead>
+                  <TableHead>Response</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                 ) : filtered.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No feedback yet</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">No feedback yet</TableCell></TableRow>
                 ) : filtered.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="text-xs text-muted-foreground">{formatISTDate(r.created_at)}</TableCell>
@@ -161,6 +164,18 @@ const AdminFeedback = () => {
                     <TableCell><Badge variant="outline" className="text-xs">{audienceLabel[r.audience]}</Badge></TableCell>
                     <TableCell><Stars n={r.rating} /></TableCell>
                     <TableCell className="max-w-md text-sm text-muted-foreground">{r.comment || "—"}</TableCell>
+                    <TableCell className="max-w-md text-sm">
+                      {r.response ? (
+                        <div>
+                          <div className="whitespace-pre-wrap">{r.response}</div>
+                          {r.responded_at && (
+                            <div className="text-xs text-muted-foreground mt-1">{formatISTDate(r.responded_at)}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

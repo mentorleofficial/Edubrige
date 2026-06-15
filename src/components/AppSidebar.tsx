@@ -89,6 +89,7 @@ const AppSidebar = () => {
     { title: "Programs", icon: FolderKanban, path: "/mentor/programs" },
     { title: "My Mentees", icon: UsersRound, path: "/mentor/mentees" },
     { title: "Bookings", icon: BookOpen, path: "/mentor/sessions" },
+    { title: "My Feedback", icon: MessageCircle, path: "/feedback" },
     ...(branding.leaderboard_enabled
       ? [{ title: "Leaderboard", icon: Trophy, path: "/mentor/leaderboard" }]
       : []),
@@ -113,6 +114,7 @@ const AppSidebar = () => {
     { title: "Book Session", icon: CalendarPlus, path: "/mentee/book" },
     { title: "My Sessions", icon: BookOpen, path: "/mentee/sessions" },
     { title: "My Tasks", icon: ListTodo, path: "/mentee/tasks", badge: openTasksCount || undefined },
+    { title: "My Feedback", icon: MessageCircle, path: "/feedback" },
     { title: "Privacy & My Data", icon: Shield, path: "/account/privacy" },
   ];
 

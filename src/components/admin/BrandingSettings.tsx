@@ -29,6 +29,7 @@ interface BrandingRow {
   leaderboard_enabled: boolean;
   site_url: string;
   supabase_api_url: string;
+  leaderboard_refresh_hours: number;
 }
 
 const DEFAULTS = {

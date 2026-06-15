@@ -81,7 +81,7 @@ export async function fetchMenteeProfile(userId: string): Promise<MenteeProfileD
     preferred_mentor_qualities: (profile?.preferred_mentor_qualities as string[]) ?? [],
     instagram_url: (profile?.instagram_url as string | null) ?? null,
     resume_url: (profile?.resume_url as string | null) ?? null,
-  };
+  } as MenteeProfileData;
 }
 
 export async function upsertMenteeProfile(
