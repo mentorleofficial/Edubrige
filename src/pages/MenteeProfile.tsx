@@ -34,10 +34,11 @@ import { MonthYearPicker } from "@/components/ui/month-year-picker";
 import {
   Loader2, UserCircle, Target, Link as LinkIcon, Github, Globe,
   Save, Check, Briefcase, GraduationCap, Trash2, Plus,
-  Instagram, MapPin, Settings2, Sparkles,
+  Instagram, MapPin, Settings2, Sparkles, User, Edit3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ResumeUploadCard from "@/components/profile/ResumeUploadCard";
+import { useBranding } from "@/contexts/BrandingContext";
 
 // ─── Moved outside component so they don't remount on each render ───
 
@@ -93,6 +94,7 @@ type EducationDetails = {
 
 const MenteeProfile = () => {
   const { user, profile, refreshProfile } = useAuth();
+  const branding = useBranding();
   const { toast } = useToast();
   const invalidate = useInvalidateMenteeProfile();
   const { data, isLoading } = useMenteeProfile(user?.id);
@@ -427,24 +429,6 @@ const MenteeProfile = () => {
     <AppLayout>
       <div className="max-w-5xl mx-auto px-5 py-10 space-y-8">
 
-        {/* Welcome banner */}
-        <div className="rounded-xl bg-gradient-to-r from-primary to-primary/80 p-6 text-primary-foreground shadow-sm">
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15">
-              <Sparkles className="h-6 w-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold">
-                Welcome{firstName ? `, ${firstName}` : ""} 👋
-              </h2>
-              <p className="mt-1 text-sm text-primary-foreground/90">
-                Keep your profile up to date so mentors can match you to the right
-                sessions and understand your goals before you meet.
-              </p>
-            </div>
-          </div>
-        </div>
-
         {/* Header */}
         <div>
           <h1 className="text-[22px] font-medium tracking-tight">My profile</h1>
@@ -452,6 +436,27 @@ const MenteeProfile = () => {
             Keep your profile up to date to get better mentor matches
           </p>
         </div>
+
+        {completeness < 100 && (
+          <div className="bg-gradient-to-tr from-primary to-accent text-white rounded-lg p-6 shadow-md">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 bg-white/10 p-2.5 rounded-full">
+                <User className="w-8 h-8 text-white" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold mb-2">Welcome to {branding.app_name}! 🎉</h2>
+                <p className="text-white/90 text-sm mb-4 font-semibold">
+                  Let's complete your profile to get started. This helps us match you with the right mentors 
+                  and personalize your experience.
+                </p>
+                <div className="flex items-center gap-2 text-xs text-white/80">
+                  <Edit3 className="w-4 h-4" />
+                  <span>Fill in the details below to complete your profile</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4 lg:gap-6">
 
