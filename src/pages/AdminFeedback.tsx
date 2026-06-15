@@ -133,6 +133,7 @@ const AdminFeedback = () => {
               </Select>
             </div>
 
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -164,6 +165,7 @@ const AdminFeedback = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

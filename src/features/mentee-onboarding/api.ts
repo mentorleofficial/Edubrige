@@ -49,21 +49,38 @@ export async function fetchMenteeProfile(userId: string): Promise<MenteeProfileD
     supabase.from("mentee_profiles").select("*").eq("user_id", userId).maybeSingle(),
   ]);
 
+  const profile = p as Record<string, unknown> | null;
   return {
     full_name: u?.full_name ?? "",
     email: u?.email ?? "",
     avatar_url: u?.avatar_url ?? null,
-    headline: (p as any)?.headline ?? "",
-    bio: (p as any)?.bio ?? "",
+    headline: (profile?.headline as string) ?? "",
+    bio: (profile?.bio as string) ?? "",
     organization_unit: p?.organization_unit ?? "",
-    linkedin_url: (p as any)?.linkedin_url ?? "",
+    linkedin_url: (profile?.linkedin_url as string) ?? "",
     goals: p?.goals ?? "",
     interests: p?.interests ?? [],
-    preferred_mentor_areas: ((p as any)?.preferred_mentor_areas ?? []) as string[],
-    onboarded_at: ((p as any)?.onboarded_at as string | null) ?? null,
-    academic_details: (p as any)?.academic_details ?? "",
-    github_url: (p as any)?.github_url ?? "",
-    portfolio_url: (p as any)?.portfolio_url ?? "",
+    preferred_mentor_areas: ((profile?.preferred_mentor_areas ?? []) as string[]),
+    onboarded_at: ((profile?.onboarded_at as string | null) ?? null),
+    academic_details: (profile?.academic_details as string) ?? "",
+    github_url: (profile?.github_url as string) ?? "",
+    portfolio_url: (profile?.portfolio_url as string) ?? "",
+    // Extended fields
+    phone: (profile?.phone as string | null) ?? null,
+    current_status: (profile?.current_status as string | null) ?? null,
+    education_level: (profile?.education_level as string | null) ?? null,
+    location: (profile?.location as string | null) ?? null,
+    timezone: (profile?.timezone as string | null) ?? null,
+    skills: (profile?.skills as string[]) ?? [],
+    languages: (profile?.languages as string[]) ?? [],
+    education_details: (profile?.education_details as object | null) ?? null,
+    work_experience: (profile?.work_experience as object[]) ?? [],
+    preferred_industries: (profile?.preferred_industries as string[]) ?? [],
+    preferred_session_types: (profile?.preferred_session_types as string[]) ?? [],
+    preferred_time_windows: (profile?.preferred_time_windows as string[]) ?? [],
+    preferred_mentor_qualities: (profile?.preferred_mentor_qualities as string[]) ?? [],
+    instagram_url: (profile?.instagram_url as string | null) ?? null,
+    resume_url: (profile?.resume_url as string | null) ?? null,
   };
 }
 

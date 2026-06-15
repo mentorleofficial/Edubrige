@@ -16,6 +16,7 @@ interface BrandingConfig {
   heading_font: string;
   mentor_community_url: string;
   leaderboard_enabled: boolean;
+  leaderboard_refresh_hours: number;
   site_url: string;
 }
 
@@ -33,6 +34,7 @@ const defaultBranding: BrandingConfig = {
   heading_font: "DM Serif Display",
   mentor_community_url: "",
   leaderboard_enabled: true,
+  leaderboard_refresh_hours: 24,
   site_url: "https://mentorle.vercel.app/",
 };
 
@@ -78,6 +80,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           heading_font: (data as any).heading_font ?? defaultBranding.heading_font,
           mentor_community_url: (data as any).mentor_community_url ?? "",
           leaderboard_enabled: (data as any).leaderboard_enabled ?? true,
+          leaderboard_refresh_hours: (data as any).leaderboard_refresh_hours ?? 24,
           site_url: (data as any).site_url ?? defaultBranding.site_url,
         };
         setBranding(config);

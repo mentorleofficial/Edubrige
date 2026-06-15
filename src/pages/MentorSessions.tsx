@@ -34,6 +34,7 @@ import {
   ListTodo,
   AlertCircle,
   Inbox,
+  ChevronRight,
 } from "lucide-react";
 import AddToCalendarMenu from "@/components/AddToCalendarMenu";
 import SessionActionItemsPanel from "@/components/sessions/SessionActionItemsPanel";
@@ -353,6 +354,17 @@ const MentorSessions = () => {
         );
       }
     }
+
+    primary.push(
+      <Button
+        key="view-details"
+        size="sm"
+        variant="outline"
+        onClick={() => navigate(`/mentor/sessions/${s.id}`)}
+      >
+        <ChevronRight className="mr-1 h-3.5 w-3.5" /> View details
+      </Button>
+    );
 
     primary.push(
       <Button key="action-items" size="sm" variant="outline" onClick={() => setActionItemsTarget(s)}>

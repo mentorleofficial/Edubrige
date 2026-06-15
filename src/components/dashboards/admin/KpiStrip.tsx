@@ -24,19 +24,19 @@ const Kpi = ({
 }) => (
   <Link to={to} className="block">
     <Card className="h-full transition-shadow hover:shadow-md">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        <Icon className="h-5 w-5 text-primary" />
+      <CardHeader className="flex flex-row items-center justify-between p-3 sm:p-4 pb-2 sm:pb-2">
+        <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">{title}</CardTitle>
+        <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0 ml-1" />
       </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold">{value}</div>
+      <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
+        <div className="text-2xl sm:text-3xl font-bold">{value}</div>
       </CardContent>
     </Card>
   </Link>
 );
 
 const KpiStrip = ({ users, mentors, mentees, sessions, hours, avgRating }: Props) => (
-  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+  <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
     <Kpi title="Total Users" value={String(users)} Icon={Users} to="/admin/users" />
     <Kpi title="Mentors" value={String(mentors)} Icon={UserCog} to="/admin/users" />
     <Kpi title="Mentees" value={String(mentees)} Icon={GraduationCap} to="/admin/users" />

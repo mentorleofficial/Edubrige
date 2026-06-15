@@ -104,6 +104,7 @@ export type Database = {
           heading_font: string
           id: string
           leaderboard_enabled: boolean
+          leaderboard_refresh_hours: number
           login_bg_url: string | null
           logo_url: string | null
           mentor_community_url: string
@@ -126,6 +127,7 @@ export type Database = {
           heading_font?: string
           id?: string
           leaderboard_enabled?: boolean
+          leaderboard_refresh_hours?: number
           login_bg_url?: string | null
           logo_url?: string | null
           mentor_community_url?: string
@@ -148,6 +150,7 @@ export type Database = {
           heading_font?: string
           id?: string
           leaderboard_enabled?: boolean
+          leaderboard_refresh_hours?: number
           login_bg_url?: string | null
           logo_url?: string | null
           mentor_community_url?: string
@@ -1576,15 +1579,32 @@ export type Database = {
           academic_details: string
           avatar_url: string
           bio: string
+          current_status: string | null
+          education_details: Json | null
+          education_level: string | null
+          email: string
           full_name: string
           github_url: string
           goals: string
           headline: string
           id: string
+          instagram_url: string | null
           interests: string[]
+          languages: string[]
+          linkedin_url: string | null
+          location: string | null
           organization_unit: string
+          phone: string | null
           portfolio_url: string
+          preferred_industries: string[]
           preferred_mentor_areas: string[]
+          preferred_mentor_qualities: string[]
+          preferred_session_types: string[]
+          preferred_time_windows: string[]
+          resume_url: string | null
+          skills: string[]
+          timezone: string | null
+          work_experience: Json | null
         }[]
       }
       get_mentor_booking_info: {
