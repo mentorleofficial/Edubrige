@@ -16,7 +16,9 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import NextSessionCard from "./mentee/NextSessionCard";
-import StatsRow from "./mentee/StatsRow";
+import { useMenteeRegistrations, useAllEvents } from "@/features/mentor-events/useMentorEvents";
+import ProgressSnapshot from "./mentee/ProgressSnapshot";
+import QuickActions from "./mentee/QuickActions";
 import SessionsCalendar from "./mentee/SessionsCalendar";
 import InsightsPanel from "./mentee/InsightsPanel";
 import RecommendedMentors from "./mentee/RecommendedMentors";
@@ -30,6 +32,14 @@ const MenteeDashboard = () => {
   const { isComplete, loading: onbLoading } = useMenteeProfileStatus(user?.id);
   const { data, isLoading } = useMenteeDashboardData(user?.id);
   const { data: programs = [] } = useMyPrograms();
+  const { data: registrations = [] } = useMenteeRegistrations(user?.id);
+  const { data: events = [] } = useAllEvents();
+
+  const registeredUpcomingEvents = useMemo(() => {
+    const registeredIds = new Set(registrations.map((r) => r.event_id));
+    const now = new Date();
+    return events.filter((e) => registeredIds.has(e.id) && new Date(e.end_date) >= now);
+  }, [events, registrations]);
 
   const [dismissedSessionId, setDismissedSessionId] = useState<string | null>(null);
   const [rating, setRating] = useState(0);
@@ -145,12 +155,19 @@ const MenteeDashboard = () => {
 
       <NextSessionCard session={computed.next} />
 
-      <StatsRow
-        upcoming={computed.upcomingCount}
-        completed={computed.completedCount}
-        hours={computed.hours}
-        avgRating={computed.avg}
-      />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-1">
+          <ProgressSnapshot
+            sessionsCompleted={computed.completedCount}
+            totalSessions={data.sessions.length}
+            eventsAttended={registrations.filter((r: any) => r.completion_status === "completed").length}
+            totalEvents={registrations.length}
+          />
+        </div>
+        <div className="lg:col-span-2">
+          <QuickActions />
+        </div>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
@@ -160,6 +177,7 @@ const MenteeDashboard = () => {
           sessions={data.sessions}
           feedback={data.feedback}
           programsCount={programs.length}
+          upcomingEvents={registeredUpcomingEvents}
         />
       </div>
 

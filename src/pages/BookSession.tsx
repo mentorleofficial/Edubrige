@@ -84,8 +84,8 @@ const BookSession = () => {
             ) : mentor ? (
               <Card className="overflow-hidden">
                 <CardContent className="p-5 space-y-5">
-                  {/* Square image */}
-                  <div className="aspect-square w-full overflow-hidden rounded-2xl ring-1 ring-border bg-muted">
+                  {/* 3:4 aspect ratio image */}
+                  <div className="aspect-[3/4] w-full max-w-[240px] md:max-w-[280px] lg:max-w-full mx-auto overflow-hidden rounded-2xl ring-1 ring-border bg-muted">
                     {mentor.avatar_url ? (
                       <img
                         src={mentor.avatar_url}
@@ -93,7 +93,7 @@ const BookSession = () => {
                         className="h-full w-full object-cover"
                       />
                     ) : (
-                      <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary text-6xl font-bold">
+                      <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary text-5xl md:text-6xl font-bold">
                         {mentorInitials}
                       </div>
                     )}

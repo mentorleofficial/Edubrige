@@ -10,9 +10,10 @@ interface Props {
   sessions: DashSession[];
   feedback: DashFeedback[];
   programsCount: number;
+  upcomingEvents?: any[];
 }
 
-const InsightsPanel = ({ sessions, feedback, programsCount }: Props) => {
+const InsightsPanel = ({ sessions, feedback, programsCount, upcomingEvents }: Props) => {
   // Top mentor by booking count
   const counts = new Map<string, { count: number; name: string; avatar: string | null }>();
   sessions.forEach((s) => {
@@ -77,6 +78,21 @@ const InsightsPanel = ({ sessions, feedback, programsCount }: Props) => {
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No mentor history yet.</p>
+        )}
+
+        {upcomingEvents && upcomingEvents.length > 0 && (
+          <div className="flex items-start gap-3 rounded-md border border-primary/20 bg-primary/5 p-3">
+            <Sparkles className="mt-0.5 h-4 w-4 text-primary" />
+            <div className="flex-1">
+              <div className="text-sm font-semibold">Registered Events ({upcomingEvents.length})</div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                Next event: {upcomingEvents[0].title}
+              </div>
+              <Button asChild variant="link" className="h-auto p-0 text-xs mt-1.5 font-bold text-primary">
+                <Link to="/mentee/events">Go to my events</Link>
+              </Button>
+            </div>
+          </div>
         )}
 
         {pendingFeedback > 0 && (
