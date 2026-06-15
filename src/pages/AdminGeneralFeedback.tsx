@@ -117,6 +117,7 @@ const AdminGeneralFeedback = () => {
               </Select>
             </div>
 
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -146,6 +147,7 @@ const AdminGeneralFeedback = () => {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

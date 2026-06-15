@@ -123,6 +123,24 @@ export interface MenteeProfileForMentor {
   academic_details: string | null;
   github_url: string | null;
   portfolio_url: string | null;
+  preferred_time_windows: string[];
+  preferred_session_types: string[];
+  skills: string[];
+  resume_url: string | null;
+  linkedin_url: string | null;
+  location: string | null;
+  timezone: string | null;
+  // extended set 2
+  email: string | null;
+  phone: string | null;
+  current_status: string | null;
+  education_level: string | null;
+  education_details: { degree?: string; field_of_study?: string; school?: string; start_year?: number; end_year?: number } | null;
+  work_experience: { company?: string; position?: string; start_date?: string; end_date?: string; description?: string }[] | null;
+  languages: string[];
+  preferred_industries: string[];
+  preferred_mentor_qualities: string[];
+  instagram_url: string | null;
 }
 
 export function useMenteeDetailsForMentor(menteeId: string | null) {
@@ -135,8 +153,10 @@ export function useMenteeDetailsForMentor(menteeId: string | null) {
         _mentee_id: menteeId,
       });
       if (error) throw error;
-      if (!data || (data as any[]).length === 0) throw new Error("Profile not found or not authorized");
-      return (data as any[])[0] as MenteeProfileForMentor;
+      const rows = data as MenteeProfileForMentor[] | null;
+      if (!rows || rows.length === 0)
+        throw new Error("Profile not found or not authorized");
+      return rows[0];
     },
   });
 }

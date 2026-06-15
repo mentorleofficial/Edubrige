@@ -562,10 +562,10 @@ const AdminProgramDetail = () => {
         <Tabs value={tab} onValueChange={(v) => {
           if (v === "members" || v === "mapping" || v === "tags") goTab(v);
         }}>
-          <TabsList>
-            <TabsTrigger value="members">Members ({mentorsInProgram.length} / {menteesInProgram.length})</TabsTrigger>
-            <TabsTrigger value="mapping">Mapping board</TabsTrigger>
-            <TabsTrigger value="tags">Tags ({tags.length})</TabsTrigger>
+          <TabsList className="w-full sm:w-auto overflow-x-auto flex [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <TabsTrigger value="members" className="shrink-0">Members ({mentorsInProgram.length} / {menteesInProgram.length})</TabsTrigger>
+            <TabsTrigger value="mapping" className="shrink-0">Mapping board</TabsTrigger>
+            <TabsTrigger value="tags" className="shrink-0">Tags ({tags.length})</TabsTrigger>
           </TabsList>
         </Tabs>
 
@@ -762,7 +762,7 @@ const AdminProgramDetail = () => {
 
       {/* Edit program dialog */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
           <DialogHeader><DialogTitle>Edit program</DialogTitle></DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1.5">
@@ -810,7 +810,7 @@ const AdminProgramDetail = () => {
 
       {/* Archive / activate confirmation */}
       <AlertDialog open={confirmAction === "archive" || confirmAction === "activate"} onOpenChange={(o) => !o && setConfirmAction(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirmAction === "archive" ? "Archive this program?" : "Reactivate this program?"}
@@ -832,7 +832,7 @@ const AdminProgramDetail = () => {
 
       {/* Delete confirmation with cascade preview */}
       <AlertDialog open={confirmAction === "delete"} onOpenChange={(o) => !o && setConfirmAction(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this program permanently?</AlertDialogTitle>
             <AlertDialogDescription asChild>

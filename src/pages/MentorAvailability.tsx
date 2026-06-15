@@ -126,7 +126,7 @@ const MentorAvailability = () => {
           </div>
         </div>
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="grid gap-6 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-6 min-w-0">
             <Card>
               <CardHeader className="pb-3">

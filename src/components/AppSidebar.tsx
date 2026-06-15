@@ -69,6 +69,7 @@ const AppSidebar = () => {
     { title: "Users", icon: Users, path: "/admin/users" },
     { title: "Applications", icon: ClipboardCheck, path: "/admin/applications", badge: pendingApps },
     { title: "Programs", icon: FolderKanban, path: "/admin/programs" },
+    { title: "Mentorship Listings", icon: Tag, path: "/admin/offerings" },
     { title: "Sessions", icon: BookOpen, path: "/admin/sessions" },
     { title: "Events", icon: CalendarDays, path: "/admin/events" },
     { title: "Feedback", icon: Star, path: "/admin/feedback" },

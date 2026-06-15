@@ -154,7 +154,7 @@ const AdminUsers = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-3xl font-bold">Users</h1>
             <p className="text-sm text-muted-foreground mt-1">
@@ -165,7 +165,7 @@ const AdminUsers = () => {
             <DialogTrigger asChild>
               <Button><UserPlus className="mr-2 h-4 w-4" />Add User</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>Create new user</DialogTitle>
               </DialogHeader>
@@ -263,7 +263,7 @@ const AdminUsers = () => {
         </div>
 
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -377,7 +377,7 @@ const AdminUsers = () => {
       </div>
 
       <Dialog open={!!detailsUser} onOpenChange={(o) => { if (!o) setDetailsUser(null); }}>
-        <DialogContent className="max-w-xl md:max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-xl md:max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>User Details</DialogTitle>
           </DialogHeader>
@@ -904,7 +904,7 @@ const UserRowActions = ({
       </DropdownMenu>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle>
               {disabling ? `Deactivate ${user.full_name}?` : `Restore ${user.full_name}?`}
@@ -929,7 +929,7 @@ const UserRowActions = ({
       </AlertDialog>
 
       <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-destructive">Delete {user.full_name} permanently?</AlertDialogTitle>
             <AlertDialogDescription>

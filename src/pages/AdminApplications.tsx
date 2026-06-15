@@ -142,19 +142,19 @@ const AdminApplications = () => {
           <p className="text-muted-foreground mt-1">Review, approve and triage incoming mentor applications.</p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3">
           <Tabs value={tab} onValueChange={(v) => { setTab(v as Status); setPicked(new Set()); }}>
-            <TabsList>
-              <TabsTrigger value="pending">
+            <TabsList className="overflow-x-auto w-full sm:w-auto flex [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+              <TabsTrigger value="pending" className="shrink-0">
                 Pending {pendingCount > 0 && <Badge variant="secondary" className="ml-2">{pendingCount}</Badge>}
               </TabsTrigger>
-              <TabsTrigger value="approved">Approved</TabsTrigger>
-              <TabsTrigger value="changes_requested">Changes Requested</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected</TabsTrigger>
-              <TabsTrigger value="all">All</TabsTrigger>
+              <TabsTrigger value="approved" className="shrink-0">Approved</TabsTrigger>
+              <TabsTrigger value="changes_requested" className="shrink-0">Changes Req.</TabsTrigger>
+              <TabsTrigger value="rejected" className="shrink-0">Rejected</TabsTrigger>
+              <TabsTrigger value="all" className="shrink-0">All</TabsTrigger>
             </TabsList>
           </Tabs>
-          <div className="relative ml-auto w-full sm:w-72">
+          <div className="relative sm:ml-auto w-full sm:w-72">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search name, email, skill…"
@@ -185,7 +185,7 @@ const AdminApplications = () => {
         )}
 
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>

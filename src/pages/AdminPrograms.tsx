@@ -99,7 +99,7 @@ const AdminPrograms = () => {
             <DialogTrigger asChild>
               <Button><Plus className="h-4 w-4 mr-2" />New program</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
               <DialogHeader><DialogTitle>Create program</DialogTitle></DialogHeader>
               <div className="space-y-3 pt-2">
                 <div className="space-y-1.5">

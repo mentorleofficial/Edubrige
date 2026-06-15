@@ -15,12 +15,12 @@ const AdminSettings = () => {
           <p className="text-muted-foreground text-sm mt-1">Customize your platform's appearance, authentication, privacy, and integrations.</p>
         </div>
         <Tabs defaultValue="branding">
-          <TabsList>
-            <TabsTrigger value="branding">Branding</TabsTrigger>
-            <TabsTrigger value="jwt">SSO / JWT</TabsTrigger>
-            <TabsTrigger value="privacy">Privacy</TabsTrigger>
-            <TabsTrigger value="edubridge">EduBridge</TabsTrigger>
-            <TabsTrigger value="applications">Applications</TabsTrigger>
+          <TabsList className="w-full sm:w-auto justify-start overflow-x-auto flex [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            <TabsTrigger value="branding" className="shrink-0">Branding</TabsTrigger>
+            <TabsTrigger value="jwt" className="shrink-0">SSO / JWT</TabsTrigger>
+            <TabsTrigger value="privacy" className="shrink-0">Privacy</TabsTrigger>
+            <TabsTrigger value="edubridge" className="shrink-0">EduBridge</TabsTrigger>
+            <TabsTrigger value="applications" className="shrink-0">Applications</TabsTrigger>
           </TabsList>
           <TabsContent value="branding" className="mt-6"><BrandingSettings /></TabsContent>
           <TabsContent value="jwt" className="mt-6"><JwtSettings /></TabsContent>

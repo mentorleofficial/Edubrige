@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -44,6 +45,7 @@ import {
   Pause,
   Archive,
   MoreVertical,
+  Users,
 } from "lucide-react";
 
 export interface MentorshipOffering {
@@ -75,6 +77,7 @@ const MentorOfferings = () => {
   const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedOffering, setSelectedOffering] = useState<MentorshipOffering | null>(null);
@@ -393,16 +396,26 @@ const MentorOfferings = () => {
                     </div>
                   </div>
 
-                  {/* Footer action */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full font-medium"
-                    onClick={() => handleEdit(o)}
-                  >
-                    <Edit2 className="h-3.5 w-3.5 mr-2" />
-                    Edit offering
-                  </Button>
+                  {/* Footer actions */}
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 font-medium"
+                      onClick={() => handleEdit(o)}
+                    >
+                      <Edit2 className="h-3.5 w-3.5 mr-2" />
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1 font-medium"
+                      onClick={() => navigate(`/mentor/offerings/${o.id}/bookings`)}
+                    >
+                      <Users className="h-3.5 w-3.5 mr-2" />
+                      View bookings
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -411,7 +424,7 @@ const MentorOfferings = () => {
 
         {/* Create / Edit Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-[600px] max-h-[90vh] flex flex-col">
             <DialogHeader className="shrink-0">
               <DialogTitle>{selectedOffering ? "Edit Offering" : "Add Offering"}</DialogTitle>
               <DialogDescription>

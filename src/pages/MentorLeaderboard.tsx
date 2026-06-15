@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,42 @@ const MentorLeaderboard = () => {
   const { toast } = useToast();
   const { data: rows = [], isLoading } = useLeaderboard();
   const refresh = useRefreshEngagement();
+
+  useEffect(() => {
+    if (isLoading || refresh.isPending) return;
+
+    if (rows.length === 0) {
+      // Leaderboard is empty, trigger initial calculation
+      refresh.mutate(undefined, {
+        onSuccess: (data: any) => {
+          toast({
+            title: "Leaderboard initialized",
+            description: `Recalculation complete. Successfully updated ${data.mentors || 0} mentors.`,
+          });
+        },
+      });
+      return;
+    }
+
+    const computedAt = rows[0]?.computed_at;
+    if (!computedAt) return;
+
+    const lastComputedTime = new Date(computedAt).getTime();
+    const refreshIntervalMs = (branding.leaderboard_refresh_hours ?? 24) * 60 * 60 * 1000;
+    const isExpired = Date.now() > lastComputedTime + refreshIntervalMs;
+
+    if (isExpired) {
+      console.log("Leaderboard stats expired. Auto-refreshing...");
+      refresh.mutate(undefined, {
+        onSuccess: (data: any) => {
+          toast({
+            title: "Leaderboard updated",
+            description: `Auto-refresh complete. Successfully updated ${data.mentors || 0} mentors.`,
+          });
+        },
+      });
+    }
+  }, [rows, isLoading, branding.leaderboard_refresh_hours]);
 
   if (!branding.leaderboard_enabled && profile?.role !== "admin") {
     return <Navigate to="/dashboard" replace />;

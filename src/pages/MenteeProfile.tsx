@@ -33,10 +33,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { MonthYearPicker } from "@/components/ui/month-year-picker";
 import {
   Loader2, UserCircle, Target, Link as LinkIcon, Github, Globe,
-  Save, Check, Briefcase, GraduationCap, Trash2, Plus, FileText,
-  Instagram, MapPin, Settings2,
+  Save, Check, Briefcase, GraduationCap, Trash2, Plus,
+  Instagram, MapPin, Settings2, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ResumeUploadCard from "@/components/profile/ResumeUploadCard";
 
 // ─── Moved outside component so they don't remount on each render ───
 
@@ -255,6 +256,8 @@ const MenteeProfile = () => {
     .join("")
     .toUpperCase();
 
+  const firstName = fullName.trim().split(" ")[0] ?? "";
+
   const addProtocol = (url: string) => {
     if (!url) return "";
     let clean = url.trim().replace(/\/+$/, "");
@@ -278,13 +281,8 @@ const MenteeProfile = () => {
     }
   };
 
-  const handleResumeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const handleResumeUpload = async (file: File) => {
     if (!file || !user) return;
-    if (file.size > 10 * 1024 * 1024) {
-      toast({ variant: "destructive", title: "File too large", description: "Resume must be under 10 MB." });
-      return;
-    }
     setUploadingResume(true);
     try {
       const url = await uploadMenteeResume(user.id, file);
@@ -295,7 +293,6 @@ const MenteeProfile = () => {
       toast({ variant: "destructive", title: "Upload failed", description: e?.message });
     } finally {
       setUploadingResume(false);
-      e.target.value = "";
     }
   };
 
@@ -430,31 +427,33 @@ const MenteeProfile = () => {
     <AppLayout>
       <div className="max-w-5xl mx-auto px-5 py-10 space-y-8">
 
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[22px] font-medium tracking-tight">My profile</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Keep your profile up to date to get better mentor matches
-            </p>
+        {/* Welcome banner */}
+        <div className="rounded-xl bg-gradient-to-r from-primary to-primary/80 p-6 text-primary-foreground shadow-sm">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white/15">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="text-xl font-semibold">
+                Welcome{firstName ? `, ${firstName}` : ""} 👋
+              </h2>
+              <p className="mt-1 text-sm text-primary-foreground/90">
+                Keep your profile up to date so mentors can match you to the right
+                sessions and understand your goals before you meet.
+              </p>
+            </div>
           </div>
-          <Button
-            onClick={handleSave}
-            disabled={!hasChanges || saving}
-            className="min-w-[148px] gap-2"
-          >
-            {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : saved ? (
-              <Check className="h-4 w-4" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            {saving ? "Saving…" : saved ? "Saved" : "Save changes"}
-          </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-[22px] font-medium tracking-tight">My profile</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Keep your profile up to date to get better mentor matches
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-4 lg:gap-6">
 
           {/* Left column */}
           <div className="space-y-6">
@@ -1039,55 +1038,14 @@ const MenteeProfile = () => {
             </SectionCard>
 
             {/* Resume */}
-            <SectionCard>
-              <div className="flex items-center gap-2 mb-1">
-                <FileText className="h-4 w-4 text-primary" />
-                <h2 className="text-[15px] font-semibold">Resume</h2>
-              </div>
-              <p className="text-xs text-muted-foreground mb-6">
-                Upload your resume (PDF or DOCX, max 10 MB)
-              </p>
-
-              {resumeUrl ? (
-                <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3">
-                  <FileText className="h-5 w-5 text-primary shrink-0" />
-                  <a
-                    href={resumeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-primary hover:underline truncate flex-1"
-                  >
-                    View resume
-                  </a>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive hover:text-destructive shrink-0"
-                    onClick={handleRemoveResume}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ) : (
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    className="sr-only"
-                    onChange={handleResumeUpload}
-                    disabled={uploadingResume}
-                  />
-                  <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors">
-                    {uploadingResume ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /> Uploading…</>
-                    ) : (
-                      <><FileText className="h-4 w-4" /> Click to upload resume</>
-                    )}
-                  </div>
-                </label>
-              )}
-            </SectionCard>
+            <ResumeUploadCard
+              hasResume={!!resumeUrl}
+              viewHref={resumeUrl}
+              uploading={uploadingResume}
+              onSelectFile={handleResumeUpload}
+              onRemove={handleRemoveResume}
+              maxSizeMb={10}
+            />
 
           </div>
 
@@ -1160,6 +1118,41 @@ const MenteeProfile = () => {
             </SectionCard>
           </div>
 
+        </div>
+      </div>
+
+      {/* Sticky save bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-20 border-t bg-background/95 backdrop-blur shadow-lg">
+        <div className="max-w-5xl mx-auto px-3 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground flex items-center gap-2">
+            {hasChanges ? (
+              <>
+                <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                Unsaved changes
+              </>
+            ) : saved ? (
+              <>
+                <Check className="h-4 w-4 text-primary" />
+                Profile saved
+              </>
+            ) : (
+              "Your profile"
+            )}
+          </p>
+          <Button
+            onClick={handleSave}
+            disabled={!hasChanges || saving}
+            className="w-full sm:w-auto min-w-[140px] gap-2"
+          >
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : saved ? (
+              <Check className="h-4 w-4" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            {saving ? "Saving…" : saved ? "Saved" : "Save changes"}
+          </Button>
         </div>
       </div>
     </AppLayout>

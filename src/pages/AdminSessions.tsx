@@ -116,12 +116,12 @@ const AdminSessions = () => {
 
   const StatCard = ({ icon: Icon, label, value, hint }: any) => (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
-        <Icon className="h-5 w-5 text-primary" />
+      <CardHeader className="flex flex-row items-center justify-between p-3 sm:p-4 sm:pb-2 pb-2">
+        <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">{label}</CardTitle>
+        <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0 ml-1" />
       </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold">{value}</div>
+      <CardContent className="p-3 sm:p-4 pt-0 sm:pt-0">
+        <div className="text-2xl sm:text-3xl font-bold">{value}</div>
         {hint && <p className="text-xs text-muted-foreground mt-1">{hint}</p>}
       </CardContent>
     </Card>
@@ -138,7 +138,7 @@ const AdminSessions = () => {
           <Button variant="outline" onClick={exportCsv}><Download className="mr-2 h-4 w-4" />Export CSV</Button>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
           <StatCard icon={Clock} label="Upcoming" value={stats?.upcoming ?? "—"} />
           <StatCard icon={CheckCircle2} label="Completed (30d)" value={stats?.completed30 ?? "—"} />
           <StatCard icon={XCircle} label="Cancelled (30d)" value={stats?.cancelled30 ?? "—"} />
@@ -148,12 +148,12 @@ const AdminSessions = () => {
 
         <Card>
           <CardContent className="p-4 flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <div className="relative flex-1 min-w-[160px] max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input className="pl-9" placeholder="Search mentor or mentee…" value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <Select value={status} onValueChange={(v) => setStatus(v as any)}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All statuses</SelectItem>
                 <SelectItem value="booked">Booked</SelectItem>
@@ -163,7 +163,7 @@ const AdminSessions = () => {
               </SelectContent>
             </Select>
             <Select value={range} onValueChange={(v) => setRange(v as any)}>
-              <SelectTrigger className="w-40"><SelectValue placeholder="Date range" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Date range" /></SelectTrigger>
               <SelectContent>
                 {Object.entries(dateRanges).map(([k, v]) => (
                   <SelectItem key={k} value={k}>{v.label}</SelectItem>
@@ -171,7 +171,7 @@ const AdminSessions = () => {
               </SelectContent>
             </Select>
             <Select value={programId} onValueChange={setProgramId}>
-              <SelectTrigger className="w-48"><SelectValue placeholder="Program" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-44"><SelectValue placeholder="Program" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All programs</SelectItem>
                 {(programsQuery.data || []).map((p: any) => (
@@ -183,7 +183,7 @@ const AdminSessions = () => {
         </Card>
 
         <Card>
-          <CardContent className="p-0">
+          <CardContent className="p-0 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -235,7 +235,7 @@ const AdminSessions = () => {
       </div>
 
       <Sheet open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
-        <SheetContent className="sm:max-w-lg">
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           {detail && (
             <>
               <SheetHeader>

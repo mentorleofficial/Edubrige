@@ -46,7 +46,8 @@ import {
 import ExpertiseInput from "@/features/mentor-profile/components/ExpertiseInput";
 import ExperienceList from "@/features/mentor-profile/components/ExperienceList";
 import QualificationsList from "@/features/mentor-profile/components/QualificationsList";
-import ResumeDropzone from "@/features/mentor-profile/components/ResumeDropzone";
+import ResumeUploadCard from "@/components/profile/ResumeUploadCard";
+import { getResumeSignedUrl } from "@/features/mentor-profile/api/mentorProfile";
 import AvatarUploader from "@/features/mentor-profile/components/AvatarUploader";
 import { calculateCompleteness } from "@/features/mentor-profile/utils/completeness";
 import ProfileCompletionChecklist from "@/features/mentor-profile/components/ProfileCompletionChecklist";
@@ -81,6 +82,20 @@ const MentorProfile = () => {
   const [resumePath, setResumePath] = useState<string>("");
   const [activeSection, setActiveSection] = useState<string>("about");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [viewingResume, setViewingResume] = useState(false);
+
+  const handleViewResume = async () => {
+    if (!resumePath) return;
+    setViewingResume(true);
+    try {
+      const url = await getResumeSignedUrl(resumePath);
+      if (url) window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err) {
+      console.error("Error signing resume URL:", err);
+    } finally {
+      setViewingResume(false);
+    }
+  };
 
   const form = useForm<MentorProfileFormValues>({
     resolver: zodResolver(mentorProfileSchema),
@@ -290,31 +305,33 @@ const MentorProfile = () => {
         <div className="relative overflow-hidden rounded-xl border bg-card">
           <div className="h-32 bg-gradient-to-br from-primary via-primary/80 to-primary/40" />
           <div className="px-6 pb-6 -mt-12">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-              <AvatarUploader
-                url={avatarUrl}
-                fallback={initialsOf(watched.full_name || data.full_name)}
-                uploading={uploadingAvatar}
-                onSelect={onAvatarSelect}
-              />
-              <div className="flex-1 min-w-0 sm:pb-1">
-                <h1 className="text-2xl font-bold truncate">{watched.full_name || "Your name"}</h1>
-                <p className="text-sm text-muted-foreground truncate">
-                  {watched.headline || "Add a headline so mentees know what you do"}
-                </p>
-                <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
-                  {watched.current_role && watched.current_organization && (
-                    <span className="flex items-center gap-1">
-                      <Building2 className="h-3 w-3" /> {watched.current_role} at {watched.current_organization}
-                    </span>
-                  )}
-                  <Badge variant={data.is_active ? "default" : "secondary"} className="text-[10px]">
-                    {data.is_active ? "● Active mentor" : "Inactive"}
-                  </Badge>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+                <AvatarUploader
+                  url={avatarUrl}
+                  fallback={initialsOf(watched.full_name || data.full_name)}
+                  uploading={uploadingAvatar}
+                  onSelect={onAvatarSelect}
+                />
+                <div className="flex-1 min-w-0 sm:pb-1">
+                  <h1 className="text-2xl font-bold truncate">{watched.full_name || "Your name"}</h1>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {watched.headline || "Add a headline so mentees know what you do"}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
+                    {watched.current_role && watched.current_organization && (
+                      <span className="flex items-center gap-1">
+                        <Building2 className="h-3 w-3" /> {watched.current_role} at {watched.current_organization}
+                      </span>
+                    )}
+                    <Badge variant={data.is_active ? "default" : "secondary"} className="text-[10px]">
+                      {data.is_active ? "● Active mentor" : "Inactive"}
+                    </Badge>
+                  </div>
                 </div>
               </div>
               {data.is_active && userId && (
-                <div className="flex gap-2 sm:pb-1">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
                     variant="outline"
@@ -378,8 +395,8 @@ const MentorProfile = () => {
         )}
 
         {/* Sticky section nav */}
-        <nav className="sticky top-0 z-10 -mx-6 px-6 py-3 bg-background/80 backdrop-blur border-b mt-6 mb-6">
-          <div className="flex gap-1 overflow-x-auto">
+        <nav className="sticky top-0 z-10 -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6 py-2 bg-background/90 backdrop-blur border-b mt-6 mb-6">
+          <div className="flex gap-1 overflow-x-auto scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {SECTIONS.map((s) => {
               const Icon = s.icon;
               const active = activeSection === s.id;
@@ -388,11 +405,11 @@ const MentorProfile = () => {
                   key={s.id}
                   type="button"
                   onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: "smooth", block: "start" })}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm whitespace-nowrap transition-colors ${
+                  className={`flex shrink-0 items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs sm:text-sm whitespace-nowrap transition-colors ${
                     active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
                   }`}
                 >
-                  <Icon className="h-3.5 w-3.5" />
+                  <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                   {s.label}
                 </button>
               );
@@ -679,15 +696,16 @@ const MentorProfile = () => {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Resume *</Label>
-                <ResumeDropzone
-                  currentPath={resumePath}
-                  pendingFile={pendingResume}
-                  onFileChange={setPendingResume}
-                  onRemoveCurrent={() => setResumePath("")}
-                />
-              </div>
+              <ResumeUploadCard
+                hasResume={!!resumePath}
+                onView={handleViewResume}
+                viewing={viewingResume}
+                pendingFileName={pendingResume?.name ?? null}
+                onClearPending={() => setPendingResume(null)}
+                onSelectFile={setPendingResume}
+                onRemove={() => setResumePath("")}
+                maxSizeMb={5}
+              />
             </CardContent>
           </Card>
         </div>

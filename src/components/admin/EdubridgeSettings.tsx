@@ -25,20 +25,49 @@ const EdubridgeSettings = () => {
   const [rowId, setRowId] = useState<string | null>(null);
   const [url, setUrl] = useState("");
   const [enabled, setEnabled] = useState(false);
+  const [refreshHours, setRefreshHours] = useState<string | number>(24);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [events, setEvents] = useState<OutboundEvent[]>([]);
 
   const load = async () => {
-    const { data } = await supabase
-      .from("branding")
-      .select("id, edubridge_webhook_url, edubridge_enabled")
-      .limit(1).maybeSingle();
-    if (data) {
-      setRowId(data.id);
-      setUrl((data as any).edubridge_webhook_url ?? "");
-      setEnabled((data as any).edubridge_enabled ?? false);
+    try {
+      const { data, error } = await supabase
+        .from("branding")
+        .select("id, edubridge_webhook_url, edubridge_enabled, leaderboard_refresh_hours")
+        .limit(1).maybeSingle();
+
+      if (error) {
+        console.warn("Failed to load branding with leaderboard_refresh_hours, trying fallback:", error);
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("branding")
+          .select("id, edubridge_webhook_url, edubridge_enabled")
+          .limit(1).maybeSingle();
+
+        if (fallbackError) {
+          console.error("Fallback load failed:", fallbackError);
+          return;
+        }
+
+        if (fallbackData) {
+          setRowId(fallbackData.id);
+          setUrl((fallbackData as any).edubridge_webhook_url ?? "");
+          setEnabled((fallbackData as any).edubridge_enabled ?? false);
+          setRefreshHours(24);
+        }
+        return;
+      }
+
+      if (data) {
+        setRowId(data.id);
+        setUrl((data as any).edubridge_webhook_url ?? "");
+        setEnabled((data as any).edubridge_enabled ?? false);
+        setRefreshHours((data as any).leaderboard_refresh_hours ?? 24);
+      }
+    } catch (err) {
+      console.error("Error loading settings:", err);
     }
+
     const { data: evs } = await supabase
       .from("outbound_events")
       .select("id, event_type, status, attempts, last_error, created_at, sent_at")
@@ -50,15 +79,46 @@ const EdubridgeSettings = () => {
   useEffect(() => { load(); }, []);
 
   const save = async () => {
-    if (!rowId) return;
+    if (!rowId) {
+      toast({ variant: "destructive", title: "Save failed", description: "Settings not loaded yet." });
+      return;
+    }
     setSaving(true);
+    const parsedHours = parseInt(String(refreshHours)) || 24;
+
     const { error } = await supabase
       .from("branding")
-      .update({ edubridge_webhook_url: url.trim(), edubridge_enabled: enabled })
+      .update({
+        edubridge_webhook_url: url.trim(),
+        edubridge_enabled: enabled,
+        leaderboard_refresh_hours: parsedHours,
+      })
       .eq("id", rowId);
-    setSaving(false);
-    if (error) toast({ variant: "destructive", title: "Save failed", description: error.message });
-    else toast({ title: "EduBridge settings saved" });
+
+    if (error) {
+      console.warn("Failed to save with leaderboard_refresh_hours, trying fallback:", error);
+      const { error: fallbackError } = await supabase
+        .from("branding")
+        .update({
+          edubridge_webhook_url: url.trim(),
+          edubridge_enabled: enabled,
+        })
+        .eq("id", rowId);
+
+      setSaving(false);
+
+      if (fallbackError) {
+        toast({ variant: "destructive", title: "Save failed", description: fallbackError.message });
+      } else {
+        toast({
+          title: "EduBridge settings saved",
+          description: "Note: Leaderboard interval was not saved because the column does not exist in the database. Please run migrations.",
+        });
+      }
+    } else {
+      setSaving(false);
+      toast({ title: "Settings saved successfully" });
+    }
   };
 
   const syncNow = async () => {
@@ -107,6 +167,33 @@ const EdubridgeSettings = () => {
               Sync now
             </Button>
             <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Leaderboard settings</CardTitle>
+          <CardDescription>
+            Configure the automatic recalculation interval of the mentor leaderboard.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Leaderboard Auto-Refresh Interval (hours)</Label>
+            <Input
+              type="number"
+              min={1}
+              placeholder="24"
+              value={refreshHours}
+              onChange={(e) => setRefreshHours(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              The interval in hours after which the leaderboard stats will automatically recalculate. Default is 24 hours.
+            </p>
+          </div>
+          <div className="flex justify-end">
+            <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save settings"}</Button>
           </div>
         </CardContent>
       </Card>
