@@ -132,7 +132,7 @@ const AdminSessions = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="font-serif text-3xl">Sessions</h1>
+            <h1 className="font-serif text-2xl">Sessions</h1>
             <p className="text-muted-foreground text-sm mt-1">Track and manage every booking across the platform.</p>
           </div>
           <Button variant="outline" onClick={exportCsv}><Download className="mr-2 h-4 w-4" />Export CSV</Button>

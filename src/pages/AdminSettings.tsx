@@ -11,7 +11,7 @@ const AdminSettings = () => {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="font-serif text-3xl">Settings</h1>
+          <h1 className="font-serif text-2xl">Settings</h1>
           <p className="text-muted-foreground text-sm mt-1">Customize your platform's appearance, authentication, privacy, and integrations.</p>
         </div>
         <Tabs defaultValue="branding">

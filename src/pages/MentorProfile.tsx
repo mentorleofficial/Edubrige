@@ -300,7 +300,7 @@ const MentorProfile = () => {
 
   return (
     <AppLayout>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-5xl mx-auto pb-32">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-7xl mx-auto pb-32">
         {/* Banner header */}
         <div className="relative overflow-hidden rounded-xl border bg-card">
           <div className="h-32 bg-gradient-to-br from-primary via-primary/80 to-primary/40" />

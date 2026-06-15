@@ -75,7 +75,7 @@ const MentorMentees = () => {
                 <Users className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold tracking-tight">My Mentees</h1>
+                <h1 className="text-2xl font-bold tracking-tight">My Mentees</h1>
                 <p className="text-muted-foreground mt-1">
                   Manage and connect with all your mentees
                 </p>

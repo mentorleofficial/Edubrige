@@ -183,7 +183,7 @@ export default function MenteeEvents() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <CalendarDays className="h-8 w-8 text-primary" />
               Events & Programs
             </h1>

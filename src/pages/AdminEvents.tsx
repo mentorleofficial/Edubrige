@@ -208,7 +208,7 @@ export default function AdminEvents() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
               <Calendar className="h-8 w-8 text-primary" />
               Events Management
             </h1>

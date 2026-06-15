@@ -83,7 +83,7 @@ const AdminGeneralFeedback = () => {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Platform Feedback</h1>
+          <h1 className="text-2xl font-bold">Platform Feedback</h1>
           <p className="text-muted-foreground text-sm">General feedback, suggestions, concerns, and reviews from users.</p>
         </div>
 

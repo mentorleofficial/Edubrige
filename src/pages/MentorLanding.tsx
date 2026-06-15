@@ -36,7 +36,7 @@ const MentorLanding = () => {
       <main className="flex-1 container mx-auto px-4 py-10 sm:py-14">
         <div className="mx-auto max-w-2xl">
           <div className="text-center space-y-2 mb-8">
-            <h1 className="font-serif text-4xl sm:text-5xl tracking-tight">Become a mentor</h1>
+            <h1 className="font-serif text-2xl tracking-tight">Become a mentor</h1>
             <p className="text-muted-foreground">
               Share your expertise with {branding.app_name} — apply in a few simple steps.
             </p>

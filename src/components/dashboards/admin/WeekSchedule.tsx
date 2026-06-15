@@ -4,11 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CalendarRange, ChevronLeft, ChevronRight, Clock, User } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import type { AdminSessionRow } from "@/features/admin/hooks/useAdminSessions";
 
 const dayLabel = (d: Date) => formatISTDate(d).split(',')[0]; // e.g. "Mon"
 
 const WeekSchedule = ({ sessions }: { sessions: AdminSessionRow[] }) => {
+  const navigate = useNavigate();
   const now = new Date();
   const [weekStart, setWeekStart] = useState<Date>(() => {
     const d = new Date(now);
@@ -86,7 +89,10 @@ const WeekSchedule = ({ sessions }: { sessions: AdminSessionRow[] }) => {
           <CardTitle className="text-lg">Schedule</CardTitle>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" asChild className="hidden sm:inline-flex">
+            <Link to="/admin/sessions">View all</Link>
+          </Button>
           <Button variant="outline" size="icon" onClick={goToPreviousWeek}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -157,10 +163,15 @@ const WeekSchedule = ({ sessions }: { sessions: AdminSessionRow[] }) => {
               </p>
             ) : (
               <div className="space-y-3">
-                {selectedBucket.sessions.map((session, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between rounded-lg border p-4 hover:bg-muted/50 transition-colors"
+                {selectedBucket.sessions.map((session) => (
+                  <button
+                    key={session.id}
+                    type="button"
+                    onClick={() => navigate("/admin/sessions")}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-lg border p-4 text-left transition-colors",
+                      "hover:border-primary/40 hover:bg-muted/50 cursor-pointer"
+                    )}
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -188,7 +199,7 @@ const WeekSchedule = ({ sessions }: { sessions: AdminSessionRow[] }) => {
                         </p>
                       )}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             )}

@@ -111,7 +111,7 @@ const InsightsPanel = ({ sessions, feedback, programsCount, upcomingEvents }: Pr
           <div className="flex items-center gap-2 text-sm">
             <FolderKanban className="h-4 w-4 text-primary" />
             <Link to="/mentee/programs" className="text-sm font-medium">
-              Active programs
+              Enrolled programs
             </Link>
           </div>
           <span className="text-sm font-semibold">{programsCount}</span>

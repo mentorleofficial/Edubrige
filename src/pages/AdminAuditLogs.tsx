@@ -37,7 +37,7 @@ const AdminAuditLogs = () => {
   return (
     <AppLayout>
       <div className="space-y-6">
-        <h1 className="text-3xl font-bold">Audit Logs</h1>
+        <h1 className="text-2xl font-bold">Audit Logs</h1>
         <div className="relative max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input className="pl-9" placeholder="Filter by action or entity…" value={search} onChange={(e) => setSearch(e.target.value)} />

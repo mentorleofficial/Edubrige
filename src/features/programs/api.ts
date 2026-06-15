@@ -92,30 +92,74 @@ export async function fetchProgramBySlug(slug: string): Promise<Program | null> 
   return data;
 }
 
-export type ProgramMember = { id: string; full_name: string; email: string; avatar_url: string | null };
+export type MentorProfileSummary = {
+  bio: string | null;
+  expertise: string[] | null;
+  years_experience: number | null;
+  current_role: string | null;
+  headline: string | null;
+  current_organization: string | null;
+};
+
+export type ProgramMember = {
+  id: string;
+  full_name: string;
+  email: string;
+  avatar_url: string | null;
+  headline?: string | null;
+  slug?: string | null;
+  mentor_profiles?: MentorProfileSummary[];
+};
+
+type PublicMentorRow = {
+  user_id: string;
+  slug: string | null;
+  full_name: string;
+  avatar_url: string | null;
+  headline: string | null;
+  bio: string | null;
+  expertise: string[] | null;
+  years_experience: number | null;
+  current_role: string | null;
+  current_organization?: string | null;
+};
+
+function mapPublicMentorRow(row: PublicMentorRow, email = ""): ProgramMember {
+  return {
+    id: row.user_id,
+    full_name: row.full_name,
+    email,
+    avatar_url: row.avatar_url ?? null,
+    headline: row.headline ?? null,
+    slug: row.slug ?? null,
+    mentor_profiles: [
+      {
+        bio: row.bio ?? null,
+        expertise: row.expertise ?? null,
+        years_experience: row.years_experience ?? null,
+        current_role: row.current_role ?? null,
+        headline: row.headline ?? null,
+        current_organization: row.current_organization ?? null,
+      },
+    ],
+  };
+}
 
 export async function fetchProgramMentors(programId: string): Promise<ProgramMember[]> {
   const { data: rows } = await supabase
     .from("program_mentors")
     .select("mentor_id")
     .eq("program_id", programId);
-  const ids = Array.from(new Set((rows || []).map((r) => r.mentor_id).filter(Boolean)));
-  if (ids.length === 0) return [];
-  // Only return non-disabled users with an active mentor profile
-  const { data: activeProfiles } = await supabase
-    .from("mentor_profiles")
-    .select("user_id")
-    .in("user_id", ids)
-    .eq("is_active", true);
-  const activeIds = (activeProfiles || []).map((p) => p.user_id);
-  if (activeIds.length === 0) return [];
-  const { data: users } = await supabase
-    .from("users")
-    .select("id, full_name, email, avatar_url")
-    .in("id", activeIds)
-    .eq("is_disabled", false)
-    .order("full_name");
-  return (users || []) as ProgramMember[];
+  const ids = new Set((rows || []).map((r) => r.mentor_id).filter(Boolean));
+  if (ids.size === 0) return [];
+
+  const { data: publicMentors, error } = await supabase.rpc("list_public_mentors");
+  if (error) throw error;
+
+  return (publicMentors ?? [])
+    .filter((m) => ids.has(m.user_id))
+    .map((m) => mapPublicMentorRow(m as PublicMentorRow))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name));
 }
 
 export async function fetchProgramMentees(programId: string): Promise<ProgramMember[]> {
@@ -154,12 +198,27 @@ export async function fetchMyAssignedMentor(programId: string, menteeId: string)
     .eq("mentee_id", menteeId)
     .maybeSingle();
   if (!row?.mentor_id) return null;
-  const { data: u } = await supabase
-    .from("users")
-    .select("id, full_name, email, avatar_url")
-    .eq("id", row.mentor_id)
-    .maybeSingle();
-  return u as ProgramMember | null;
+
+  const [{ data: u }, { data: profileRows, error: profileErr }] = await Promise.all([
+    supabase
+      .from("users")
+      .select("id, full_name, email, avatar_url")
+      .eq("id", row.mentor_id)
+      .maybeSingle(),
+    supabase.rpc("get_public_mentor", { _slug_or_id: row.mentor_id }),
+  ]);
+  if (profileErr) throw profileErr;
+
+  const mp = profileRows?.[0] as PublicMentorRow | undefined;
+  if (mp) return mapPublicMentorRow(mp, u?.email ?? "");
+  if (!u) return null;
+
+  return {
+    id: u.id,
+    full_name: u.full_name,
+    email: u.email,
+    avatar_url: u.avatar_url,
+  } satisfies ProgramMember;
 }
 
 /**

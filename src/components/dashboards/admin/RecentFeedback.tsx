@@ -1,6 +1,9 @@
 import { formatISTDate } from "@/lib/datetime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Star } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import type { AdminFeedbackRow } from "@/features/admin-dashboard/useAdminDashboardData";
 const relTime = (ms: number) => {
   const diff = Date.now() - ms;
@@ -13,11 +16,19 @@ const relTime = (ms: number) => {
   return formatISTDate(ms);
 };
 
-const RecentFeedback = ({ feedback }: { feedback: AdminFeedbackRow[] }) => (
+const RecentFeedback = ({ feedback }: { feedback: AdminFeedbackRow[] }) => {
+  const navigate = useNavigate();
+
+  return (
   <Card>
-    <CardHeader className="flex flex-row items-center gap-2 pb-2">
-      <Star className="h-5 w-5 text-accent" />
-      <CardTitle className="text-lg">Recent Feedback</CardTitle>
+    <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <div className="flex items-center gap-2">
+        <Star className="h-5 w-5 text-accent" />
+        <CardTitle className="text-lg">Recent Feedback</CardTitle>
+      </div>
+      <Button variant="ghost" size="sm" asChild>
+        <Link to="/admin/feedback">View all</Link>
+      </Button>
     </CardHeader>
     <CardContent>
       {feedback.length === 0 ? (
@@ -25,7 +36,15 @@ const RecentFeedback = ({ feedback }: { feedback: AdminFeedbackRow[] }) => (
       ) : (
         <ul className="space-y-3">
           {feedback.map((f) => (
-            <li key={f.id} className="rounded-md border bg-card/40 p-3">
+            <li key={f.id}>
+              <button
+                type="button"
+                onClick={() => navigate("/admin/feedback")}
+                className={cn(
+                  "w-full rounded-md border bg-card/40 p-3 text-left transition-colors",
+                  "hover:border-primary/40 hover:bg-card hover:shadow-sm cursor-pointer"
+                )}
+              >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -45,12 +64,14 @@ const RecentFeedback = ({ feedback }: { feedback: AdminFeedbackRow[] }) => (
               {f.comment && (
                 <p className="mt-2 text-sm text-muted-foreground line-clamp-3">"{f.comment}"</p>
               )}
+              </button>
             </li>
           ))}
         </ul>
       )}
     </CardContent>
   </Card>
-);
+  );
+};
 
 export default RecentFeedback;

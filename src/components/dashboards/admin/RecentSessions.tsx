@@ -1,11 +1,12 @@
 import { formatISTDateTime } from "@/lib/datetime";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 interface Row {
   id: string;
   scheduled_at: string;
@@ -18,6 +19,7 @@ const statusVariant = (s: string): "default" | "secondary" | "destructive" =>
   s === "booked" ? "default" : s === "completed" ? "secondary" : "destructive";
 
 const RecentSessions = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Row[] | null>(null);
 
   useEffect(() => {
@@ -49,7 +51,15 @@ const RecentSessions = () => {
         ) : (
           <div className="divide-y">
             {rows.map((s) => (
-              <div key={s.id} className="flex items-center justify-between py-3 text-sm">
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => navigate("/admin/sessions")}
+                className={cn(
+                  "flex w-full items-center justify-between py-3 text-sm text-left transition-colors",
+                  "hover:bg-muted/40 cursor-pointer px-1 -mx-1 rounded-md"
+                )}
+              >
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-medium">
                     {s.mentor?.full_name || "—"} → {s.mentee?.full_name || "—"}
@@ -59,7 +69,7 @@ const RecentSessions = () => {
                   </p>
                 </div>
                 <Badge variant={statusVariant(s.status)}>{s.status}</Badge>
-              </div>
+              </button>
             ))}
           </div>
         )}

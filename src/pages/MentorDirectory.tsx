@@ -112,7 +112,7 @@ const MentorDirectory = () => {
     return mentors.filter((m) => {
       const profile = m.mentor_profiles?.[0];
       const exp = profile?.expertise ?? [];
-      
+
       // 1. Search term filter (searches name, bio, headline, role, company, or expertise)
       const matchesSearch =
         !q ||
@@ -244,7 +244,7 @@ const MentorDirectory = () => {
     <AppLayout>
       <div className="space-y-5">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Find a Mentor</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Find a Mentor</h1>
           <p className="text-muted-foreground mt-1 text-sm">
             Browse available mentors and book a session.
           </p>
@@ -447,170 +447,170 @@ const MentorDirectory = () => {
           </div>
         ) : (
           <TooltipProvider delayDuration={150}>
-          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {filtered.map((m) => {
-              const profile = m.mentor_profiles?.[0];
-              const initials = m.full_name
-                .split(" ")
-                .map((n) => n[0])
-                .join("")
-                .toUpperCase();
-              const topTag = profile?.current_role;
-              const expertiseTags = profile?.expertise ?? [];
-              const visibleTags = expertiseTags.slice(0, 2);
-              const remainingCount = expertiseTags.length - visibleTags.length;
-              const isFav = favorites.includes(m.id);
+            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {filtered.map((m) => {
+                const profile = m.mentor_profiles?.[0];
+                const initials = m.full_name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .join("")
+                  .toUpperCase();
+                const topTag = profile?.current_role;
+                const expertiseTags = profile?.expertise ?? [];
+                const visibleTags = expertiseTags.slice(0, 2);
+                const remainingCount = expertiseTags.length - visibleTags.length;
+                const isFav = favorites.includes(m.id);
 
-              return (
-                <Card
-                  key={m.id}
-                  onClick={() => navigate(`/book/${m.id}`)}
-                  className="group relative overflow-hidden cursor-pointer border-0 rounded-2xl aspect-[3/4] bg-[#1a1a2e] hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
-                >
-                  {/* Share & Favorite Toggle Buttons */}
-                  <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5">
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        const url = `${window.location.origin}/mentors/${m.id}`;
-                        try {
-                          await navigator.clipboard.writeText(url);
-                          setSharedId(m.id);
-                          toast.success("Link copied to clipboard");
-                          setTimeout(() => setSharedId((cur) => (cur === m.id ? null : cur)), 1500);
-                        } catch {
-                          toast.error("Could not copy link");
-                        }
-                      }}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white/90 hover:scale-105 hover:bg-black/60 transition-all duration-200"
-                      title="Copy share link"
-                      aria-label="Copy share link"
-                    >
-                      {sharedId === m.id ? (
-                        <Check className="h-4 w-4 stroke-[2.5px]" />
-                      ) : (
-                        <Share2 className="h-4 w-4 stroke-[2.5px]" />
-                      )}
-                    </button>
-                    {user && (
+                return (
+                  <Card
+                    key={m.id}
+                    onClick={() => navigate(`/book/${m.id}`)}
+                    className="group relative overflow-hidden cursor-pointer border-0 rounded-2xl aspect-[3/4] bg-[#1a1a2e] hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+                  >
+                    {/* Share & Favorite Toggle Buttons */}
+                    <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1.5">
                       <button
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          toggleFavoriteMutation.mutate({
-                            userId: user.id,
-                            mentorId: m.id,
-                            isFavorite: isFav,
-                          });
+                          const url = `${window.location.origin}/mentors/${m.id}`;
+                          try {
+                            await navigator.clipboard.writeText(url);
+                            setSharedId(m.id);
+                            toast.success("Link copied to clipboard");
+                            setTimeout(() => setSharedId((cur) => (cur === m.id ? null : cur)), 1500);
+                          } catch {
+                            toast.error("Could not copy link");
+                          }
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white/80 hover:scale-105 hover:bg-black/60 transition-all duration-200"
-                        title={isFav ? "Remove from favorites" : "Add to favorites"}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white/90 hover:scale-105 hover:bg-black/60 transition-all duration-200"
+                        title="Copy share link"
+                        aria-label="Copy share link"
                       >
-                        <Heart
-                          className={cn(
-                            "h-4 w-4 stroke-[2.5px] transition-colors",
-                            isFav ? "fill-red-500 text-red-500" : "text-white/95"
-                          )}
-                        />
+                        {sharedId === m.id ? (
+                          <Check className="h-4 w-4 stroke-[2.5px]" />
+                        ) : (
+                          <Share2 className="h-4 w-4 stroke-[2.5px]" />
+                        )}
                       </button>
-                    )}
-                  </div>
+                      {user && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavoriteMutation.mutate({
+                              userId: user.id,
+                              mentorId: m.id,
+                              isFavorite: isFav,
+                            });
+                          }}
+                          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white/80 hover:scale-105 hover:bg-black/60 transition-all duration-200"
+                          title={isFav ? "Remove from favorites" : "Add to favorites"}
+                        >
+                          <Heart
+                            className={cn(
+                              "h-4 w-4 stroke-[2.5px] transition-colors",
+                              isFav ? "fill-red-500 text-red-500" : "text-white/95"
+                            )}
+                          />
+                        </button>
+                      )}
+                    </div>
 
-                  {m.avatar_url ? (
-                    <img
-                      src={m.avatar_url}
-                      alt={m.full_name}
-                      loading="lazy"
-                      className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="rounded-full flex items-center justify-center bg-white/10 text-white/60 text-3xl font-medium w-24 h-24">
-                        {initials}
+                    {m.avatar_url ? (
+                      <img
+                        src={m.avatar_url}
+                        alt={m.full_name}
+                        loading="lazy"
+                        className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="rounded-full flex items-center justify-center bg-white/10 text-white/60 text-3xl font-medium w-24 h-24">
+                          {initials}
+                        </div>
+                      </div>
+                    )}
+
+                    {topTag && (
+                      <span className="absolute top-2.5 left-2.5 z-10 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 max-w-[65%] truncate">
+                        {topTag}
+                      </span>
+                    )}
+
+                    <div
+                      className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-3 pt-14"
+                      style={{
+                        background:
+                          "linear-gradient(to top, rgba(0,0,0,0.94) 55%, rgba(0,0,0,0.45) 82%, transparent 100%)",
+                      }}
+                    >
+                      <h3 className="font-bold text-white text-[15px] leading-tight truncate">
+                        {m.full_name}
+                      </h3>
+
+                      {expertiseTags.length > 0 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div
+                              className="flex items-center gap-1 mt-1.5 flex-nowrap overflow-hidden"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {visibleTags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="rounded-full bg-white/15 text-white/90 text-[9.5px] font-medium px-1.5 py-0.5 truncate max-w-[70px]"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {remainingCount > 0 && (
+                                <span className="rounded-full bg-white/20 text-white text-[9.5px] font-semibold px-1.5 py-0.5 whitespace-nowrap">
+                                  +{remainingCount}
+                                </span>
+                              )}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-[240px]">
+                            <div className="flex flex-wrap gap-1">
+                              {expertiseTags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="rounded-full bg-muted text-foreground text-[10px] px-1.5 py-0.5"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+
+                      <div className="flex items-center justify-between gap-2 mt-2">
+                        {profile?.years_experience ? (
+                          <div className="text-[11px] text-white/75 whitespace-nowrap">
+                            <span className="text-[13px] font-bold text-white">
+                              {profile.years_experience}
+                            </span>{" "}
+                            Yrs
+                          </div>
+                        ) : (
+                          <span />
+                        )}
+                        <Button
+                          size="sm"
+                          className="h-7 px-3 text-[11px] font-bold bg-white text-black hover:bg-white/90 rounded-md"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/book/${m.id}`);
+                          }}
+                        >
+                          Book
+                        </Button>
                       </div>
                     </div>
-                  )}
-
-                  {topTag && (
-                    <span className="absolute top-2.5 left-2.5 z-10 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 max-w-[65%] truncate">
-                      {topTag}
-                    </span>
-                  )}
-
-                  <div
-                    className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-3 pt-14"
-                    style={{
-                      background:
-                        "linear-gradient(to top, rgba(0,0,0,0.94) 55%, rgba(0,0,0,0.45) 82%, transparent 100%)",
-                    }}
-                  >
-                    <h3 className="font-bold text-white text-[15px] leading-tight truncate">
-                      {m.full_name}
-                    </h3>
-
-                    {expertiseTags.length > 0 && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div
-                            className="flex items-center gap-1 mt-1.5 flex-nowrap overflow-hidden"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {visibleTags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="rounded-full bg-white/15 text-white/90 text-[9.5px] font-medium px-1.5 py-0.5 truncate max-w-[70px]"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                            {remainingCount > 0 && (
-                              <span className="rounded-full bg-white/20 text-white text-[9.5px] font-semibold px-1.5 py-0.5 whitespace-nowrap">
-                                +{remainingCount}
-                              </span>
-                            )}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-[240px]">
-                          <div className="flex flex-wrap gap-1">
-                            {expertiseTags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="rounded-full bg-muted text-foreground text-[10px] px-1.5 py-0.5"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
-
-                    <div className="flex items-center justify-between gap-2 mt-2">
-                      {profile?.years_experience ? (
-                        <div className="text-[11px] text-white/75 whitespace-nowrap">
-                          <span className="text-[13px] font-bold text-white">
-                            {profile.years_experience}
-                          </span>{" "}
-                          Yrs
-                        </div>
-                      ) : (
-                        <span />
-                      )}
-                      <Button
-                        size="sm"
-                        className="h-7 px-3 text-[11px] font-bold bg-white text-black hover:bg-white/90 rounded-md"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate(`/book/${m.id}`);
-                        }}
-                      >
-                        Book
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+                  </Card>
+                );
+              })}
+            </div>
           </TooltipProvider>
         )}
       </div>

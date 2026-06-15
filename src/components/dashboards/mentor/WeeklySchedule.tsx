@@ -1,78 +1,173 @@
-import { useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { formatISTDate, formatISTDateTime } from "@/lib/datetime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarRange, Video } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { CalendarRange, ChevronLeft, ChevronRight, Video } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { MentorDashSession } from "@/features/mentor-dashboard/useMentorDashboardData";
+
+const WEEKS_TO_SHOW = 12;
 
 const dayLabel = (d: Date) => formatISTDate(d);
 
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
 const WeeklySchedule = ({ sessions }: { sessions: MentorDashSession[] }) => {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = useMemo(() => startOfDay(new Date()), []);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [visibleWeekIndex, setVisibleWeekIndex] = useState(0);
 
-  const days = Array.from({ length: 7 }).map((_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    return d;
-  });
+  const weeks = useMemo(
+    () =>
+      Array.from({ length: WEEKS_TO_SHOW }, (_, weekIdx) =>
+        Array.from({ length: 7 }, (_, dayIdx) => {
+          const d = new Date(today);
+          d.setDate(today.getDate() + weekIdx * 7 + dayIdx);
+          return d;
+        })
+      ),
+    [today]
+  );
 
-  const sessionsByDay = days.map((d) => {
-    const next = new Date(d);
-    next.setDate(d.getDate() + 1);
-
-    return sessions
+  const sessionsByDate = useMemo(() => {
+    const map = new Map<string, MentorDashSession[]>();
+    sessions
       .filter((s) => s.status === "booked")
-      .filter((s) => {
-        const t = new Date(s.scheduled_at).getTime();
-        return t >= d.getTime() && t < next.getTime();
-      })
-      .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
-  });
+      .forEach((s) => {
+        const key = startOfDay(new Date(s.scheduled_at)).toISOString();
+        const list = map.get(key) ?? [];
+        list.push(s);
+        map.set(key, list);
+      });
+    map.forEach((list) => list.sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at)));
+    return map;
+  }, [sessions]);
 
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const selectedDaySessions = useMemo(() => {
+    const key = startOfDay(selectedDate).toISOString();
+    return sessionsByDate.get(key) ?? [];
+  }, [sessionsByDate, selectedDate]);
 
-  const selectedDaySessions = sessionsByDay[selectedIndex];
-  const selectedDate = days[selectedIndex];
+  const visibleWeek = weeks[visibleWeekIndex];
+  const weekRangeLabel =
+    visibleWeek &&
+    `${formatISTDate(visibleWeek[0])} – ${formatISTDate(visibleWeek[6])}`;
+
+  const scrollToWeek = (index: number) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const next = Math.max(0, Math.min(index, weeks.length - 1));
+    const width = el.clientWidth;
+    el.scrollTo({ left: next * width, behavior: "smooth" });
+    setVisibleWeekIndex(next);
+  };
+
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el || el.clientWidth === 0) return;
+    const index = Math.round(el.scrollLeft / el.clientWidth);
+    if (index !== visibleWeekIndex) setVisibleWeekIndex(index);
+  };
 
   return (
     <Card className="h-full">
-      <CardHeader className="flex flex-row items-center gap-2 pb-2">
-        <CalendarRange className="h-5 w-5 text-primary" />
-        <CardTitle className="text-lg">Next 7 Days</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <CalendarRange className="h-5 w-5 text-primary shrink-0" />
+          <div className="min-w-0">
+            <CardTitle className="text-lg">Next 7 Days</CardTitle>
+            {weekRangeLabel && (
+              <p className="text-xs text-muted-foreground truncate">{weekRangeLabel}</p>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={visibleWeekIndex === 0}
+            onClick={() => scrollToWeek(visibleWeekIndex - 1)}
+            aria-label="Previous week"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="h-8 w-8"
+            disabled={visibleWeekIndex >= weeks.length - 1}
+            onClick={() => scrollToWeek(visibleWeekIndex + 1)}
+            aria-label="Next week"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
-        {/* Calendar Grid */}
-        <div className="grid grid-cols-7 gap-2">
-          {days.map((d, i) => {
-            const items = sessionsByDay[i];
-            const isToday = i === 0;
-            const isSelected = i === selectedIndex;
+        <div
+          ref={scrollRef}
+          onScroll={handleScroll}
+          className="flex overflow-x-auto snap-x snap-mandatory scroll-smooth scrollbar-none -mx-1 px-1"
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+        >
+          {weeks.map((weekDays, weekIdx) => (
+            <div
+              key={weekIdx}
+              className="min-w-full shrink-0 snap-center"
+            >
+              <div className="grid grid-cols-7 gap-2">
+                {weekDays.map((d) => {
+                  const key = startOfDay(d).toISOString();
+                  const items = sessionsByDate.get(key) ?? [];
+                  const isToday = isSameDay(d, today);
+                  const isSelected = isSameDay(d, selectedDate);
 
-            return (
-              <div
-                key={i}
-                onClick={() => setSelectedIndex(i)}
-                className={`rounded-md border p-2 text-center cursor-pointer transition-all hover:border-primary/50 active:scale-[0.98] ${isSelected
-                  ? "border-primary bg-primary/10 shadow-sm"
-                  : isToday
-                    ? "border-primary/50 bg-primary/5"
-                    : "bg-card/50 hover:bg-card"
-                  }`}
-              >
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  {dayLabel(d)}
-                </div>
-                <div className="text-lg font-semibold">{d.getDate()}</div>
-                <div className="mt-1 text-xs font-medium text-primary">
-                  {items.length > 0 ? `${items.length} session${items.length > 1 ? "s" : ""}` : "—"}
-                </div>
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setSelectedDate(d)}
+                      className={cn(
+                        "rounded-md border p-2 text-center transition-all hover:border-primary/50 active:scale-[0.98]",
+                        isSelected
+                          ? "border-primary bg-primary/10 shadow-sm"
+                          : isToday
+                            ? "border-primary/50 bg-primary/5"
+                            : "bg-card/50 hover:bg-card"
+                      )}
+                    >
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        {dayLabel(d)}
+                      </div>
+                      <div className="text-lg font-semibold">{d.getDate()}</div>
+                      <div className="mt-1 text-xs font-medium text-primary">
+                        {items.length > 0
+                          ? `${items.length} session${items.length > 1 ? "s" : ""}`
+                          : "—"}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
 
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          Swipe or use arrows to browse upcoming weeks
+        </p>
+
         {/* Selected Day Sessions */}
-        <div className="mt-6">
+        <div className="mt-5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm">
               Sessions on {formatISTDate(selectedDate)}
@@ -95,12 +190,10 @@ const WeeklySchedule = ({ sessions }: { sessions: MentorDashSession[] }) => {
                   >
                     <div className="flex gap-4">
                       <div className="flex-1 min-w-0">
-                        {/* Mentee + Title in one line */}
                         <div className="flex items-center gap-2">
                           <div className="font-semibold text-sm truncate">
                             {s.mentee?.full_name || "Mentee"}
                           </div>
-
                           {(s.title || s.topic) && (
                             <>
                               <span className="text-muted-foreground">•</span>
@@ -110,19 +203,12 @@ const WeeklySchedule = ({ sessions }: { sessions: MentorDashSession[] }) => {
                             </>
                           )}
                         </div>
-
-
-
-                        {/* Highlighted Time */}
                         <div className="mt-2.5 flex items-center gap-2">
                           <div className="font-semibold text-base tracking-tight text-foreground">
                             {formatISTDateTime(start)}
                           </div>
-
                         </div>
                       </div>
-
-                      {/* Right Side */}
                       <div className="flex flex-col items-end justify-between py-0.5 gap-2">
                         {isUpcoming && s.meeting_url && (
                           <a
@@ -135,7 +221,6 @@ const WeeklySchedule = ({ sessions }: { sessions: MentorDashSession[] }) => {
                             Join
                           </a>
                         )}
-
                         <div className="text-[10px] uppercase font-mono tracking-widest text-muted-foreground">
                           {s.status}
                         </div>

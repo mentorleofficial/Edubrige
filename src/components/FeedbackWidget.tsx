@@ -58,11 +58,11 @@ const FeedbackWidget = () => {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Share feedback"
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-1 ring-primary/20 transition-transform hover:scale-105 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 rounded-full bg-primary text-primary-foreground shadow-lg ring-1 ring-primary/20 pl-5 pr-6 py-3 transition-all hover:scale-105 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        <MessageCircle className="h-6 w-6" />
+        <MessageCircle className="h-5 w-5" />
+        <span className="font-medium text-sm">Feedback</span>
       </button>
-
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md p-0 overflow-hidden gap-0">
           <DialogHeader className="bg-foreground text-background p-6 space-y-1">

@@ -51,9 +51,9 @@ export default function MenteeBookSession() {
 
   return (
     <AppLayout>
-      <div className="max-w-6xl mx-auto px-5 space-y-5">
+      <div className="max-w-7xl mx-auto  space-y-5">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Book a session</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Book a session</h1>
           <p className="text-muted-foreground mt-1 text-sm">
             Browse offerings from all available mentors and book instantly
           </p>

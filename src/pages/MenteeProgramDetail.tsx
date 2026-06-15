@@ -5,11 +5,13 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Calendar, Users, Search, UserCheck } from "lucide-react";
+import { ArrowLeft, Calendar, Users, Search, UserCheck, Share2, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchMenteeProgramOverview } from "@/features/programs/api";
+import { toast } from "sonner";
+import { useState } from "react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const initials = (n: string) =>
   n.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase() || "?";
@@ -18,6 +20,7 @@ const MenteeProgramDetail = () => {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [sharedId, setSharedId] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["mentee-program-overview", slug, user?.id],
@@ -63,9 +66,20 @@ const MenteeProgramDetail = () => {
     ? mentors.filter((m) => m.id !== assignedMentor.id)
     : mentors;
 
+  const assignedProfile = assignedMentor?.mentor_profiles?.[0];
+  const assignedTopTag = assignedProfile?.current_role;
+  const assignedExpertise = assignedProfile?.expertise ?? [];
+  const assignedVisibleTags = assignedExpertise.slice(0, 2);
+  const assignedRemainingCount = assignedExpertise.length - assignedVisibleTags.length;
+  const assignedSubtitle =
+    assignedProfile?.headline ||
+    assignedProfile?.current_organization ||
+    assignedMentor?.email ||
+    "";
+
   return (
     <AppLayout>
-      <div className="max-w-5xl mx-auto px-6 py-10 space-y-10">
+      <div className="max-w-7xl mb-20 space-y-6">
         {/* Back Button */}
         <Button
           variant="ghost"
@@ -79,11 +93,11 @@ const MenteeProgramDetail = () => {
 
         {/* Program Header */}
         <Card className="overflow-hidden border-0 shadow-lg">
-          <div className="h-3 w-full" style={{ backgroundColor: `hsl(${hsl})` }} />
-          <CardHeader className="pt-8 pb-6">
+          
+          <CardHeader className="pt-4 pb-6">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
               <div className="space-y-3">
-                <CardTitle className="text-3xl font-bold">{program.name}</CardTitle>
+                <CardTitle className="text-2xl font-bold">{program.name}</CardTitle>
                 {program.description && (
                   <p className="text-lg text-muted-foreground max-w-2xl">{program.description}</p>
                 )}
@@ -133,27 +147,108 @@ const MenteeProgramDetail = () => {
                   Your Assigned Mentor
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-2">
                 {assignedMentor ? (
-                  <div className="space-y-6">
-                    <div className="flex items-center gap-4">
-                      <Avatar className="h-16 w-16 ring-2 ring-offset-2 ring-green-100">
-                        <AvatarFallback className="text-2xl">
-                          {initials(assignedMentor.full_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xl font-semibold truncate">{assignedMentor.full_name}</p>
-                        <p className="text-muted-foreground">{assignedMentor.email}</p>
-                      </div>
+                  <TooltipProvider>
+                  <div className="relative overflow-hidden rounded-2xl aspect-[4/5] max-w-xs sm:max-w-sm mx-auto bg-[#1a1a2e] group cursor-pointer"
+                    onClick={() => navigate(`/book/${assignedMentor.id}?programId=${program.id}`)}>
+
+                    {/* Top Right Actions */}
+                    <div className="absolute top-3 right-3 z-20 flex gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const url = `${window.location.origin}/book/${assignedMentor.id}`;
+                          navigator.clipboard.writeText(url);
+                          setSharedId(assignedMentor.id);
+                          toast.success("Link copied");
+                          setTimeout(() => setSharedId(null), 1500);
+                        }}
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70"
+                      >
+                        {sharedId === assignedMentor.id ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                      </button>
                     </div>
 
-                    <Button asChild size="lg" className="w-full">
-                      <Link to={`/book/${assignedMentor.id}?programId=${program.id}`}>
-                        Book a Session
-                      </Link>
-                    </Button>
+                    {assignedMentor.avatar_url ? (
+                      <img
+                        src={assignedMentor.avatar_url}
+                        alt={assignedMentor.full_name}
+                        className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                        <div className="rounded-full bg-white/10 text-white text-3xl font-medium w-20 h-20 flex items-center justify-center">
+                          {initials(assignedMentor.full_name)}
+                        </div>
+                      </div>
+                    )}
+
+                    {assignedTopTag && (
+                      <span className="absolute top-3 left-3 z-10 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-3 py-1 max-w-[65%] truncate">
+                        {assignedTopTag}
+                      </span>
+                    )}
+
+                    <div className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-3 pt-10"
+                      style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95) 50%, rgba(0,0,0,0.6) 80%, transparent)" }}>
+                      <h3 className="font-bold text-white text-base leading-tight">{assignedMentor.full_name}</h3>
+                      {assignedSubtitle && (
+                        <p className="text-white/70 text-sm mt-1 line-clamp-2">{assignedSubtitle}</p>
+                      )}
+
+                      {assignedExpertise.length > 0 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1 mt-2 flex-nowrap overflow-hidden">
+                              {assignedVisibleTags.map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="rounded-full bg-white/15 text-white/90 text-[10px] font-medium px-2 py-0.5 truncate"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                              {assignedRemainingCount > 0 && (
+                                <span className="rounded-full bg-white/20 text-white text-[10px] font-semibold px-2 py-0.5 whitespace-nowrap">
+                                  +{assignedRemainingCount}
+                                </span>
+                              )}
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <div className="flex flex-wrap gap-1">
+                              {assignedExpertise.map((tag) => (
+                                <span key={tag} className="rounded-full bg-muted text-foreground text-xs px-2 py-0.5">
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+
+                      <div className="flex items-center justify-between mt-4 gap-3">
+                        {assignedProfile?.years_experience ? (
+                          <div className="text-white/75 text-sm">
+                            <span className="font-bold text-white">{assignedProfile.years_experience}</span> Yrs
+                          </div>
+                        ) : (
+                          <span />
+                        )}
+                        <Button
+                          size="sm"
+                          className="bg-white text-black hover:bg-white/90"
+                          asChild
+                        >
+                          <Link to={`/book/${assignedMentor.id}?programId=${program.id}`}>
+                            Book Session
+                          </Link>
+                        </Button>
+                      </div>
+                    </div>
                   </div>
+                  </TooltipProvider>
                 ) : (
                   <div className="py-8 text-center text-muted-foreground">
                     You haven't been assigned a mentor yet.
@@ -192,34 +287,122 @@ const MenteeProgramDetail = () => {
                     No other mentors available in this program yet.
                   </div>
                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {otherMentors.map((mentor) => (
-                      <Card key={mentor.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="p-5">
-                          <div className="flex items-start gap-4">
-                            <Avatar className="h-12 w-12">
-                              <AvatarFallback>{initials(mentor.full_name)}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0 pt-1">
-                              <p className="font-medium truncate">{mentor.full_name}</p>
-                              <p className="text-sm text-muted-foreground truncate">{mentor.email}</p>
-                            </div>
-                          </div>
+                  <TooltipProvider>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {otherMentors.map((mentor) => {
+                        const profile = mentor.mentor_profiles?.[0];
+                        const topTag = profile?.current_role;
+                        const expertiseTags = profile?.expertise ?? [];
+                        const visibleTags = expertiseTags.slice(0, 2);
+                        const remainingCount = expertiseTags.length - visibleTags.length;
 
-                          <Button
-                            asChild
-                            variant="outline"
-                            size="sm"
-                            className="w-full mt-5"
+                        return (
+                          <Card
+                            key={mentor.id}
+                            onClick={() => navigate(`/book/${mentor.id}?programId=${program.id}`)}
+                            className="group relative overflow-hidden cursor-pointer border-0 rounded-2xl aspect-[4/5] bg-[#1a1a2e] hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
                           >
-                            <Link to={`/book/${mentor.id}?programId=${program.id}`}>
-                              Book Session
-                            </Link>
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
+                            {/* Top Right Actions */}
+                            <div className="absolute top-3 right-3 z-20 flex gap-1.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const url = `${window.location.origin}/book/${mentor.id}`;
+                                  navigator.clipboard.writeText(url);
+                                  setSharedId(mentor.id);
+                                  toast.success("Link copied");
+                                  setTimeout(() => setSharedId(null), 1500);
+                                }}
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white hover:bg-black/70"
+                              >
+                                {sharedId === mentor.id ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                              </button>
+                            </div>
+
+                            {mentor.avatar_url ? (
+                              <img
+                                src={mentor.avatar_url}
+                                alt={mentor.full_name}
+                                className="absolute inset-0 w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                <div className="rounded-full bg-white/10 text-white text-4xl font-medium w-24 h-24 flex items-center justify-center">
+                                  {initials(mentor.full_name)}
+                                </div>
+                              </div>
+                            )}
+
+                            {topTag && (
+                              <span className="absolute top-3 left-3 z-10 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-3 py-1 max-w-[65%] truncate">
+                                {topTag}
+                              </span>
+                            )}
+
+                            <div
+                              className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-3 pt-10"
+                              style={{
+                                background: "linear-gradient(to top, rgba(0,0,0,0.94) 55%, rgba(0,0,0,0.45) 82%, transparent 100%)",
+                              }}
+                            >
+                              <h3 className="font-bold text-white text-[15px] leading-tight truncate">
+                                {mentor.full_name}
+                              </h3>
+
+                              {expertiseTags.length > 0 && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <div className="flex items-center gap-1 mt-1.5 flex-nowrap overflow-hidden">
+                                      {visibleTags.map((tag) => (
+                                        <span
+                                          key={tag}
+                                          className="rounded-full bg-white/15 text-white/90 text-[10px] font-medium px-2 py-0.5 truncate"
+                                        >
+                                          {tag}
+                                        </span>
+                                      ))}
+                                      {remainingCount > 0 && (
+                                        <span className="rounded-full bg-white/20 text-white text-[10px] font-semibold px-2 py-0.5 whitespace-nowrap">
+                                          +{remainingCount}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    <div className="flex flex-wrap gap-1">
+                                      {expertiseTags.map((tag) => (
+                                        <span key={tag} className="rounded-full bg-muted text-foreground text-xs px-2 py-0.5">
+                                          {tag}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </TooltipContent>
+                                </Tooltip>
+                              )}
+
+                              <div className="flex items-center justify-between mt-3">
+                                {profile?.years_experience && (
+                                  <div className="text-white/75 text-sm">
+                                    <span className="font-bold text-white">{profile.years_experience}</span> Yrs
+                                  </div>
+                                )}
+                                <Button
+                                  size="sm"
+                                  className="bg-white text-black hover:bg-white/90 text-xs font-semibold"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/book/${mentor.id}?programId=${program.id}`);
+                                  }}
+                                >
+                                  Book
+                                </Button>
+                              </div>
+                            </div>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  </TooltipProvider>
                 )}
               </CardContent>
             </Card>

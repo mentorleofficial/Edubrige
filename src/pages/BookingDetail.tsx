@@ -221,7 +221,7 @@ const BookingDetail = () => {
             <ArrowLeft className="h-4 w-4" /> {backLabel}
           </Link>
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-2xl sm:text-3xl font-bold">Booking Details</h1>
+            <h1 className="text-2xl font-bold">Booking Details</h1>
             <StatusBadge status={booking.status} />
           </div>
         </div>

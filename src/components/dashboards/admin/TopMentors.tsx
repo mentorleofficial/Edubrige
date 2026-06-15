@@ -1,7 +1,9 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Trophy } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import type {
   AdminFeedbackRow,
   AdminMentorLite,
@@ -15,6 +17,7 @@ interface Props {
 }
 
 const TopMentors = ({ sessions, feedback, mentorsById }: Props) => {
+  const navigate = useNavigate();
   // map session -> mentor
   const sessionMentor: Record<string, string> = {};
   sessions.forEach((s) => {
@@ -46,9 +49,14 @@ const TopMentors = ({ sessions, feedback, mentorsById }: Props) => {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center gap-2 pb-2">
-        <Trophy className="h-5 w-5 text-accent" />
-        <CardTitle className="text-lg">Top Mentors · 30 days</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <div className="flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-accent" />
+          <CardTitle className="text-lg">Top Mentors · 30 days</CardTitle>
+        </div>
+        <Button variant="ghost" size="sm" asChild>
+          <Link to="/admin/users">View all</Link>
+        </Button>
       </CardHeader>
       <CardContent>
         {list.length === 0 ? (
@@ -56,27 +64,33 @@ const TopMentors = ({ sessions, feedback, mentorsById }: Props) => {
         ) : (
           <ul className="space-y-2">
             {list.map((m) => (
-              <li
-                key={m.id}
-                className="flex items-center gap-3 rounded-md border bg-card/40 p-2 text-sm"
-              >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={m.mentor.avatar_url ?? undefined} />
-                  <AvatarFallback>
-                    {m.mentor.full_name
-                      .split(" ")
-                      .map((p) => p[0])
-                      .join("")
-                      .slice(0, 2)}
-                  </AvatarFallback>
-                </Avatar>
-                <Link to="/admin/users" className="min-w-0 flex-1 truncate font-medium hover:underline">
-                  {m.mentor.full_name}
-                </Link>
-                <span className="text-xs text-muted-foreground">{m.count} sessions</span>
-                <span className="text-xs font-semibold">
-                  {m.avg === null ? "—" : `${m.avg.toFixed(1)} ★`}
-                </span>
+              <li key={m.id}>
+                <button
+                  type="button"
+                  onClick={() => navigate("/admin/users")}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-md border bg-card/40 p-2 text-sm text-left transition-colors",
+                    "hover:border-primary/40 hover:bg-card cursor-pointer"
+                  )}
+                >
+                  <Avatar className="h-8 w-8 shrink-0">
+                    <AvatarImage src={m.mentor.avatar_url ?? undefined} />
+                    <AvatarFallback>
+                      {m.mentor.full_name
+                        .split(" ")
+                        .map((p) => p[0])
+                        .join("")
+                        .slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {m.mentor.full_name}
+                  </span>
+                  <span className="text-xs text-muted-foreground shrink-0">{m.count} sessions</span>
+                  <span className="text-xs font-semibold shrink-0">
+                    {m.avg === null ? "—" : `${m.avg.toFixed(1)} ★`}
+                  </span>
+                </button>
               </li>
             ))}
           </ul>

@@ -92,7 +92,7 @@ const AdminPrograms = () => {
       <div className="space-y-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold">Programs</h1>
+            <h1 className="text-2xl font-bold">Programs</h1>
             <p className="text-muted-foreground mt-1">Cohorts and tracks. Map mentors to mentees inside each program.</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>

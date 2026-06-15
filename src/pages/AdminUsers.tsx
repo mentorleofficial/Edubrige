@@ -156,7 +156,7 @@ const AdminUsers = () => {
       <div className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold">Users</h1>
+            <h1 className="text-2xl font-bold">Users</h1>
             <p className="text-sm text-muted-foreground mt-1">
               {total} {total === 1 ? "user" : "users"} · {statusFilter}
             </p>

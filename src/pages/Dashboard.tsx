@@ -11,7 +11,7 @@ const Dashboard = () => {
     <AppLayout>
       <div className="space-y-6">
         {/* <div>
-          <h1 className="text-3xl font-bold">Welcome back, {profile?.full_name?.split(" ")[0] || "User"}</h1>
+          <h1 className="text-2xl font-bold">Welcome back, {profile?.full_name?.split(" ")[0] || "User"}</h1>
           <p className="text-muted-foreground mt-1">Here's what's happening today.</p>
         </div> */}
         {profile?.role === "admin" && <AdminDashboard />}

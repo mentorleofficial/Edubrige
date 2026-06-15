@@ -244,7 +244,7 @@ const PublicMentorProfile = () => {
 
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center gap-3">
-                    <h1 className="text-4xl font-bold">
+                    <h1 className="text-2xl font-bold">
                       {mentor.full_name}
                     </h1>
 

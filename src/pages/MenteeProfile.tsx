@@ -427,16 +427,9 @@ const MenteeProfile = () => {
 
   return (
     <AppLayout>
-      <div className="max-w-5xl mx-auto px-5 py-10 space-y-8">
+      <div className="max-w-7xl mb-20 space-y-6">
 
         {/* Header */}
-        <div>
-          <h1 className="text-[22px] font-medium tracking-tight">My profile</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Keep your profile up to date to get better mentor matches
-          </p>
-        </div>
-
         {completeness < 100 && (
           <div className="bg-gradient-to-tr from-primary to-accent text-white rounded-lg p-6 shadow-md">
             <div className="flex items-start gap-4">
@@ -446,7 +439,7 @@ const MenteeProfile = () => {
               <div className="flex-1">
                 <h2 className="text-2xl font-bold mb-2">Welcome to {branding.app_name}! 🎉</h2>
                 <p className="text-white/90 text-sm mb-4 font-semibold">
-                  Let's complete your profile to get started. This helps us match you with the right mentors 
+                  Let's complete your profile to get started. This helps us match you with the right mentors
                   and personalize your experience.
                 </p>
                 <div className="flex items-center gap-2 text-xs text-white/80">

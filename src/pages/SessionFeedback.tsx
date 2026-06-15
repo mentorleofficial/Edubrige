@@ -111,7 +111,7 @@ const SessionFeedback = () => {
     return (
       <AppLayout>
         <div className="max-w-lg mx-auto space-y-6">
-          <h1 className="text-3xl font-bold">Session Feedback</h1>
+          <h1 className="text-2xl font-bold">Session Feedback</h1>
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -137,7 +137,7 @@ const SessionFeedback = () => {
   return (
     <AppLayout>
       <div className="max-w-lg mx-auto space-y-6">
-        <h1 className="text-3xl font-bold">Session Feedback</h1>
+        <h1 className="text-2xl font-bold">Session Feedback</h1>
         <Card>
           <CardHeader>
             <CardTitle>Rate your session{counterpartName ? ` with ${counterpartName}` : ""}</CardTitle>

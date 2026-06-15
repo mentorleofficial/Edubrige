@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, ChevronLeft, ChevronRight, Globe, Info, Video, Copy } from "lucide-react";
+import { CheckCircle, ChevronLeft, ChevronRight, Clock, Globe, Info, Video, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   getMonthMatrix,
@@ -254,11 +254,16 @@ export default function BookingModal({ mentorId, offeringId, open, onOpenChange 
     }
   };
 
+  const mentorSubtitle =
+    mentor?.current_role && mentor?.current_organization
+      ? `${mentor.current_role} at ${mentor.current_organization}`
+      : mentor?.current_role || mentor?.headline || null;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-hidden p-0 gap-0 flex flex-col">
         {bookedSession ? (
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-4 overflow-y-auto">
             <DialogHeader>
               <div className="mx-auto mb-2 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <CheckCircle className="h-6 w-6 text-primary" />
@@ -302,27 +307,53 @@ export default function BookingModal({ mentorId, offeringId, open, onOpenChange 
         ) : (
           <>
             {/* Header */}
-            <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 text-white p-6 rounded-t-lg">
-              <DialogHeader>
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-12 w-12 border border-white/15">
+            <div className="shrink-0 border-b bg-muted/30 px-5 py-4 pr-14">
+              <DialogHeader className="space-y-3 text-left">
+                <div className="flex items-start gap-3.5 min-w-0">
+                  <Avatar className="h-12 w-12 shrink-0 border-2 border-background shadow-sm">
                     <AvatarImage src={mentor?.avatar_url ?? undefined} />
-                    <AvatarFallback className="bg-white/10 text-white font-bold">{mentorInitials}</AvatarFallback>
+                    <AvatarFallback className="bg-primary/10 text-primary font-semibold">{mentorInitials}</AvatarFallback>
                   </Avatar>
-                  <div>
-                    <p className="text-xs uppercase tracking-widest text-white/60">Booking session</p>
-                    <DialogTitle className="text-white text-xl mt-0.5">
-                      {mentor?.full_name ?? "…"}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                      Book a session
+                    </p>
+                    <DialogTitle className="text-lg font-bold leading-tight mt-0.5 truncate">
+                      {mentor?.full_name ?? "Loading mentor…"}
                     </DialogTitle>
+                    {mentorSubtitle && (
+                      <p className="text-sm text-muted-foreground mt-0.5 truncate">{mentorSubtitle}</p>
+                    )}
                   </div>
                 </div>
+
+                {selectedOffering && (
+                  <div className="rounded-lg border bg-background px-3 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold truncate">{selectedOffering.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-2">
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {selectedOffering.duration_minutes} min
+                        </span>
+                        <span>·</span>
+                        <span>{selectedOffering.price === 0 ? "Free" : `₹${selectedOffering.price}`}</span>
+                      </p>
+                    </div>
+                    <Badge variant="secondary" className="shrink-0 text-[10px] font-medium">
+                      {selectedOffering.category || "Session"}
+                    </Badge>
+                  </div>
+                )}
+
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5 shrink-0" />
+                  All times shown in <span className="font-medium text-foreground">India Standard Time (IST)</span>
+                </p>
               </DialogHeader>
-              <p className="mt-3 text-xs text-white/60 flex items-center gap-1.5">
-                <Globe className="h-3 w-3" /> All times in <span className="font-medium text-white/80">India Standard Time (IST)</span>
-              </p>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6">
               {isPending && (
                 <p className="text-sm text-muted-foreground text-center py-8">Loading availability…</p>
               )}
@@ -363,15 +394,6 @@ export default function BookingModal({ mentorId, offeringId, open, onOpenChange 
                             </button>
                           );
                         })}
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedOffering && (offeringId || staticData.offerings.length === 1) && (
-                    <div className="rounded-xl border bg-muted/30 p-3 flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold">{selectedOffering.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{selectedOffering.duration_minutes} min · {selectedOffering.price === 0 ? "Free" : `₹${selectedOffering.price}`}</p>
                       </div>
                     </div>
                   )}

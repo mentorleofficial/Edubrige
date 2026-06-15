@@ -86,7 +86,7 @@ const AccountPrivacy = () => {
     <AppLayout>
       <div className="max-w-3xl space-y-6">
         <div>
-          <h1 className="font-serif text-3xl">Privacy & My Data</h1>
+          <h1 className="font-serif text-2xl">Privacy & My Data</h1>
           <p className="text-muted-foreground text-sm mt-1">
             Manage your consent and exercise your data rights.
           </p>

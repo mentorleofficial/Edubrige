@@ -25,6 +25,7 @@ export type RecommendedMentor = {
   bio: string | null;
   expertise: string[] | null;
   years_experience: number | null;
+  current_role: string | null;
 };
 
 export type DashData = {

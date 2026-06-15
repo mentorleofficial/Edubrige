@@ -93,7 +93,7 @@ const AdminFeedback = () => {
     <AppLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold">Feedback</h1>
+          <h1 className="text-2xl font-bold">Feedback</h1>
           <p className="text-muted-foreground text-sm">All session ratings submitted by mentors and mentees.</p>
         </div>
 

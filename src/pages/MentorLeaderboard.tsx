@@ -69,7 +69,7 @@ const MentorLeaderboard = () => {
       <div className="space-y-6 max-w-4xl">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-serif text-3xl flex items-center gap-2">
+            <h1 className="font-serif text-2xl flex items-center gap-2">
               <Trophy className="h-7 w-7 text-primary" /> Mentor Leaderboard
             </h1>
             <p className="text-muted-foreground text-sm mt-1">

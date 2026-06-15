@@ -22,8 +22,8 @@ const Kpi = ({
   Icon: typeof Users;
   to: string;
 }) => (
-  <Link to={to} className="block">
-    <Card className="h-full transition-shadow hover:shadow-md">
+  <Link to={to} className="block group">
+    <Card className="h-full transition-all group-hover:shadow-md group-hover:border-primary/30">
       <CardHeader className="flex flex-row items-center justify-between p-3 sm:p-4 pb-2 sm:pb-2">
         <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground leading-tight">{title}</CardTitle>
         <Icon className="h-4 w-4 sm:h-5 sm:w-5 text-primary shrink-0 ml-1" />

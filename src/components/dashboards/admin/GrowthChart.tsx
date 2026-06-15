@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrendingUp } from "lucide-react";
+import { Link } from "react-router-dom";
 import {
   Area,
   AreaChart,
@@ -59,7 +60,7 @@ const GrowthChart = ({ sessions, users }: Props) => {
           <TrendingUp className="h-5 w-5 text-primary" />
           <CardTitle className="text-lg">Growth · last 30 days</CardTitle>
         </div>
-        <div className="flex gap-1">
+        <div className="flex items-center gap-2">
           <Button
             size="sm"
             variant={mode === "sessions" ? "default" : "outline"}
@@ -73,6 +74,11 @@ const GrowthChart = ({ sessions, users }: Props) => {
             onClick={() => setMode("signups")}
           >
             Signups
+          </Button>
+          <Button variant="ghost" size="sm" asChild className="ml-1 hidden sm:inline-flex">
+            <Link to={mode === "sessions" ? "/admin/sessions" : "/admin/users"}>
+              View all
+            </Link>
           </Button>
         </div>
       </CardHeader>

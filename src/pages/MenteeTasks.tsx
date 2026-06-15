@@ -84,7 +84,7 @@ export default function MenteeTasks() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6 max-w-7xl mx-auto">
         <div>
           <div className="flex items-center gap-2">
             <ListTodo className="h-6 w-6 text-primary" />

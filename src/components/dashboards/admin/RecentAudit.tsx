@@ -2,7 +2,8 @@ import { formatISTDate } from "@/lib/datetime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClipboardList } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import type { AdminAuditRow } from "@/features/admin-dashboard/useAdminDashboardData";
 const relTime = (ms: number) => {
   const diff = Date.now() - ms;
@@ -15,7 +16,10 @@ const relTime = (ms: number) => {
   return formatISTDate(ms);
 };
 
-const RecentAudit = ({ rows }: { rows: AdminAuditRow[] }) => (
+const RecentAudit = ({ rows }: { rows: AdminAuditRow[] }) => {
+  const navigate = useNavigate();
+
+  return (
   <Card>
     <CardHeader className="flex flex-row items-center justify-between pb-2">
       <div className="flex items-center gap-2">
@@ -32,10 +36,15 @@ const RecentAudit = ({ rows }: { rows: AdminAuditRow[] }) => (
       ) : (
         <ul className="space-y-2 text-sm">
           {rows.map((r) => (
-            <li
-              key={r.id}
-              className="flex items-center justify-between rounded-md border bg-card/40 px-3 py-2"
-            >
+            <li key={r.id}>
+              <button
+                type="button"
+                onClick={() => navigate("/admin/audit-logs")}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-md border bg-card/40 px-3 py-2 text-left transition-colors",
+                  "hover:border-primary/40 hover:bg-card cursor-pointer"
+                )}
+              >
               <div className="min-w-0 flex-1">
                 <span className="font-medium">{r.action}</span>{" "}
                 <span className="text-muted-foreground">on {r.entity_type}</span>
@@ -43,15 +52,17 @@ const RecentAudit = ({ rows }: { rows: AdminAuditRow[] }) => (
                   <span className="text-muted-foreground"> · by {r.actor_name}</span>
                 )}
               </div>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-muted-foreground shrink-0 ml-2">
                 {relTime(new Date(r.created_at).getTime())}
               </span>
+              </button>
             </li>
           ))}
         </ul>
       )}
     </CardContent>
   </Card>
-);
+  );
+};
 
 export default RecentAudit;

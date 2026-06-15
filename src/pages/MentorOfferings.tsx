@@ -255,7 +255,7 @@ const MentorOfferings = () => {
         {/* Page Header */}
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-3xl font-bold">Offerings & Services</h1>
+            <h1 className="text-2xl font-bold">Offerings & Services</h1>
             <p className="text-muted-foreground text-sm mt-1">
               Manage the mentorship sessions you offer. Mentees book sessions under these specific offerings.
             </p>

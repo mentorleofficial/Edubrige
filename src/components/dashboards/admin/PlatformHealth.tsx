@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, ShieldCheck, ShieldAlert, TrendingUp, TrendingDown } from "lucide-react";
+import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import type {
   AdminFeedbackRow,
   AdminSessionRow,
@@ -41,7 +43,13 @@ const PlatformHealth = ({ jwtEnabled, feedback60, sessions30 }: Props) => {
         <CardTitle className="text-lg">Platform Health</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-center justify-between rounded-md border bg-card/40 p-3 text-sm">
+        <Link
+          to="/admin/settings"
+          className={cn(
+            "flex items-center justify-between rounded-md border bg-card/40 p-3 text-sm transition-colors",
+            "hover:border-primary/40 hover:bg-card"
+          )}
+        >
           <div className="flex items-center gap-2">
             {jwtEnabled ? (
               <ShieldCheck className="h-4 w-4 text-emerald-500" />
@@ -51,9 +59,15 @@ const PlatformHealth = ({ jwtEnabled, feedback60, sessions30 }: Props) => {
             <span>JWT mentee auth</span>
           </div>
           <span className="text-xs font-semibold">{jwtEnabled ? "Enabled" : "Disabled"}</span>
-        </div>
+        </Link>
 
-        <div className="rounded-md border bg-card/40 p-3 text-sm">
+        <Link
+          to="/admin/feedback"
+          className={cn(
+            "block rounded-md border bg-card/40 p-3 text-sm transition-colors",
+            "hover:border-primary/40 hover:bg-card"
+          )}
+        >
           <div className="flex items-center justify-between">
             <span>Avg rating · 30d</span>
             <span className="font-semibold">{a === null ? "—" : `${a.toFixed(2)} ★`}</span>
@@ -72,9 +86,15 @@ const PlatformHealth = ({ jwtEnabled, feedback60, sessions30 }: Props) => {
               </span>
             </div>
           )}
-        </div>
+        </Link>
 
-        <div className="rounded-md border bg-card/40 p-3 text-sm">
+        <Link
+          to="/admin/sessions"
+          className={cn(
+            "block rounded-md border bg-card/40 p-3 text-sm transition-colors",
+            "hover:border-primary/40 hover:bg-card"
+          )}
+        >
           <div className="flex items-center justify-between">
             <span>Cancellation rate · 30d</span>
             <span
@@ -88,7 +108,7 @@ const PlatformHealth = ({ jwtEnabled, feedback60, sessions30 }: Props) => {
           <div className="mt-1 text-xs text-muted-foreground">
             {cancelled} cancelled · {completed} completed
           </div>
-        </div>
+        </Link>
       </CardContent>
     </Card>
   );

@@ -106,7 +106,7 @@ const PrivacyPolicy = () => {
 
         {/* Page title */}
         <div>
-          <h1 className="font-serif text-3xl flex items-center gap-2">
+          <h1 className="font-serif text-2xl flex items-center gap-2">
             <ShieldCheck className="h-7 w-7 text-primary" />
             Privacy Policy
           </h1>

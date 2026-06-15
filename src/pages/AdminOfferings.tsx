@@ -215,7 +215,7 @@ const AdminOfferings = () => {
         {/* Page Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-3xl font-bold">Mentorship Listings</h1>
+            <h1 className="text-2xl font-bold">Mentorship Listings</h1>
             <p className="text-sm text-muted-foreground mt-1">
               View and moderate all mentorship offerings and their performance.
             </p>
