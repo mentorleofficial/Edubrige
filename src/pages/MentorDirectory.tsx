@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import ExpertiseFilter from "@/features/mentors/components/ExpertiseFilter";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import MentorExpertiseTags from "@/components/badges/MentorExpertiseTags";
 import { cn } from "@/lib/utils";
 
 const MentorDirectory = () => {
@@ -482,14 +483,14 @@ const MentorDirectory = () => {
                             toast.error("Could not copy link");
                           }
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white/90 hover:scale-105 hover:bg-black/60 transition-all duration-200"
+                        className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white/90 hover:scale-105 hover:bg-black/60 transition-all duration-200"
                         title="Copy share link"
                         aria-label="Copy share link"
                       >
                         {sharedId === m.id ? (
-                          <Check className="h-4 w-4 stroke-[2.5px]" />
+                          <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4 stroke-[2.5px]" />
                         ) : (
-                          <Share2 className="h-4 w-4 stroke-[2.5px]" />
+                          <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 stroke-[2.5px]" />
                         )}
                       </button>
                       {user && (
@@ -502,12 +503,12 @@ const MentorDirectory = () => {
                               isFavorite: isFav,
                             });
                           }}
-                          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white/80 hover:scale-105 hover:bg-black/60 transition-all duration-200"
+                          className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white/80 hover:scale-105 hover:bg-black/60 transition-all duration-200"
                           title={isFav ? "Remove from favorites" : "Add to favorites"}
                         >
                           <Heart
                             className={cn(
-                              "h-4 w-4 stroke-[2.5px] transition-colors",
+                              "h-3.5 w-3.5 sm:h-4 sm:w-4 stroke-[2.5px] transition-colors",
                               isFav ? "fill-red-500 text-red-500" : "text-white/95"
                             )}
                           />
@@ -530,12 +531,6 @@ const MentorDirectory = () => {
                       </div>
                     )}
 
-                    {topTag && (
-                      <span className="absolute top-2.5 left-2.5 z-10 rounded-full bg-black/55 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-1 max-w-[65%] truncate">
-                        {topTag}
-                      </span>
-                    )}
-
                     <div
                       className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-3 pt-14"
                       style={{
@@ -543,46 +538,16 @@ const MentorDirectory = () => {
                           "linear-gradient(to top, rgba(0,0,0,0.94) 55%, rgba(0,0,0,0.45) 82%, transparent 100%)",
                       }}
                     >
+                      {topTag && (
+                        <p className="text-[9px] sm:text-[10px] text-white/75 font-semibold tracking-wide uppercase truncate mb-0.5">
+                          {topTag}
+                        </p>
+                      )}
                       <h3 className="font-bold text-white text-[15px] leading-tight truncate">
                         {m.full_name}
                       </h3>
 
-                      {expertiseTags.length > 0 && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div
-                              className="flex items-center gap-1 mt-1.5 flex-nowrap overflow-hidden"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {visibleTags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="rounded-full bg-white/15 text-white/90 text-[9.5px] font-medium px-1.5 py-0.5 truncate max-w-[70px]"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                              {remainingCount > 0 && (
-                                <span className="rounded-full bg-white/20 text-white text-[9.5px] font-semibold px-1.5 py-0.5 whitespace-nowrap">
-                                  +{remainingCount}
-                                </span>
-                              )}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-[240px]">
-                            <div className="flex flex-wrap gap-1">
-                              {expertiseTags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="rounded-full bg-muted text-foreground text-[10px] px-1.5 py-0.5"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
+                      <MentorExpertiseTags tags={expertiseTags} />
 
                       <div className="flex items-center justify-between gap-2 mt-2">
                         {profile?.years_experience ? (

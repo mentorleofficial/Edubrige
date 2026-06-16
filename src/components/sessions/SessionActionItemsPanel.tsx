@@ -369,7 +369,7 @@ export default function SessionActionItemsPanel({
                         const next = e.target.value || null;
                         if (next !== item.due_date) handleInlineEdit(item, { due_date: next });
                       }}
-                      className="h-7 w-auto text-xs bg-transparent"
+                      className="h-7 w-[125px] text-xs bg-transparent px-1.5 py-0.5 border rounded-md focus-visible:ring-1"
                     />
                   ) : item.due_date ? (
                     <span>Due {formatISTDate(item.due_date)}</span>
@@ -393,7 +393,7 @@ export default function SessionActionItemsPanel({
                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-background border shadow-xs">
                               {getFileIcon(att.name)}
                             </div>
-                            <a href={att.url} target="_blank" rel="noreferrer" className="font-medium hover:underline text-foreground truncate max-w-[130px] sm:max-w-[170px]" title={att.name}>
+                            <a href={att.url} target="_blank" rel="noreferrer" className="font-medium hover:underline text-foreground truncate flex-1 min-w-0 max-w-[130px] sm:max-w-[170px]" title={att.name}>
                               {att.name}
                             </a>
                           </div>
@@ -436,7 +436,7 @@ export default function SessionActionItemsPanel({
                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-background border shadow-xs">
                               {getFileIcon(att.name)}
                             </div>
-                            <a href={att.url} target="_blank" rel="noreferrer" className="font-medium hover:underline text-foreground truncate max-w-[130px] sm:max-w-[170px]" title={att.name}>
+                            <a href={att.url} target="_blank" rel="noreferrer" className="font-medium hover:underline text-foreground truncate flex-1 min-w-0 max-w-[130px] sm:max-w-[170px]" title={att.name}>
                               {att.name}
                             </a>
                           </div>
@@ -606,44 +606,46 @@ export default function SessionActionItemsPanel({
             </div>
           )}
 
-          <div className="flex items-center gap-2 pt-1">
-            <Input
-              type="date"
-              value={newDue}
-              onChange={(e) => setNewDue(e.target.value)}
-              className="h-9 w-auto rounded-lg text-xs"
-            />
-            
-            <input
-              type="file"
-              id="new-task-files"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                if (e.target.files) {
-                  setNewFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
-                }
-              }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 rounded-lg gap-1.5"
-              onClick={() => document.getElementById("new-task-files")?.click()}
-            >
-              <Paperclip className="h-3.5 w-3.5" />
-              <span>Attach files</span>
-            </Button>
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 pt-1">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Input
+                type="date"
+                value={newDue}
+                onChange={(e) => setNewDue(e.target.value)}
+                className="h-9 flex-1 sm:w-[130px] rounded-lg text-xs"
+              />
+              
+              <input
+                type="file"
+                id="new-task-files"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (e.target.files) {
+                    setNewFiles((prev) => [...prev, ...Array.from(e.target.files!)]);
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 flex-1 sm:flex-none rounded-lg gap-1.5 text-xs"
+                onClick={() => document.getElementById("new-task-files")?.click()}
+              >
+                <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">Attach files</span>
+              </Button>
+            </div>
 
             <Button
               size="sm"
               onClick={handleAdd}
               disabled={createMut.isPending || !newTitle.trim()}
-              className="ml-auto h-9 rounded-lg"
+              className="w-full sm:w-auto sm:ml-auto h-9 rounded-lg"
             >
-              <Plus className="mr-1 h-3.5 w-3.5" />
-              {createMut.isPending ? "Adding…" : "Add task"}
+              <Plus className="mr-1 h-3.5 w-3.5 shrink-0" />
+              <span>{createMut.isPending ? "Adding…" : "Add task"}</span>
             </Button>
           </div>
         </div>

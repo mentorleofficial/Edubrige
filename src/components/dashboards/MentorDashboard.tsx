@@ -206,16 +206,18 @@ const MentorDashboard = () => {
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 min-w-0">
           <WeeklySchedule sessions={data.sessions} />
         </div>
-        <MentorInsightsPanel
-          sessions={data.sessions}
-          feedback={data.feedback}
-          profile={data.profile}
-          availabilityCount={data.availabilityCount}
-          userId={user?.id}
-        />
+        <div className="min-w-0">
+          <MentorInsightsPanel
+            sessions={data.sessions}
+            feedback={data.feedback}
+            profile={data.profile}
+            availabilityCount={data.availabilityCount}
+            userId={user?.id}
+          />
+        </div>
       </div>
 
       <MyMenteesPanel sessions={data.sessions} />

@@ -174,7 +174,21 @@ const BookingDetail = () => {
     );
   };
 
+  const cleanComment = (comment: string | null) => {
+    if (!comment) return "";
+    const delimiter = "---\nSurvey Responses:\n";
+    const delimiterIndex = comment.indexOf(delimiter);
+    if (delimiterIndex !== -1) {
+      return comment.substring(0, delimiterIndex).trim();
+    }
+    if (comment.startsWith("Survey Responses:\n")) {
+      return "";
+    }
+    return comment;
+  };
+
   const menteeFeedback = booking?.feedback?.find((f) => f.audience === "mentor") ?? null;
+  const mentorFeedback = booking?.feedback?.find((f) => f.audience === "mentee") ?? null;
 
   if (isLoading) {
     return (
@@ -421,23 +435,58 @@ const BookingDetail = () => {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Star className="h-4 w-4 text-primary" /> Mentee feedback
+                    <Star className="h-4 w-4 text-primary" /> Session Feedback
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {menteeFeedback ? (
-                    <div className="space-y-3">
-                      <StarRating rating={menteeFeedback.rating} />
-                      {menteeFeedback.comment && (
-                        <div className="rounded-lg bg-muted/40 p-3 text-sm">
-                          {menteeFeedback.comment}
-                        </div>
-                      )}
+                <CardContent className="space-y-4">
+                  {/* Mentee feedback about mentor */}
+                  <div>
+                    <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                      Mentee Feedback on Session
+                    </h4>
+                    {menteeFeedback ? (
+                      <div className="space-y-3">
+                        <StarRating rating={menteeFeedback.rating} />
+                        {cleanComment(menteeFeedback.comment) && (
+                          <div className="rounded-lg bg-muted/40 p-3 text-sm italic text-muted-foreground">
+                            "{cleanComment(menteeFeedback.comment)}"
+                          </div>
+                        )}
+                        {menteeFeedback.response && (
+                          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+                            <div className="text-xs font-semibold text-primary mb-1">Your response</div>
+                            <div className="whitespace-pre-wrap text-foreground font-medium">{menteeFeedback.response}</div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground italic">
+                        No feedback submitted by mentee yet.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Mentor feedback about mentee */}
+                  {mentorFeedback && (
+                    <div className="border-t pt-4">
+                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        Your Feedback to Mentee
+                      </h4>
+                      <div className="space-y-3">
+                        <StarRating rating={mentorFeedback.rating} />
+                        {mentorFeedback.comment && (
+                          <div className="rounded-lg bg-muted/40 p-3 text-sm italic text-muted-foreground">
+                            "{mentorFeedback.comment}"
+                          </div>
+                        )}
+                        {mentorFeedback.response && (
+                          <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+                            <div className="text-xs font-semibold text-primary mb-1">Mentee's response</div>
+                            <div className="whitespace-pre-wrap text-foreground font-medium">{mentorFeedback.response}</div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">
-                      No feedback submitted yet.
-                    </p>
                   )}
                 </CardContent>
               </Card>

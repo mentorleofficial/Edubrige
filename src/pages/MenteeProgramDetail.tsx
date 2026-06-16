@@ -9,9 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Calendar, Users, Search, UserCheck, Share2, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchMenteeProgramOverview } from "@/features/programs/api";
-import { toast } from "sonner";
 import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import MentorExpertiseTags from "@/components/badges/MentorExpertiseTags";
 
 const initials = (n: string) =>
   n.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase() || "?";
@@ -164,9 +164,9 @@ const MenteeProgramDetail = () => {
                           toast.success("Link copied");
                           setTimeout(() => setSharedId(null), 1500);
                         }}
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70"
+                        className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70"
                       >
-                        {sharedId === assignedMentor.id ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                        {sharedId === assignedMentor.id ? <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                       </button>
                     </div>
 
@@ -184,49 +184,19 @@ const MenteeProgramDetail = () => {
                       </div>
                     )}
 
-                    {assignedTopTag && (
-                      <span className="absolute top-3 left-3 z-10 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-3 py-1 max-w-[65%] truncate">
-                        {assignedTopTag}
-                      </span>
-                    )}
-
                     <div className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-3 pt-10"
                       style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95) 50%, rgba(0,0,0,0.6) 80%, transparent)" }}>
+                      {assignedTopTag && (
+                        <p className="text-[9px] sm:text-[10px] text-white/70 uppercase tracking-wider font-semibold truncate mb-0.5">
+                          {assignedTopTag}
+                        </p>
+                      )}
                       <h3 className="font-bold text-white text-base leading-tight">{assignedMentor.full_name}</h3>
                       {assignedSubtitle && (
                         <p className="text-white/70 text-sm mt-1 line-clamp-2">{assignedSubtitle}</p>
                       )}
 
-                      {assignedExpertise.length > 0 && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1 mt-2 flex-nowrap overflow-hidden">
-                              {assignedVisibleTags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="rounded-full bg-white/15 text-white/90 text-[10px] font-medium px-2 py-0.5 truncate"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                              {assignedRemainingCount > 0 && (
-                                <span className="rounded-full bg-white/20 text-white text-[10px] font-semibold px-2 py-0.5 whitespace-nowrap">
-                                  +{assignedRemainingCount}
-                                </span>
-                              )}
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent side="top">
-                            <div className="flex flex-wrap gap-1">
-                              {assignedExpertise.map((tag) => (
-                                <span key={tag} className="rounded-full bg-muted text-foreground text-xs px-2 py-0.5">
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
+                      <MentorExpertiseTags tags={assignedExpertise} />
 
                       <div className="flex items-center justify-between mt-4 gap-3">
                         {assignedProfile?.years_experience ? (
@@ -300,7 +270,7 @@ const MenteeProgramDetail = () => {
                           <Card
                             key={mentor.id}
                             onClick={() => navigate(`/book/${mentor.id}?programId=${program.id}`)}
-                            className="group relative overflow-hidden cursor-pointer border-0 rounded-2xl aspect-[4/5] bg-[#1a1a2e] hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+                            className="group relative overflow-hidden cursor-pointer border-0 rounded-2xl aspect-[3/4] bg-[#1a1a2e] hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
                           >
                             {/* Top Right Actions */}
                             <div className="absolute top-3 right-3 z-20 flex gap-1.5">
@@ -313,9 +283,9 @@ const MenteeProgramDetail = () => {
                                   toast.success("Link copied");
                                   setTimeout(() => setSharedId(null), 1500);
                                 }}
-                                className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white hover:bg-black/70"
+                                className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white hover:bg-black/70"
                               >
-                                {sharedId === mentor.id ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                                {sharedId === mentor.id ? <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                               </button>
                             </div>
 
@@ -333,62 +303,37 @@ const MenteeProgramDetail = () => {
                               </div>
                             )}
 
-                            {topTag && (
-                              <span className="absolute top-3 left-3 z-10 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-3 py-1 max-w-[65%] truncate">
-                                {topTag}
-                              </span>
-                            )}
-
                             <div
                               className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-3 pt-10"
                               style={{
                                 background: "linear-gradient(to top, rgba(0,0,0,0.94) 55%, rgba(0,0,0,0.45) 82%, transparent 100%)",
                               }}
                             >
+                              {topTag && (
+                                <p className="text-[9px] sm:text-[10px] text-white/70 uppercase tracking-wider font-semibold truncate mb-0.5">
+                                  {topTag}
+                                </p>
+                              )}
                               <h3 className="font-bold text-white text-[15px] leading-tight truncate">
                                 {mentor.full_name}
                               </h3>
 
-                              {expertiseTags.length > 0 && (
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div className="flex items-center gap-1 mt-1.5 flex-nowrap overflow-hidden">
-                                      {visibleTags.map((tag) => (
-                                        <span
-                                          key={tag}
-                                          className="rounded-full bg-white/15 text-white/90 text-[10px] font-medium px-2 py-0.5 truncate"
-                                        >
-                                          {tag}
-                                        </span>
-                                      ))}
-                                      {remainingCount > 0 && (
-                                        <span className="rounded-full bg-white/20 text-white text-[10px] font-semibold px-2 py-0.5 whitespace-nowrap">
-                                          +{remainingCount}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="top">
-                                    <div className="flex flex-wrap gap-1">
-                                      {expertiseTags.map((tag) => (
-                                        <span key={tag} className="rounded-full bg-muted text-foreground text-xs px-2 py-0.5">
-                                          {tag}
-                                        </span>
-                                      ))}
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              )}
+                              <MentorExpertiseTags tags={expertiseTags} />
 
-                              <div className="flex items-center justify-between mt-3">
-                                {profile?.years_experience && (
-                                  <div className="text-white/75 text-sm">
-                                    <span className="font-bold text-white">{profile.years_experience}</span> Yrs
+                              <div className="flex items-center justify-between gap-2 mt-2">
+                                {profile?.years_experience ? (
+                                  <div className="text-[11px] text-white/75 whitespace-nowrap">
+                                    <span className="text-[13px] font-bold text-white">
+                                      {profile.years_experience}
+                                    </span>{" "}
+                                    Yrs
                                   </div>
+                                ) : (
+                                  <span />
                                 )}
                                 <Button
                                   size="sm"
-                                  className="bg-white text-black hover:bg-white/90 text-xs font-semibold"
+                                  className="h-7 px-3 text-[11px] font-bold bg-white text-black hover:bg-white/90 rounded-md"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     navigate(`/book/${mentor.id}?programId=${program.id}`);

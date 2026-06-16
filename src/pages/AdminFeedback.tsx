@@ -31,7 +31,7 @@ interface FeedbackRow {
 const Stars = ({ n }: { n: number }) => (
   <div className="flex gap-0.5">
     {[1, 2, 3, 4, 5].map((s) => (
-      <Star key={s} className={`h-3.5 w-3.5 ${s <= n ? "fill-primary text-primary" : "text-border"}`} />
+      <Star key={s} className={`h-3.5 w-3.5 ${s <= n ? "fill-yellow-500 text-yellow-500" : "text-border"}`} />
     ))}
   </div>
 );

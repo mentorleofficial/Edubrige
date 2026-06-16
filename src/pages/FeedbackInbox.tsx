@@ -36,10 +36,51 @@ interface Row {
 const Stars = ({ n, size = "h-4 w-4" }: { n: number; size?: string }) => (
   <div className="flex gap-0.5">
     {[1, 2, 3, 4, 5].map((s) => (
-      <Star key={s} className={`${size} ${s <= n ? "fill-primary text-primary" : "text-border"}`} />
+      <Star key={s} className={`${size} ${s <= n ? "fill-yellow-500 text-yellow-500" : "text-border"}`} />
     ))}
   </div>
 );
+
+interface SurveyResponseItem {
+  question: string;
+  answer: string;
+}
+
+const parseSurveyText = (text: string): SurveyResponseItem[] | null => {
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  const items: SurveyResponseItem[] = [];
+
+  for (const line of lines) {
+    const colonIdx = line.indexOf(":");
+    if (colonIdx !== -1) {
+      const question = line.substring(0, colonIdx).trim();
+      const answer = line.substring(colonIdx + 1).trim();
+      items.push({ question, answer });
+    }
+  }
+
+  return items.length > 0 ? items : null;
+};
+
+const parseComment = (comment: string | null) => {
+  if (!comment) return { userComment: "", surveyItems: null };
+
+  const delimiter = "---\nSurvey Responses:\n";
+  const delimiterIndex = comment.indexOf(delimiter);
+
+  if (delimiterIndex !== -1) {
+    const userComment = comment.substring(0, delimiterIndex).trim();
+    const surveyText = comment.substring(delimiterIndex + delimiter.length);
+    return { userComment, surveyItems: parseSurveyText(surveyText) };
+  }
+
+  if (comment.startsWith("Survey Responses:\n")) {
+    const surveyText = comment.replace("Survey Responses:\n", "");
+    return { userComment: "", surveyItems: parseSurveyText(surveyText) };
+  }
+
+  return { userComment: comment, surveyItems: null };
+};
 
 const FeedbackInbox = () => {
   const { profile } = useAuth();
@@ -52,6 +93,7 @@ const FeedbackInbox = () => {
   const [respondTo, setRespondTo] = useState<Row | null>(null);
   const [responseText, setResponseText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [selectedSurvey, setSelectedSurvey] = useState<{ submitterName: string; items: SurveyResponseItem[] } | null>(null);
 
   useEffect(() => {
     if (!profile?.id || !audience) return;
@@ -176,6 +218,8 @@ const FeedbackInbox = () => {
             {filtered.map((r) => {
               const initials = r.submitter?.full_name?.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() || "?";
               const responded = !!r.response;
+              const { userComment, surveyItems } = parseComment(r.comment);
+
               return (
                 <Card key={r.id} className={`border-l-4 ${responded ? "border-l-primary" : "border-l-accent"}`}>
                   <CardContent className="p-5">
@@ -205,9 +249,11 @@ const FeedbackInbox = () => {
                           <Stars n={r.rating} />
                           <span className="text-xs text-muted-foreground">{r.rating}/5</span>
                         </div>
-                        {r.comment && (
-                          <div className="rounded-md bg-muted/40 p-3 text-sm">{r.comment}</div>
-                        )}
+                        {userComment ? (
+                          <div className="rounded-md bg-muted/40 p-3 text-sm whitespace-pre-wrap">{userComment}</div>
+                        ) : surveyItems ? (
+                          <div className="text-xs text-muted-foreground italic">No text comment submitted. Click "View Survey" to see ratings.</div>
+                        ) : null}
                         {r.response && (
                           <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm">
                             <div className="text-xs font-medium text-primary mb-1">Your response</div>
@@ -218,7 +264,17 @@ const FeedbackInbox = () => {
                           </div>
                         )}
                       </div>
-                      <div className="sm:w-40 shrink-0">
+                      <div className="sm:w-40 shrink-0 space-y-2">
+                        {surveyItems && (
+                          <Button
+                            variant="outline"
+                            className="w-full flex items-center justify-center gap-2 border-yellow-500/30 hover:border-yellow-500 hover:bg-yellow-500/5"
+                            onClick={() => setSelectedSurvey({ submitterName: r.submitter?.full_name || "Mentee", items: surveyItems })}
+                          >
+                            <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
+                            View Survey
+                          </Button>
+                        )}
                         <Button variant="outline" className="w-full" onClick={() => openRespond(r)}>
                           <Send className="h-4 w-4 mr-2" />
                           {responded ? "Edit Response" : "Respond"}
@@ -253,6 +309,44 @@ const FeedbackInbox = () => {
               <Button onClick={submitResponse} disabled={saving || !responseText.trim()}>
                 {saving ? "Sending…" : "Send Response"}
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={!!selectedSurvey} onOpenChange={(o) => !o && setSelectedSurvey(null)}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Survey Details</DialogTitle>
+              <DialogDescription>
+                Detailed survey responses from <strong>{selectedSurvey?.submitterName}</strong>.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              {selectedSurvey?.items.map((item, idx) => {
+                const starMatch = item.answer.match(/^(\d)\s*\/\s*5\s*stars$/);
+                const starRating = starMatch ? parseInt(starMatch[1], 10) : null;
+
+                return (
+                  <div key={idx} className="space-y-1.5 border-b pb-3 last:border-0 last:pb-0">
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {item.question}
+                    </div>
+                    {starRating !== null ? (
+                      <div className="flex items-center gap-2">
+                        <Stars n={starRating} size="h-5 w-5" />
+                        <span className="text-sm font-semibold text-foreground">{starRating} / 5</span>
+                      </div>
+                    ) : (
+                      <div className="text-sm font-semibold text-foreground bg-muted/40 px-3 py-1.5 rounded-lg inline-block">
+                        {item.answer}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setSelectedSurvey(null)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

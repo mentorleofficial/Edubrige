@@ -19,7 +19,13 @@ export interface MenteeSessionRow {
   cancelled_at: string | null;
   rescheduled_from_id: string | null;
   mentor: { full_name: string; avatar_url: string | null } | null;
-  feedback?: { rating: number; comment: string | null; audience: string }[];
+  feedback?: {
+    rating: number;
+    comment: string | null;
+    audience: string;
+    response?: string | null;
+    responded_at?: string | null;
+  }[];
   program_id: string | null;
   program: { id: string; name: string; color: string; slug: string } | null;
 }
@@ -31,9 +37,9 @@ export const menteeRatedKey = (userId?: string) =>
 
 export async function fetchMenteeSessions(userId: string): Promise<MenteeSessionRow[]> {
   const SELECT_WITH_RESCHEDULE =
-    "id, scheduled_at, duration_minutes, status, mentor_id, title, topic, mentee_notes, notes, meeting_url, cancellation_reason, cancelled_at, rescheduled_from_id, mentor:users!sessions_mentor_id_fkey(full_name, avatar_url), feedback(rating, comment, audience), program_id, program:programs(id, name, color, slug)";
+    "id, scheduled_at, duration_minutes, status, mentor_id, title, topic, mentee_notes, notes, meeting_url, cancellation_reason, cancelled_at, rescheduled_from_id, mentor:users!sessions_mentor_id_fkey(full_name, avatar_url), feedback(rating, comment, audience, response, responded_at), program_id, program:programs(id, name, color, slug)";
   const SELECT_WITHOUT_RESCHEDULE =
-    "id, scheduled_at, duration_minutes, status, mentor_id, title, topic, mentee_notes, notes, meeting_url, cancellation_reason, cancelled_at, mentor:users!sessions_mentor_id_fkey(full_name, avatar_url), feedback(rating, comment, audience), program_id, program:programs(id, name, color, slug)";
+    "id, scheduled_at, duration_minutes, status, mentor_id, title, topic, mentee_notes, notes, meeting_url, cancellation_reason, cancelled_at, mentor:users!sessions_mentor_id_fkey(full_name, avatar_url), feedback(rating, comment, audience, response, responded_at), program_id, program:programs(id, name, color, slug)";
 
   // .select() must come before .eq() and .order() in Supabase v2
   let { data, error } = await supabase

@@ -65,6 +65,19 @@ import {
 } from "@/features/mentor-mentees/useMentorMentees";
 import { MenteeDetailsDialog } from "@/features/mentor-mentees/components/MenteeDetailsDialog";
 
+const cleanComment = (comment: string | null) => {
+  if (!comment) return "";
+  const delimiter = "---\nSurvey Responses:\n";
+  const delimiterIndex = comment.indexOf(delimiter);
+  if (delimiterIndex !== -1) {
+    return comment.substring(0, delimiterIndex).trim();
+  }
+  if (comment.startsWith("Survey Responses:\n")) {
+    return "";
+  }
+  return comment;
+};
+
 function toCardData(
   s: MentorSessionRow,
   programs: SessionCardData["programs"],
@@ -85,6 +98,26 @@ function toCardData(
     notes: s.notes,
     menteeNotes: s.mentee_notes,
     cancellationReason: s.cancellation_reason,
+    mentorFeedback: (() => {
+      const f = s.feedback?.find((f) => f.audience === "mentee");
+      if (!f) return null;
+      return {
+        rating: f.rating,
+        comment: cleanComment(f.comment),
+        response: f.response ?? null,
+        responded_at: f.responded_at ?? null,
+      };
+    })(),
+    menteeFeedback: (() => {
+      const f = s.feedback?.find((f) => f.audience === "mentor");
+      if (!f) return null;
+      return {
+        rating: f.rating,
+        comment: cleanComment(f.comment),
+        response: f.response ?? null,
+        responded_at: f.responded_at ?? null,
+      };
+    })(),
     bookedProgram: bookedProgram ?? (s.program
       ? { name: s.program.name, color: s.program.color, slug: s.program.slug }
       : null),

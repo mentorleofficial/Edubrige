@@ -6,6 +6,7 @@ import { Compass, Share2, Check } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import MentorExpertiseTags from "@/components/badges/MentorExpertiseTags";
 import type { RecommendedMentor } from "@/features/mentee-dashboard/useMenteeDashboardData";
 
 const initials = (n: string) =>
@@ -41,7 +42,7 @@ const RecommendedMentors = ({ mentors }: { mentors: RecommendedMentor[] }) => {
                 <Card
                   key={m.user_id}
                   onClick={() => navigate(`/book/${m.user_id}`)}
-                  className="group relative overflow-hidden cursor-pointer border-0 rounded-2xl aspect-[4/5] bg-[#1a1a2e] hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
+                  className="group relative overflow-hidden cursor-pointer border-0 rounded-2xl aspect-[3/4] bg-[#1a1a2e] hover:shadow-2xl hover:-translate-y-1 transition-all duration-300"
                 >
                   <div className="absolute top-3 right-3 z-20 flex gap-1.5">
                     <button
@@ -53,9 +54,9 @@ const RecommendedMentors = ({ mentors }: { mentors: RecommendedMentor[] }) => {
                         toast.success("Link copied");
                         setTimeout(() => setSharedId(null), 1500);
                       }}
-                      className="flex h-8 w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white hover:bg-black/70"
+                      className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white hover:bg-black/70"
                     >
-                      {sharedId === m.user_id ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                      {sharedId === m.user_id ? <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                     </button>
                   </div>
 
@@ -74,64 +75,37 @@ const RecommendedMentors = ({ mentors }: { mentors: RecommendedMentor[] }) => {
                     </div>
                   )}
 
-                  {topTag && (
-                    <span className="absolute top-3 left-3 z-10 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium px-3 py-1 max-w-[65%] truncate">
-                      {topTag}
-                    </span>
-                  )}
-
                   <div
                     className="absolute bottom-0 left-0 right-0 z-10 px-3 pb-3 pt-10"
                     style={{
                       background: "linear-gradient(to top, rgba(0,0,0,0.94) 55%, rgba(0,0,0,0.45) 82%, transparent 100%)",
                     }}
                   >
+                    {topTag && (
+                      <p className="text-[9px] sm:text-[10px] text-white/75 font-semibold tracking-wide uppercase truncate mb-0.5">
+                        {topTag}
+                      </p>
+                    )}
                     <h3 className="font-bold text-white text-[15px] leading-tight truncate">
                       {m.full_name}
                     </h3>
 
-                    {expertiseTags.length > 0 && (
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <div className="flex items-center gap-1 mt-1.5 flex-nowrap overflow-hidden">
-                            {visibleTags.map((tag) => (
-                              <span
-                                key={tag}
-                                className="rounded-full bg-white/15 text-white/90 text-[10px] font-medium px-2 py-0.5 truncate"
-                              >
-                                {tag}
-                              </span>
-                            ))}
-                            {remainingCount > 0 && (
-                              <span className="rounded-full bg-white/20 text-white text-[10px] font-semibold px-2 py-0.5 whitespace-nowrap">
-                                +{remainingCount}
-                              </span>
-                            )}
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent side="top">
-                          <div className="flex flex-wrap gap-1">
-                            {expertiseTags.map((tag) => (
-                              <span key={tag} className="rounded-full bg-muted text-foreground text-xs px-2 py-0.5">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    )}
+                    <MentorExpertiseTags tags={expertiseTags} />
 
-                    <div className="flex items-center justify-between mt-3">
+                    <div className="flex items-center justify-between gap-2 mt-2">
                       {m.years_experience ? (
-                        <div className="text-white/75 text-sm">
-                          <span className="font-bold text-white">{m.years_experience}</span> Yrs
+                        <div className="text-[11px] text-white/75 whitespace-nowrap">
+                          <span className="text-[13px] font-bold text-white">
+                            {m.years_experience}
+                          </span>{" "}
+                          Yrs
                         </div>
                       ) : (
                         <span />
                       )}
                       <Button
                         size="sm"
-                        className="bg-white text-black hover:bg-white/90 text-xs font-semibold"
+                        className="h-7 px-3 text-[11px] font-bold bg-white text-black hover:bg-white/90 rounded-md"
                         onClick={(e) => {
                           e.stopPropagation();
                           navigate(`/book/${m.user_id}`);

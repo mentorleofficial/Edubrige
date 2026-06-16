@@ -51,6 +51,12 @@ export interface SessionCardData {
   menteeNotes: string;
   cancellationReason: string;
   mentorFeedback?: { rating: number; comment: string | null } | null;
+  menteeFeedback?: {
+    rating: number;
+    comment: string | null;
+    response?: string | null;
+    responded_at?: string | null;
+  } | null;
   bookedProgram?: ProgramTag | null;
 }
 
@@ -101,6 +107,8 @@ export default function SessionListCard({
     !!data.cancellationReason ||
     !!extraDetails ||
     !!data.bookedProgram ||
+    !!data.mentorFeedback ||
+    !!data.menteeFeedback ||
     data.programs.length === 1;
 
   const rel = isUpcoming ? relativeIST(data.scheduledAt) : null;
@@ -276,6 +284,47 @@ export default function SessionListCard({
                 <p className="text-muted-foreground italic pl-2 border-l-2 border-primary/20">
                   "{data.mentorFeedback.comment}"
                 </p>
+              )}
+            </div>
+          )}
+
+          {data.menteeFeedback && (
+            <div className="mt-2 border-t pt-2 space-y-2">
+              <div className="space-y-1">
+                <span className="font-medium flex items-center gap-1.5 text-foreground">
+                  Your Feedback to Mentor:
+                  <span className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        className={cn(
+                          "h-3.5 w-3.5",
+                          star <= data.menteeFeedback!.rating
+                            ? "fill-yellow-500 text-yellow-500"
+                            : "text-muted-foreground/30"
+                        )}
+                      />
+                    ))}
+                  </span>
+                  <span className="text-xs text-muted-foreground font-normal">({data.menteeFeedback.rating}/5)</span>
+                </span>
+                {data.menteeFeedback.comment && (
+                  <p className="text-muted-foreground italic pl-2 border-l-2 border-primary/20">
+                    "{data.menteeFeedback.comment}"
+                  </p>
+                )}
+              </div>
+
+              {data.menteeFeedback.response && (
+                <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-sm mt-1">
+                  <div className="text-xs font-semibold text-primary mb-1">Mentor's response</div>
+                  <div className="whitespace-pre-wrap text-foreground font-medium">{data.menteeFeedback.response}</div>
+                  {data.menteeFeedback.responded_at && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {formatISTDateTime(data.menteeFeedback.responded_at)}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}
