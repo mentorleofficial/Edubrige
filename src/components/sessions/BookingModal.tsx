@@ -48,13 +48,16 @@ export interface BookingModalProps {
   offeringId?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  rescheduleSessionId?: string | null;
+  lockOffering?: boolean;
 }
 
-export default function BookingModal({ mentorId, offeringId, open, onOpenChange }: BookingModalProps) {
+export default function BookingModal({ mentorId, offeringId, open, onOpenChange, rescheduleSessionId, lockOffering }: BookingModalProps) {
+
   const { user } = useAuth();
   const { toast } = useToast();
   const { data: staticData, isPending } = useBookSessionStatic(open ? mentorId : undefined);
-  const { data: bookedTimes = [] } = useBookedTimes(open ? mentorId : undefined);
+  const { data: bookedTimes = [] } = useBookedTimes(open ? mentorId : undefined, rescheduleSessionId ?? undefined);
   const bookMutation = useBookSession();
   const { data: menteePrograms = [] } = useMyPrograms();
   const [mentorProgramIds, setMentorProgramIds] = useState<string[]>([]);
@@ -222,7 +225,7 @@ export default function BookingModal({ mentorId, offeringId, open, onOpenChange 
         notes,
         title: selectedOffering?.title || `Session with ${mentor?.full_name ?? "mentor"}`,
         topic: "",
-        rescheduleId: null,
+        rescheduleId: rescheduleSessionId ?? null,
         offeringId: selectedOffering?.id || null,
         programId: selectedProgramId,
       });
@@ -247,10 +250,13 @@ export default function BookingModal({ mentorId, offeringId, open, onOpenChange 
     } catch (e) {
       const err = e as { message?: string; code?: string };
       const friendly =
-        err?.message?.includes("overlap") || err?.code === "23P01" || err?.code === "23505"
+        err?.message?.includes("already been rescheduled")
+          ? "This session has already been rescheduled once."
+          : err?.message?.includes("overlap") || err?.code === "23P01" || err?.code === "23505"
           ? "That slot was just taken — please pick another."
           : err?.message ?? "Booking failed";
       toast({ variant: "destructive", title: "Booking failed", description: friendly });
+
     }
   };
 
@@ -316,7 +322,7 @@ export default function BookingModal({ mentorId, offeringId, open, onOpenChange 
                   </Avatar>
                   <div className="min-w-0 flex-1">
                     <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                      Book a session
+                      {rescheduleSessionId ? "Reschedule session" : "Book a session"}
                     </p>
                     <DialogTitle className="text-lg font-bold leading-tight mt-0.5 truncate">
                       {mentor?.full_name ?? "Loading mentor…"}
@@ -361,7 +367,7 @@ export default function BookingModal({ mentorId, offeringId, open, onOpenChange 
               {!isPending && staticData && (
                 <>
                   {/* Offering selector — only shown when no specific offering was pre-selected */}
-                  {!offeringId && staticData.offerings.length > 1 && (
+                  {!offeringId && !lockOffering && staticData.offerings.length > 1 && (
                     <div>
                       <p className="text-sm font-medium mb-2">Choose an offering</p>
                       <div className="grid gap-3 sm:grid-cols-2">

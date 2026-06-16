@@ -36,6 +36,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import SessionActionItemsPanel from "@/components/sessions/SessionActionItemsPanel";
+import BookingModal from "@/components/sessions/BookingModal";
+
 import SessionHeroCard from "@/components/sessions/SessionHeroCard";
 import SessionListCard, {
   type OverflowAction,
@@ -158,6 +160,8 @@ const MenteeSessions = () => {
   const [cancelTarget, setCancelTarget] = useState<MenteeSessionRow | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [actionItemsTarget, setActionItemsTarget] = useState<MenteeSessionRow | null>(null);
+  const [rescheduleTarget, setRescheduleTarget] = useState<MenteeSessionRow | null>(null);
+
 
   // Filters
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
@@ -278,9 +282,10 @@ const MenteeSessions = () => {
         overflow.push({
           label: "Reschedule",
           icon: <RefreshCw className="h-3.5 w-3.5" />,
-          onClick: () => navigate(`/book/${s.mentor_id}?reschedule=${s.id}`),
+          onClick: () => setRescheduleTarget(s),
         });
       }
+
       overflow.push({
         label: "Cancel session",
         icon: <X className="h-3.5 w-3.5" />,
@@ -453,11 +458,12 @@ const MenteeSessions = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate(`/book/${nextSession.mentor_id}?reschedule=${nextSession.id}`)}
+          onClick={() => setRescheduleTarget(nextSession)}
         >
           <RefreshCw className="mr-1 h-3.5 w-3.5" /> Reschedule
         </Button>
       )}
+
       <Button variant="ghost" size="sm" onClick={() => setCancelTarget(nextSession)}>
         <X className="mr-1 h-3.5 w-3.5" /> Cancel
       </Button>
@@ -596,7 +602,19 @@ const MenteeSessions = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {rescheduleTarget && (
+        <BookingModal
+          mentorId={rescheduleTarget.mentor_id}
+          offeringId={rescheduleTarget.offering_id ?? undefined}
+          rescheduleSessionId={rescheduleTarget.id}
+          lockOffering
+          open={!!rescheduleTarget}
+          onOpenChange={(o) => !o && setRescheduleTarget(null)}
+        />
+      )}
     </AppLayout>
+
   );
 };
 
