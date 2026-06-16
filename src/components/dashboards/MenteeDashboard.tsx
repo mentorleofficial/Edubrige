@@ -23,6 +23,7 @@ import SessionsCalendar from "./mentee/SessionsCalendar";
 import InsightsPanel from "./mentee/InsightsPanel";
 import RecommendedMentors from "./mentee/RecommendedMentors";
 import RecentActivity from "./mentee/RecentActivity";
+import MenteeFeedbackSurvey from "@/components/feedback/MenteeFeedbackSurvey";
 
 const MenteeDashboard = () => {
   const { user, profile } = useAuth();
@@ -156,7 +157,7 @@ const MenteeDashboard = () => {
       <NextSessionCard session={computed.next} />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 min-w-0">
           <ProgressSnapshot
             sessionsCompleted={computed.completedCount}
             totalSessions={data.sessions.length}
@@ -164,21 +165,23 @@ const MenteeDashboard = () => {
             totalEvents={registrations.length}
           />
         </div>
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 min-w-0">
           <QuickActions />
         </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 min-w-0">
           <SessionsCalendar sessions={data.sessions} />
         </div>
-        <InsightsPanel
-          sessions={data.sessions}
-          feedback={data.feedback}
-          programsCount={programs.length}
-          upcomingEvents={registeredUpcomingEvents}
-        />
+        <div className="min-w-0">
+          <InsightsPanel
+            sessions={data.sessions}
+            feedback={data.feedback}
+            programsCount={programs.length}
+            upcomingEvents={registeredUpcomingEvents}
+          />
+        </div>
       </div>
 
       <RecommendedMentors mentors={data.recommended} />
@@ -197,64 +200,22 @@ const MenteeDashboard = () => {
           <DialogHeader>
             <DialogTitle>How was your session?</DialogTitle>
             <DialogDescription>
-              Please rate your session with{" "}
+              Share feedback for your session with{" "}
               <strong>{pendingRatingSession?.mentor?.full_name || "your mentor"}</strong>.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label>Rating</Label>
-              <div className="flex gap-1.5 justify-center py-2">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onMouseEnter={() => setHoverRating(star)}
-                    onMouseLeave={() => setHoverRating(0)}
-                    onClick={() => setRating(star)}
-                    className="transition-transform hover:scale-110 focus:outline-none"
-                  >
-                    <Star
-                      className={`h-8 w-8 ${
-                        star <= (hoverRating || rating)
-                          ? "fill-yellow-500 text-yellow-500"
-                          : "text-muted-foreground/30"
-                      }`}
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="feedback-comment">Comments (optional)</Label>
-              <Textarea
-                id="feedback-comment"
-                placeholder="Share your experience (what went well, topics discussed...)"
-                rows={3}
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-              />
-            </div>
-          </div>
-          <div className="flex items-center justify-end gap-2 border-t pt-4 mt-2">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                if (pendingRatingSession) {
-                  setDismissedSessionId(pendingRatingSession.id);
-                }
+          {pendingRatingSession && user && (
+            <MenteeFeedbackSurvey
+              sessionId={pendingRatingSession.id}
+              userId={user.id}
+              onComplete={() => {
+                setDismissedSessionId(pendingRatingSession.id);
+                qc.invalidateQueries({ queryKey: ["mentee-dashboard", user.id] });
+                qc.invalidateQueries({ queryKey: ["mentee", "sessions", user.id] });
+                qc.invalidateQueries({ queryKey: ["mentee", "rated-sessions", user.id] });
               }}
-              disabled={submitting}
-            >
-              Remind me later
-            </Button>
-            <Button
-              onClick={handleSubmitFeedback}
-              disabled={rating === 0 || submitting}
-            >
-              {submitting ? "Submitting…" : "Submit Feedback"}
-            </Button>
-          </div>
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

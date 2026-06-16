@@ -60,6 +60,19 @@ import {
 import type { SessionStatus } from "@/features/mentor-sessions/useMentorSessions";
 import { useMenteeActionItemSessionIds } from "@/features/action-items/useActionItems";
 
+const cleanComment = (comment: string | null) => {
+  if (!comment) return "";
+  const delimiter = "---\nSurvey Responses:\n";
+  const delimiterIndex = comment.indexOf(delimiter);
+  if (delimiterIndex !== -1) {
+    return comment.substring(0, delimiterIndex).trim();
+  }
+  if (comment.startsWith("Survey Responses:\n")) {
+    return "";
+  }
+  return comment;
+};
+
 function toCardData(
   s: MenteeSessionRow,
   programs: SessionCardData["programs"],
@@ -81,6 +94,16 @@ function toCardData(
     menteeNotes: s.mentee_notes,
     cancellationReason: s.cancellation_reason,
     mentorFeedback: s.feedback?.find((f) => f.audience === "mentee") ?? null,
+    menteeFeedback: (() => {
+      const f = s.feedback?.find((f) => f.audience === "mentor");
+      if (!f) return null;
+      return {
+        rating: f.rating,
+        comment: cleanComment(f.comment),
+        response: f.response ?? null,
+        responded_at: f.responded_at ?? null,
+      };
+    })(),
     bookedProgram: bookedProgram ?? (s.program
       ? { name: s.program.name, color: s.program.color, slug: s.program.slug }
       : null),

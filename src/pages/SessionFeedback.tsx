@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Star, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import MenteeFeedbackSurvey from "@/components/feedback/MenteeFeedbackSurvey";
 
 type Role = "mentor" | "mentee";
 
@@ -69,13 +71,15 @@ const SessionFeedback = () => {
   }, [sessionId, user]);
 
   const handleSubmit = async () => {
-    if (!sessionId || !user || !viewerRole || rating === 0) return;
+    if (!sessionId || !user || !viewerRole) return;
+    if (rating === 0) return;
+
     setSubmitting(true);
-    const audience = viewerRole === "mentee" ? "mentor" : "mentee";
+    const audience = "mentee";
     const rows: any[] = [
-      { session_id: sessionId, submitted_by: user.id, rating, comment: comment || null, audience },
+      { session_id: sessionId, submitted_by: user.id, rating, comment: comment.trim() || null, audience },
     ];
-    if (viewerRole === "mentor" && privateNote.trim()) {
+    if (privateNote.trim()) {
       rows.push({ session_id: sessionId, submitted_by: user.id, rating, comment: privateNote.trim(), audience: "admin_private" });
     }
     const { error } = await supabase.from("feedback").insert(rows);
@@ -84,7 +88,7 @@ const SessionFeedback = () => {
       toast({ variant: "destructive", title: "Error", description: error.message });
     } else {
       toast({ title: "Thank you!", description: "Your feedback has been submitted." });
-      navigate(viewerRole === "mentee" ? "/mentee/sessions" : "/mentor/sessions");
+      navigate("/mentor/sessions");
     }
   };
 
@@ -122,10 +126,10 @@ const SessionFeedback = () => {
             <CardContent className="space-y-3">
               <div className="flex gap-1">
                 {[1,2,3,4,5].map((s) => (
-                  <Star key={s} className={`h-6 w-6 ${s <= existing.rating ? "fill-primary text-primary" : "text-border"}`} />
+                  <Star key={s} className={`h-6 w-6 ${s <= existing.rating ? "fill-yellow-500 text-yellow-500" : "text-border"}`} />
                 ))}
               </div>
-              {existing.comment && <p className="text-sm text-muted-foreground italic">"{existing.comment}"</p>}
+              {existing.comment && <p className="text-sm text-muted-foreground italic whitespace-pre-line">"{existing.comment}"</p>}
               <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
             </CardContent>
           </Card>
@@ -143,55 +147,65 @@ const SessionFeedback = () => {
             <CardTitle>Rate your session{counterpartName ? ` with ${counterpartName}` : ""}</CardTitle>
             <CardDescription>
               {viewerRole === "mentee"
-                ? "Your rating helps mentors improve and helps other mentees discover great mentors."
+                ? "Your rating helps mentors improve and helps us measure overall program success and impact."
                 : "Share how the session went. Your rating is private to admins; the mentee sees your stars."}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label>Rating</Label>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    onMouseEnter={() => setHoverRating(star)}
-                    onMouseLeave={() => setHoverRating(0)}
-                    onClick={() => setRating(star)}
-                    className="transition-transform hover:scale-110"
-                  >
-                    <Star
-                      className={`h-8 w-8 ${star <= (hoverRating || rating) ? "fill-primary text-primary" : "text-border"}`}
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Comment (optional)</Label>
-              <Textarea
-                rows={4}
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                maxLength={1000}
-                placeholder={viewerRole === "mentee" ? "Share your experience…" : "How did the mentee engage?"}
+            {viewerRole === "mentee" ? (
+              <MenteeFeedbackSurvey
+                sessionId={sessionId!}
+                userId={user!.id}
+                onComplete={() => navigate("/mentee/sessions")}
               />
-            </div>
-            {viewerRole === "mentor" && (
-              <div className="space-y-2">
-                <Label>Private note for admins (optional)</Label>
-                <Textarea
-                  rows={3}
-                  value={privateNote}
-                  onChange={(e) => setPrivateNote(e.target.value)}
-                  maxLength={1000}
-                  placeholder="Anything the team should know — not visible to the mentee."
-                />
+            ) : (
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <Label>Rating</Label>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        onClick={() => setRating(star)}
+                        className="transition-transform hover:scale-110"
+                      >
+                        <Star
+                          className={`h-8 w-8 ${star <= (hoverRating || rating) ? "fill-yellow-500 text-yellow-500" : "text-border"}`}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Comment (optional)</Label>
+                  <Textarea
+                    rows={4}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    maxLength={1000}
+                    placeholder="How did the mentee engage?"
+                  />
+                </div>
+                {viewerRole === "mentor" && (
+                  <div className="space-y-2">
+                    <Label>Private note for admins (optional)</Label>
+                    <Textarea
+                      rows={3}
+                      value={privateNote}
+                      onChange={(e) => setPrivateNote(e.target.value)}
+                      maxLength={1000}
+                      placeholder="Anything the team should know — not visible to the mentee."
+                    />
+                  </div>
+                )}
+                <Button onClick={handleSubmit} disabled={rating === 0 || submitting} className="w-full">
+                  {submitting ? "Submitting…" : "Submit Feedback"}
+                </Button>
               </div>
             )}
-            <Button onClick={handleSubmit} disabled={rating === 0 || submitting} className="w-full">
-              {submitting ? "Submitting…" : "Submit Feedback"}
-            </Button>
           </CardContent>
         </Card>
       </div>

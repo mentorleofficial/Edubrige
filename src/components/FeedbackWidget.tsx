@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { MessageCircle, AlertCircle, Lightbulb, Star, Send, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,13 +21,14 @@ const CATEGORIES: { value: Category; label: string; icon: typeof MessageCircle }
 const MAX_LEN = 1000;
 
 const FeedbackWidget = () => {
-  const { user } = useAuth();
+  const { user, role } = useAuth();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [category, setCategory] = useState<Category>("feedback");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  if (!user) return null;
+  if (!user || role === "admin" || location.pathname.startsWith("/admin")) return null;
 
   const handleSubmit = async () => {
     const trimmed = message.trim();

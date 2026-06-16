@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { formatISTDate, formatISTDateTime } from "@/lib/datetime";
+import { formatISTDate, formatISTDateTime, formatIST } from "@/lib/datetime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarRange, ChevronLeft, ChevronRight, Video } from "lucide-react";
@@ -8,7 +8,7 @@ import type { MentorDashSession } from "@/features/mentor-dashboard/useMentorDas
 
 const WEEKS_TO_SHOW = 12;
 
-const dayLabel = (d: Date) => formatISTDate(d);
+const dayLabel = (d: Date) => formatIST(d, "EEE");
 
 const isSameDay = (a: Date, b: Date) =>
   a.getFullYear() === b.getFullYear() &&
@@ -124,7 +124,7 @@ const WeeklySchedule = ({ sessions }: { sessions: MentorDashSession[] }) => {
               key={weekIdx}
               className="min-w-full shrink-0 snap-center"
             >
-              <div className="grid grid-cols-7 gap-2">
+              <div className="grid grid-cols-7 gap-1 sm:gap-2">
                 {weekDays.map((d) => {
                   const key = startOfDay(d).toISOString();
                   const items = sessionsByDate.get(key) ?? [];
@@ -137,7 +137,7 @@ const WeeklySchedule = ({ sessions }: { sessions: MentorDashSession[] }) => {
                       type="button"
                       onClick={() => setSelectedDate(d)}
                       className={cn(
-                        "rounded-md border p-2 text-center transition-all hover:border-primary/50 active:scale-[0.98]",
+                        "rounded-md border p-1 sm:p-2 text-center transition-all hover:border-primary/50 active:scale-[0.98] min-w-0 flex flex-col items-center justify-center",
                         isSelected
                           ? "border-primary bg-primary/10 shadow-sm"
                           : isToday
@@ -145,13 +145,13 @@ const WeeklySchedule = ({ sessions }: { sessions: MentorDashSession[] }) => {
                             : "bg-card/50 hover:bg-card"
                       )}
                     >
-                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      <div className="text-[9px] sm:text-[10px] uppercase tracking-wide text-muted-foreground truncate w-full">
                         {dayLabel(d)}
                       </div>
-                      <div className="text-lg font-semibold">{d.getDate()}</div>
-                      <div className="mt-1 text-xs font-medium text-primary">
+                      <div className="text-sm sm:text-lg font-semibold">{d.getDate()}</div>
+                      <div className="mt-0.5 sm:mt-1 text-[8px] sm:text-xs font-medium text-primary truncate w-full">
                         {items.length > 0
-                          ? `${items.length} session${items.length > 1 ? "s" : ""}`
+                          ? `${items.length} s`
                           : "—"}
                       </div>
                     </button>
