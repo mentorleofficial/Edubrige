@@ -58,7 +58,7 @@ export const MentorExpertiseTags = ({ tags }: MentorExpertiseTagsProps) => {
           setOpen(!open);
         }
       }}
-      className="flex items-center gap-1 mt-1.5 flex-nowrap overflow-hidden cursor-help"
+      className="flex items-center gap-1 mt-1.5 flex-nowrap overflow-hidden cursor-pointer"
     >
       {visibleTags.map((tag) => (
         <span
@@ -117,7 +117,7 @@ export const MentorExpertiseTags = ({ tags }: MentorExpertiseTagsProps) => {
           {tags.map((tag) => (
             <span
               key={tag}
-              className="rounded-full bg-white/15 text-white/95 text-[10px] px-1.5 py-0.5"
+              className="rounded-full bg-white/15 text-white/95 text-[10px] px-1.5 py-0.5 whitespace-nowrap"
             >
               {tag}
             </span>
