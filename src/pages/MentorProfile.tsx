@@ -300,7 +300,7 @@ const MentorProfile = () => {
 
   return (
     <AppLayout>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-7xl mx-auto pb-32">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-7xl mx-auto pb-6">
         {/* Banner header */}
         <div className="relative overflow-hidden rounded-xl border bg-card">
           <div className="h-32 bg-gradient-to-br from-primary via-primary/80 to-primary/40" />
@@ -712,8 +712,8 @@ const MentorProfile = () => {
 
         {/* Sticky save bar */}
         {dirty && (
-          <div className="fixed bottom-0 left-0 right-0 z-20 border-t bg-background/95 backdrop-blur shadow-lg">
-            <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+          <div className="sticky bottom-0 z-20 border-t bg-background/95 backdrop-blur shadow-lg -mx-3 -mb-3 sm:-mx-4 sm:-mb-4 md:-mx-6 md:-mb-6 px-3 sm:px-4 md:px-6 py-3 mt-6">
+            <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
               <p className="text-sm text-muted-foreground flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
                 You have unsaved changes

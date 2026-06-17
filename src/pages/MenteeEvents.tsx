@@ -32,6 +32,20 @@ import { markdownToHtml } from "@/components/ui/markdown-editor";
 
 const stripMarkdown = (md: string) =>
   markdownToHtml(md).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+
+const formatTime12Hour = (timeStr: string) => {
+  if (!timeStr) return "";
+  try {
+    const [hours, minutes] = timeStr.split(":");
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 || 12;
+    return `${hour12}:${minutes} ${ampm}`;
+  } catch {
+    return timeStr;
+  }
+};
+
 import {
   useAllEvents,
   useMenteeRegistrations,
@@ -624,7 +638,7 @@ export default function MenteeEvents() {
                               <Calendar className="h-3.5 w-3.5 shrink-0" />
                               <span>{formatIST(new Date(session.date), "d MMM yyyy")}</span>
                               <span>•</span>
-                              <span>{session.start_time} - {session.end_time}</span>
+                              <span>{formatTime12Hour(session.start_time)} - {formatTime12Hour(session.end_time)}</span>
                             </div>
                           </div>
                         ))}

@@ -36,6 +36,7 @@ import type { AppRole } from "@/features/admin/api/users";
 import { useAuth } from "@/contexts/AuthContext";
 import { handleError } from "@/lib/handleError";
 import { getResumeSignedUrl } from "@/features/mentor-profile/api/mentorProfile";
+import { formatTimeWindow } from "@/features/mentee-onboarding/profileOptions";
 
 const PAGE_SIZE = 25;
 
@@ -686,7 +687,9 @@ const UserDetailsDialogContent = ({ userId, role }: { userId: string; role: AppR
                   <div>
                     <span className="text-xs text-muted-foreground block mb-1">Preferred Time Windows</span>
                     <div className="flex flex-wrap gap-1">
-                      {profile.preferred_time_windows.map((v: string) => <Badge key={v} variant="outline">{v}</Badge>)}
+                      {Array.from(new Set(profile.preferred_time_windows.map(formatTimeWindow))).map((v: string) => (
+                        <Badge key={v} variant="outline">{v}</Badge>
+                      ))}
                     </div>
                   </div>
                 )}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { formatISTDate } from "@/lib/datetime";
+import { formatISTDate, formatIST } from "@/lib/datetime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -188,10 +188,7 @@ const WeekSchedule = ({ sessions }: { sessions: AdminSessionRow[] }) => {
                     <div className="text-right">
                       <div className="flex items-center gap-1.5 justify-end text-sm">
                         <Clock className="h-4 w-4" />
-                        {new Date(session.scheduled_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {formatIST(new Date(session.scheduled_at), "h:mm a")}
                       </div>
                       {session.duration_minutes && (
                         <p className="text-xs text-muted-foreground mt-1">

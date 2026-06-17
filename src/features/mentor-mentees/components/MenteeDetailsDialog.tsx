@@ -8,6 +8,7 @@ import {
   Briefcase, GraduationCap, Instagram,
 } from "lucide-react";
 import { useMenteeDetailsForMentor } from "../useMentorMentees";
+import { formatTimeWindow } from "@/features/mentee-onboarding/profileOptions";
 
 interface MenteeDetailsDialogProps {
   menteeId: string | null;
@@ -98,7 +99,7 @@ export const MenteeDetailsDialog = ({ menteeId, open, onOpenChange }: MenteeDeta
               <span className="text-xs uppercase tracking-wide text-muted-foreground flex items-center gap-1 mb-2">
                 <Clock className="h-3.5 w-3.5 text-primary" /> Preferred time windows
               </span>
-              <Chips items={profile.preferred_time_windows} />
+              <Chips items={Array.from(new Set(profile.preferred_time_windows.map(formatTimeWindow)))} />
             </div>
 
             {profile.preferred_session_types.length > 0 && (

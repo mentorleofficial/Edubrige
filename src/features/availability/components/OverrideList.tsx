@@ -7,6 +7,7 @@ import { Trash2, Plus, Clock, Ban } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { TimeSelect } from "./TimeSelect";
 import type { DateOverride } from "../api/availability";
+import { format12h } from "../timeUtils";
 
 interface Props {
   overrides: DateOverride[];
@@ -65,7 +66,7 @@ export function OverrideList({ overrides, onAdd, onRemove }: Props) {
               <p className="text-xs text-muted-foreground mt-1">
                 {o.is_unavailable
                   ? "Fully unavailable"
-                  : `Available: ${o.start_time?.slice(0, 5)} – ${o.end_time?.slice(0, 5)}`}
+                  : `Available: ${o.start_time ? format12h(o.start_time) : ""} – ${o.end_time ? format12h(o.end_time) : ""}`}
               </p>
             </div>
           </div>
