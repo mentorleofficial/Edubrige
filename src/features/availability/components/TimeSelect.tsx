@@ -1,5 +1,5 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TIME_OPTIONS, normalizeHHMM } from "../timeUtils";
+import { TIME_OPTIONS, normalizeHHMM, format12h } from "../timeUtils";
 
 interface Props {
   value: string;
@@ -16,7 +16,7 @@ export function TimeSelect({ value, onChange, className }: Props) {
       <SelectContent className="max-h-[260px]">
         {TIME_OPTIONS.map((t) => (
           <SelectItem key={t} value={t}>
-            {t}
+            {format12h(t)}
           </SelectItem>
         ))}
       </SelectContent>

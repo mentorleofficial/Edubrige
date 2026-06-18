@@ -225,7 +225,7 @@ const BookingDetail = () => {
 
   return (
     <AppLayout>
-      <div className="max-w-5xl space-y-6 pb-28">
+      <div className="max-w-5xl space-y-6 pb-6">
         {/* Header */}
         <div>
           <Link
@@ -496,8 +496,8 @@ const BookingDetail = () => {
       </div>
 
       {/* Sticky bottom bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t bg-background/95 backdrop-blur shadow-lg">
-        <div className="max-w-5xl mx-auto px-3 sm:px-5 py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <div className="sticky bottom-0 z-20 border-t bg-background/95 backdrop-blur shadow-lg -mx-3 -mb-3 sm:-mx-4 sm:-mb-4 md:-mx-6 md:-mb-6 px-3 sm:px-4 md:px-6 py-3 mt-6">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Save details */}
           <Button
             variant="outline"

@@ -84,3 +84,14 @@ export const TIMEZONES: string[] = (() => {
     TIMEZONES.unshift(detected);
   }
 })();
+
+export function format12h(t: string): string {
+  if (!t) return "";
+  const parts = t.split(":");
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  if (isNaN(h) || isNaN(m)) return t;
+  const ampm = h >= 12 ? "PM" : "AM";
+  const displayH = h % 12 === 0 ? 12 : h % 12;
+  return `${String(displayH).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
+}

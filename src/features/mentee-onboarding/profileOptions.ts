@@ -27,9 +27,9 @@ export const SESSION_TYPES = [
 ];
 
 export const TIME_WINDOWS = [
-  "Morning (6–12)",
-  "Afternoon (12–17)",
-  "Evening (17–22)",
+  "Morning (6 AM–12 PM)",
+  "Afternoon (12 PM–5 PM)",
+  "Evening (5 PM–10 PM)",
   "Weekends",
 ];
 
@@ -79,3 +79,20 @@ export const TIMEZONES = [
   "Pacific/Auckland",
   "Australia/Sydney",
 ];
+
+export function formatTimeWindow(windowStr: string): string {
+  if (!windowStr) return "";
+  // Normalize any kind of dash (hyphen, en-dash, em-dash) and spaces around it
+  const normalized = windowStr.replace(/\s*[–—-]\s*/g, "-").trim();
+  
+  if (normalized === "Morning (6-12)" || normalized === "Morning (6 AM-12 PM)") {
+    return "Morning (6 AM–12 PM)";
+  }
+  if (normalized === "Afternoon (12-17)" || normalized === "Afternoon (12 PM-5 PM)") {
+    return "Afternoon (12 PM–5 PM)";
+  }
+  if (normalized === "Evening (17-22)" || normalized === "Evening (5 PM-10 PM)") {
+    return "Evening (5 PM–10 PM)";
+  }
+  return windowStr;
+}

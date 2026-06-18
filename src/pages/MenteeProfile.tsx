@@ -21,6 +21,7 @@ import {
 import {
   SKILLS, LANGUAGES, INDUSTRIES, SESSION_TYPES, TIME_WINDOWS,
   MENTOR_QUALITIES, STATUSES, EDUCATION_LEVELS, TIMEZONES,
+  formatTimeWindow,
 } from "@/features/mentee-onboarding/profileOptions";
 import {
   Select,
@@ -167,7 +168,7 @@ const MenteeProfile = () => {
       workExperience: d.work_experience ?? [],
       preferredIndustries: d.preferred_industries ?? [],
       preferredSessionTypes: d.preferred_session_types ?? [],
-      preferredTimeWindows: d.preferred_time_windows ?? [],
+      preferredTimeWindows: Array.from(new Set((d.preferred_time_windows ?? []).map(formatTimeWindow))),
       preferredMentorQualities: d.preferred_mentor_qualities ?? [],
       instagram: d.instagram_url ?? "",
       resumeUrl: d.resume_url ?? null,
@@ -427,7 +428,7 @@ const MenteeProfile = () => {
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mb-20 space-y-6">
+      <div className="max-w-7xl mb-6 space-y-6">
 
         {/* Header */}
         {completeness < 100 && (
@@ -1120,8 +1121,8 @@ const MenteeProfile = () => {
       </div>
 
       {/* Sticky save bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-20 border-t bg-background/95 backdrop-blur shadow-lg">
-        <div className="max-w-5xl mx-auto px-3 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="sticky bottom-0 z-20 border-t bg-background/95 backdrop-blur shadow-lg -mx-3 -mb-3 sm:-mx-4 sm:-mb-4 md:-mx-6 md:-mb-6 px-3 sm:px-4 md:px-6 py-3 mt-6">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground flex items-center gap-2">
             {hasChanges ? (
               <>

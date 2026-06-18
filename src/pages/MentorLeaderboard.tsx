@@ -23,7 +23,7 @@ const MentorLeaderboard = () => {
   const refresh = useRefreshEngagement();
 
   useEffect(() => {
-    if (isLoading || refresh.isPending) return;
+    if (isLoading || refresh.isPending || profile?.role !== "admin") return;
 
     if (rows.length === 0) {
       // Leaderboard is empty, trigger initial calculation
@@ -56,7 +56,7 @@ const MentorLeaderboard = () => {
         },
       });
     }
-  }, [rows, isLoading, branding.leaderboard_refresh_hours]);
+  }, [rows, isLoading, branding.leaderboard_refresh_hours, profile?.role]);
 
   if (!branding.leaderboard_enabled && profile?.role !== "admin") {
     return <Navigate to="/dashboard" replace />;
