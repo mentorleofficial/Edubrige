@@ -64,7 +64,7 @@ const Login = () => {
             </div>
           )}
           <CardTitle className="text-2xl">{branding.app_name}</CardTitle>
-          <CardDescription>Sign in with your admin or mentor account</CardDescription>
+          <CardDescription>Sign in to continue guiding learner journeys.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -106,12 +106,12 @@ const Login = () => {
             Mentees sign in through{" "}
             <span className="font-medium text-primary">EduBridge</span>
           </p>
-          <p className="mt-2 text-center text-sm text-muted-foreground">
+          {/* <p className="mt-2 text-center text-sm text-muted-foreground">
             Want to mentor?{" "}
             <a href="/become-a-mentor" className="font-medium text-primary hover:underline">
               Apply here
             </a>
-          </p>
+          </p> */}
         </CardContent>
       </Card>
     </div>

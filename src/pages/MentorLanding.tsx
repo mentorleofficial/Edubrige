@@ -38,7 +38,7 @@ const MentorLanding = () => {
           <div className="text-center space-y-2 mb-8">
             <h1 className="font-serif text-2xl tracking-tight">Become a mentor</h1>
             <p className="text-muted-foreground">
-              Share your expertise with {branding.app_name} — apply in a few simple steps.
+              Start your mentor application and inspire learners with your knowledge, experience, and guidance.
             </p>
           </div>
 
