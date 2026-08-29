@@ -106,7 +106,9 @@ const Login = () => {
             Mentees sign in through{" "}
             <span className="font-medium text-primary">EduBridge</span>
           </p> */}
-          <p className="mt-2 text-center text-sm text-muted-foreground">
+          {/* Access is invitation-only for now — self-serve signup and mentor
+              application entry points are hidden until that changes. */}
+          {/* <p className="mt-2 text-center text-sm text-muted-foreground">
             New here?{" "}
             <a href="/signup" className="font-medium text-primary hover:underline">
               Create an account
@@ -117,7 +119,7 @@ const Login = () => {
             <a href="/become-a-mentor" className="font-medium text-primary hover:underline">
               Apply here
             </a>
-          </p>
+          </p> */}
         </CardContent>
       </Card>
     </div>

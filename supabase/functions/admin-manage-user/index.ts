@@ -1,6 +1,7 @@
 // Admin user management — create (invite or temp password), disable, restore.
 // Uses service-role internally so it never hijacks the admin's auth session.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
+import { SENDER_EMAIL, escapeHtml, getEmailBranding, renderEmail, type EmailBranding } from "../_shared/emailLayout.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,9 +9,15 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-type Action = "create" | "disable" | "restore" | "delete";
+type Action = "create" | "disable" | "restore" | "delete" | "bulk_invite";
 type AppRole = "admin" | "mentor" | "mentee";
 type Mode = "invite" | "password";
+
+interface BulkRow {
+  email?: string;
+  full_name?: string;
+  role?: AppRole;
+}
 
 interface Payload {
   action: Action;
@@ -22,7 +29,26 @@ interface Payload {
   password?: string;
   // disable / restore
   user_id?: string;
+  // bulk_invite
+  rows?: BulkRow[];
+  filename?: string;
 }
+
+const MAX_PER_UPLOAD = 20;
+const MAX_PER_DAY = 100;
+
+// Invite volume is capped per IST day, not per UTC day — a UTC boundary would
+// reset the quota at 5:30 AM local and read as a bug to whoever is watching.
+const istDayStartUtc = (): string => {
+  const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+  const nowIst = new Date(Date.now() + IST_OFFSET_MS);
+  const midnightIst = Date.UTC(
+    nowIst.getUTCFullYear(),
+    nowIst.getUTCMonth(),
+    nowIst.getUTCDate(),
+  );
+  return new Date(midnightIst - IST_OFFSET_MS).toISOString();
+};
 
 const json = (body: unknown, status = 200) => {
   if (body && typeof body === "object" && "error" in body) {
@@ -32,36 +58,6 @@ const json = (body: unknown, status = 200) => {
     status: 200, // Always 200 to let client handle the error body directly
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-};
-
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-
-const buildInviteHtml = (appName: string, recipientName: string, role: string, inviteUrl: string) => {
-  const heading = `You've been invited to join ${escapeHtml(appName)}!`;
-  const intro = `Hello ${escapeHtml(recipientName)},<br/><br/>You have been invited to join ${escapeHtml(appName)} as a <strong>${escapeHtml(role)}</strong>. Click the button below to accept the invitation and set up your password.`;
-
-  const cta = `<tr><td align="center" style="padding:8px 24px 0;">
-       <a href="${escapeHtml(inviteUrl)}" style="display:inline-block;background:#0f172a;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Accept Invitation</a>
-     </td></tr>`;
-
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>${heading}</title></head>
-  <body style="margin:0;padding:0;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#0f172a;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;padding:32px 16px;">
-      <tr><td align="center">
-        <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-          <tr><td style="padding:28px 24px 8px;">
-            <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;">${heading}</h1>
-            <p style="margin:0;font-size:14px;line-height:1.5;color:#475569;">${intro}</p>
-          </td></tr>
-          ${cta}
-          <tr><td style="background:#f8fafc;padding:16px 24px;text-align:center;font-size:11px;color:#94a3b8;margin-top:24px;">
-            Sent by ${escapeHtml(appName)}.
-          </td></tr>
-        </table>
-      </td></tr>
-    </table>
-  </body></html>`;
 };
 
 function getAppUrl(req: Request, branding?: any): string {
@@ -104,6 +100,94 @@ function getAppUrl(req: Request, branding?: any): string {
 
   // 5. Production fallback
   return "https://mentorle.vercel.app/";
+}
+
+interface InviteCtx {
+  // deno-lint-ignore no-explicit-any
+  admin: any;
+  appUrl: string;
+  branding: EmailBranding;
+  brevoKey: string;
+}
+
+// Single invite: auth link + Brevo email + mentor placeholder application.
+// Shared by the one-off "create" action and the CSV "bulk_invite" loop so both
+// paths stay identical.
+async function inviteOne(
+  ctx: InviteCtx,
+  email: string,
+  full_name: string,
+  role: AppRole,
+): Promise<{ ok: boolean; userId: string | null; error?: string }> {
+  const redirectUrl = ctx.appUrl.endsWith("/")
+    ? `${ctx.appUrl}reset-password`
+    : `${ctx.appUrl}/reset-password`;
+
+  const { data: linkData, error: inviteErr } = await ctx.admin.auth.admin.generateLink({
+    type: "invite",
+    email,
+    options: { data: { full_name, role }, redirectTo: redirectUrl },
+  });
+  if (inviteErr || !linkData?.properties?.action_link) {
+    return { ok: false, userId: null, error: inviteErr?.message ?? "Failed to generate invitation link" };
+  }
+
+  const userId = linkData.user?.id ?? null;
+  const appName = ctx.branding.appName;
+  const html = renderEmail({
+    branding: ctx.branding,
+    heading: `You've been invited to join ${appName}`,
+    intro: `Hello ${escapeHtml(full_name)}, you have been invited to join <strong>${escapeHtml(appName)}</strong> as a <strong>${escapeHtml(role)}</strong>. Use the button below to accept the invitation and set your password.`,
+    cta: { label: "Accept invitation", url: linkData.properties.action_link },
+    note: "If you were not expecting this invitation you can safely ignore this email.",
+  });
+
+  const res = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": ctx.brevoKey,
+      accept: "application/json",
+    },
+    body: JSON.stringify({
+      sender: { email: SENDER_EMAIL, name: appName },
+      to: [{ email, name: full_name }],
+      subject: `Invitation to join ${appName} as a ${role}`,
+      htmlContent: html,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    return { ok: false, userId, error: `Brevo error ${res.status}: ${text}` };
+  }
+
+  if (role === "mentor") {
+    const { error: appErr } = await ctx.admin.from("mentor_applications").insert({
+      full_name,
+      email,
+      bio: "",
+      status: "changes_requested",
+      changes_feedback: "Please complete your profile details to submit for review.",
+    });
+    if (appErr) console.error("Failed to create placeholder mentor application:", appErr);
+  }
+
+  return { ok: true, userId };
+}
+
+// deno-lint-ignore no-explicit-any
+async function buildInviteCtx(admin: any, req: Request): Promise<InviteCtx | { error: string }> {
+  const brevoKey = Deno.env.get("BREVO_API_KEY");
+  if (!brevoKey) return { error: "BREVO_API_KEY not configured" };
+
+  const { data: brandingRow } = await admin.from("branding").select("*").limit(1).maybeSingle();
+  return {
+    admin,
+    appUrl: getAppUrl(req, brandingRow),
+    branding: await getEmailBranding(admin, brandingRow),
+    brevoKey: brevoKey.trim(),
+  };
 }
 
 Deno.serve(async (req) => {
@@ -156,69 +240,12 @@ Deno.serve(async (req) => {
       let userId: string | null = null;
 
       if (mode === "invite") {
-        const { data: branding } = await admin
-          .from("branding").select("*").limit(1).maybeSingle();
-        const appUrl = getAppUrl(req, branding);
-        const redirectUrl = appUrl.endsWith("/")
-          ? `${appUrl}reset-password`
-          : `${appUrl}/reset-password`;
+        const ctx = await buildInviteCtx(admin, req);
+        if ("error" in ctx) return json({ error: ctx.error }, 500);
 
-        const { data: linkData, error: inviteErr } = await admin.auth.admin.generateLink({
-          type: "invite",
-          email,
-          options: {
-            data: { full_name, role },
-            redirectTo: redirectUrl,
-          },
-        });
-        if (inviteErr || !linkData?.properties?.action_link) {
-          return json({ error: inviteErr?.message ?? "Failed to generate invitation link" }, 400);
-        }
-        userId = linkData.user?.id ?? null;
-        const actionLink = linkData.properties.action_link;
-
-        const BREVO = Deno.env.get("BREVO_API_KEY");
-        if (!BREVO) {
-          return json({ error: "BREVO_API_KEY not configured" }, 500);
-        }
-
-        const appName = branding?.app_name || "Mentorship Platform";
-        const html = buildInviteHtml(appName, full_name, role, actionLink);
-        const subject = `Invitation to join ${appName} as a ${role}`;
-
-        const res = await fetch("https://api.brevo.com/v3/smtp/email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": BREVO.trim(),
-            accept: "application/json",
-          },
-          body: JSON.stringify({
-            sender: { email: "noreply@mentorle.in", name: appName },
-            to: [{ email, name: full_name }],
-            subject,
-            htmlContent: html,
-          }),
-        });
-
-        if (!res.ok) {
-          const text = await res.text();
-          return json({ error: `Brevo error ${res.status}: ${text}` }, 502);
-        }
-
-        // If the invited user is a mentor, create a placeholder application in changes_requested status
-        if (role === "mentor") {
-          const { error: appErr } = await admin.from("mentor_applications").insert({
-            full_name,
-            email,
-            bio: "",
-            status: "changes_requested",
-            changes_feedback: "Please complete your profile details to submit for review.",
-          });
-          if (appErr) {
-            console.error("Failed to create placeholder mentor application:", appErr);
-          }
-        }
+        const result = await inviteOne(ctx, email, full_name, role);
+        if (!result.ok) return json({ error: result.error }, 400);
+        userId = result.userId;
       } else {
         const password = body.password ?? "";
         if (password.length < 8) {
@@ -261,6 +288,133 @@ Deno.serve(async (req) => {
       });
 
       return json({ ok: true, user_id: userId, mode });
+    }
+
+    if (action === "bulk_invite") {
+      const rawRows = Array.isArray(body.rows) ? body.rows : [];
+      if (rawRows.length === 0) return json({ error: "No rows supplied" }, 400);
+      if (rawRows.length > MAX_PER_UPLOAD) {
+        return json({ error: `A single upload is limited to ${MAX_PER_UPLOAD} invites` }, 400);
+      }
+
+      // Validate and de-duplicate before touching the network. Bulk creation of
+      // admins is deliberately not supported — that stays a one-at-a-time action.
+      const seen = new Set<string>();
+      const parsed: { email: string; full_name: string; role: AppRole }[] = [];
+      for (const [i, r] of rawRows.entries()) {
+        const email = (r.email ?? "").trim().toLowerCase();
+        const full_name = (r.full_name ?? "").trim();
+        const role = r.role;
+        if (!email || !full_name || !role) {
+          return json({ error: `Row ${i + 1}: name, email and role are required` }, 400);
+        }
+        if (role !== "mentor" && role !== "mentee") {
+          return json({ error: `Row ${i + 1}: role must be mentee or mentor` }, 400);
+        }
+        if (seen.has(email)) continue;
+        seen.add(email);
+        parsed.push({ email, full_name, role });
+      }
+
+      const ctx = await buildInviteCtx(admin, req);
+      if ("error" in ctx) return json({ error: ctx.error }, 500);
+
+      // Existing accounts are skipped rather than failed — generateLink errors
+      // on a duplicate email and that is not something the admin can act on.
+      const { data: existing } = await admin
+        .from("users")
+        .select("email")
+        .in("email", parsed.map((r) => r.email));
+      const existingEmails = new Set((existing ?? []).map((u: { email: string }) => u.email.toLowerCase()));
+
+      const { count: sentToday } = await admin
+        .from("invite_batch_rows")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "sent")
+        .gte("created_at", istDayStartUtc());
+
+      let remaining = Math.max(0, MAX_PER_DAY - (sentToday ?? 0));
+
+      const { data: batch, error: batchErr } = await admin
+        .from("invite_batches")
+        .insert({
+          uploaded_by: callerId,
+          filename: body.filename ?? null,
+          total_rows: parsed.length,
+        })
+        .select("id")
+        .single();
+      if (batchErr) return json({ error: batchErr.message }, 500);
+
+      const results: {
+        email: string;
+        status: "sent" | "failed" | "skipped_duplicate";
+        error_message: string | null;
+      }[] = [];
+
+      // Sequential on purpose: 20 parallel Brevo calls risk rate limiting, and a
+      // single failure must never abort the rest of the batch.
+      for (const row of parsed) {
+        if (existingEmails.has(row.email)) {
+          results.push({ email: row.email, status: "skipped_duplicate", error_message: "An account already exists for this email" });
+          continue;
+        }
+        if (remaining <= 0) {
+          results.push({ email: row.email, status: "failed", error_message: `Daily limit of ${MAX_PER_DAY} invites reached` });
+          continue;
+        }
+        const r = await inviteOne(ctx, row.email, row.full_name, row.role);
+        if (r.ok) {
+          remaining--;
+          results.push({ email: row.email, status: "sent", error_message: null });
+        } else {
+          results.push({ email: row.email, status: "failed", error_message: r.error ?? "Invite failed" });
+        }
+      }
+
+      const rowsToInsert = parsed.map((row, i) => ({
+        batch_id: batch.id,
+        email: row.email,
+        full_name: row.full_name,
+        role: row.role,
+        status: results[i].status,
+        error_message: results[i].error_message,
+      }));
+      const { error: rowsErr } = await admin.from("invite_batch_rows").insert(rowsToInsert);
+      if (rowsErr) console.error("Failed to record invite batch rows:", rowsErr);
+
+      const sent = results.filter((r) => r.status === "sent").length;
+      const failed = results.filter((r) => r.status === "failed").length;
+      const skipped = results.filter((r) => r.status === "skipped_duplicate").length;
+
+      await admin
+        .from("invite_batches")
+        .update({ sent_count: sent, failed_count: failed, skipped_count: skipped })
+        .eq("id", batch.id);
+
+      await admin.from("audit_logs").insert({
+        user_id: callerId,
+        action: "USERS_BULK_INVITED",
+        entity_type: "invite_batches",
+        entity_id: batch.id,
+        details: { total: parsed.length, sent, failed, skipped, filename: body.filename ?? null },
+      });
+
+      return json({
+        ok: true,
+        batch_id: batch.id,
+        sent,
+        failed,
+        skipped,
+        remaining_today: Math.max(0, remaining),
+        results: parsed.map((row, i) => ({
+          email: row.email,
+          full_name: row.full_name,
+          role: row.role,
+          status: results[i].status,
+          error_message: results[i].error_message,
+        })),
+      });
     }
 
     if (action === "disable" || action === "restore") {

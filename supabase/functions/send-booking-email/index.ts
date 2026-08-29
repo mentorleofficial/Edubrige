@@ -1,4 +1,6 @@
 // Send booking confirmation emails via Brevo (transactional email API).
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
+import { SENDER_EMAIL, escapeHtml, getEmailBranding, renderEmail, detailRows, type EmailBranding } from "../_shared/emailLayout.ts";
 // Triggered from BookSession.tsx after a successful booking.
 
 const corsHeaders = {
@@ -7,8 +9,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SENDER_EMAIL = "noreply@mentorle.in";
-const SENDER_NAME = "Mentorle";
 
 interface Recipient {
   email: string;
@@ -26,8 +26,6 @@ interface Payload {
   menteeNotes?: string;
 }
 
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 const toCalDate = (iso: string) => {
   const d = new Date(iso);
@@ -79,6 +77,7 @@ const formatDateTime = (iso: string) => {
 };
 
 const buildEmailHtml = (opts: {
+  branding: EmailBranding;
   audience: "mentor" | "mentee";
   recipientName: string;
   otherPartyName: string;
@@ -88,67 +87,40 @@ const buildEmailHtml = (opts: {
   calendarUrl: string;
   menteeNotes?: string;
 }) => {
-  const { audience, recipientName, otherPartyName, whenLabel, durationMinutes, meetingUrl, calendarUrl, menteeNotes } = opts;
-  const heading =
-    audience === "mentee"
-      ? `Your session with ${escapeHtml(otherPartyName)} is confirmed`
-      : `New session booked with ${escapeHtml(otherPartyName)}`;
+  const { branding, audience, recipientName, otherPartyName, whenLabel, durationMinutes, meetingUrl, calendarUrl, menteeNotes } = opts;
 
-  const intro =
-    audience === "mentee"
-      ? `Hi ${escapeHtml(recipientName)}, your mentorship session is booked. Details below — add it to your calendar so you don't forget!`
-      : `Hi ${escapeHtml(recipientName)}, ${escapeHtml(otherPartyName)} just booked a mentorship session with you. Details below.`;
-
-  const notesBlock =
+  const notes =
     audience === "mentor" && menteeNotes
-      ? `<tr><td style="padding:16px 24px 0;"><div style="background:#f8fafc;border-radius:8px;padding:14px 16px;font-size:14px;color:#334155;">
-           <strong style="color:#0f172a;">What they'd like to discuss:</strong><br/>
-           ${escapeHtml(menteeNotes)}
-         </div></td></tr>`
+      ? `<div style="margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;font-size:13px;color:${branding.body};">
+           <strong style="color:${branding.heading};">What they'd like to discuss:</strong><br/>${escapeHtml(menteeNotes)}
+         </div>`
       : "";
 
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"/><title>${heading}</title></head>
-<body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-        <tr><td style="padding:28px 24px 8px 24px;">
-          <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;color:#0f172a;">${heading}</h1>
-          <p style="margin:0 0 20px;font-size:14px;line-height:1.5;color:#475569;">${intro}</p>
-        </td></tr>
-        <tr><td style="padding:0 24px;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;border-radius:8px;">
-            <tr><td style="padding:16px 20px;font-size:14px;color:#0f172a;">
-              <div style="margin-bottom:8px;"><strong>When:</strong> ${escapeHtml(whenLabel)}</div>
-              <div style="margin-bottom:8px;"><strong>Duration:</strong> ${durationMinutes} minutes</div>
-              <div><strong>${audience === "mentee" ? "Mentor" : "Mentee"}:</strong> ${escapeHtml(otherPartyName)}</div>
-            </td></tr>
-          </table>
-        </td></tr>
-        ${notesBlock}
-        <tr><td style="height:20px;"></td></tr>
-        <tr><td align="center" style="padding:0 24px;">
-          <a href="${escapeHtml(meetingUrl)}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Join meeting</a>
-        </td></tr>
-        <tr><td align="center" style="padding:12px 24px 0;">
-          <a href="${escapeHtml(calendarUrl)}" style="display:inline-block;color:#0f172a;text-decoration:underline;font-size:13px;">Add to Google Calendar</a>
-        </td></tr>
-        <tr><td style="padding:24px;">
-          <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.5;word-break:break-all;">
-            Meeting link: <a href="${escapeHtml(meetingUrl)}" style="color:#64748b;">${escapeHtml(meetingUrl)}</a>
-          </p>
-        </td></tr>
-        <tr><td style="background:#f8fafc;padding:16px 24px;text-align:center;font-size:11px;color:#94a3b8;">
-          Sent by Mentorle. If you didn't expect this email, you can safely ignore it.
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
+  const calendar = calendarUrl
+    ? `<p style="margin:12px 0 0;font-size:13px;"><a href="${escapeHtml(calendarUrl)}" style="color:${branding.primary};">Add to Google Calendar</a></p>`
+    : "";
+
+  return renderEmail({
+    branding,
+    heading:
+      audience === "mentee"
+        ? `Your session with ${escapeHtml(otherPartyName)} is confirmed`
+        : `New session booked with ${escapeHtml(otherPartyName)}`,
+    intro:
+      audience === "mentee"
+        ? `Hi ${escapeHtml(recipientName)}, your mentorship session is booked. Details are below — add it to your calendar so you don't forget.`
+        : `Hi ${escapeHtml(recipientName)}, ${escapeHtml(otherPartyName)} just booked a mentorship session with you.`,
+    bodyHtml:
+      detailRows(branding, [
+        ["When", whenLabel],
+        ["Duration", `${durationMinutes} minutes`],
+        [audience === "mentee" ? "Mentor" : "Mentee", otherPartyName],
+      ]) + notes + calendar,
+    cta: meetingUrl ? { label: "Join meeting", url: meetingUrl } : undefined,
+  });
 };
 
-const sendBrevo = async (apiKey: string, args: {
+const sendBrevo = async (apiKey: string, senderName: string, args: {
   to: Recipient;
   subject: string;
   html: string;
@@ -161,7 +133,7 @@ const sendBrevo = async (apiKey: string, args: {
       accept: "application/json",
     },
     body: JSON.stringify({
-      sender: { email: SENDER_EMAIL, name: SENDER_NAME },
+      sender: { email: SENDER_EMAIL, name: senderName },
       to: [{ email: args.to.email, name: args.to.name || args.to.email }],
       subject: args.subject,
       htmlContent: args.html,
@@ -188,6 +160,14 @@ Deno.serve(async (req) => {
       });
     }
     const apiKey = rawKey.trim();
+
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    );
+    const branding = await getEmailBranding(admin);
+
     console.log("BREVO_API_KEY debug:", {
       length: apiKey.length,
       prefix: apiKey.slice(0, 9),
@@ -227,6 +207,7 @@ Deno.serve(async (req) => {
     });
 
     const menteeHtml = buildEmailHtml({
+      branding,
       audience: "mentee",
       recipientName: body.menteeName,
       otherPartyName: body.mentorName,
@@ -237,6 +218,7 @@ Deno.serve(async (req) => {
     });
 
     const mentorHtml = buildEmailHtml({
+      branding,
       audience: "mentor",
       recipientName: body.mentorName,
       otherPartyName: body.menteeName,
@@ -248,12 +230,12 @@ Deno.serve(async (req) => {
     });
 
     const results = await Promise.allSettled([
-      sendBrevo(apiKey, {
+      sendBrevo(apiKey, branding.appName, {
         to: { email: body.menteeEmail, name: body.menteeName },
         subject: `Session confirmed with ${body.mentorName} — ${whenLabel}`,
         html: menteeHtml,
       }),
-      sendBrevo(apiKey, {
+      sendBrevo(apiKey, branding.appName, {
         to: { email: body.mentorEmail, name: body.mentorName },
         subject: `New session booked: ${body.menteeName} — ${whenLabel}`,
         html: mentorHtml,

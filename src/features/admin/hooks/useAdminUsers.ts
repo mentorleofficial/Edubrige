@@ -2,12 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   type AdminUserRow,
   type CreateUserInput,
+  type BulkInviteRow,
   type FetchUsersParams,
   type FetchUsersResult,
   type RoleFilter,
   type StatusFilter,
   type AppRole,
   createUser,
+  bulkInvite,
   fetchAdminUsers,
   setUserDisabled,
   toggleMentorActive,
@@ -62,6 +64,17 @@ export function useCreateUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateUserInput) => createUser(input),
+    onSuccess: () => {
+      setTimeout(() => qc.invalidateQueries({ queryKey: ["admin", "users"] }), 800);
+    },
+  });
+}
+
+export function useBulkInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ rows, filename }: { rows: BulkInviteRow[]; filename?: string }) =>
+      bulkInvite(rows, filename),
     onSuccess: () => {
       setTimeout(() => qc.invalidateQueries({ queryKey: ["admin", "users"] }), 800);
     },

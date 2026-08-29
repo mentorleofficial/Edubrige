@@ -84,7 +84,7 @@ const AdminGeneralFeedback = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Platform Feedback</h1>
-          <p className="text-muted-foreground text-sm">General feedback, suggestions, concerns, and reviews from users.</p>
+          <p className="text-muted-foreground text-base">General feedback, suggestions, concerns, and reviews from users.</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

@@ -22,3 +22,8 @@ verify_jwt = false
 
 [functions.refresh-mentor-engagement]
 verify_jwt = false
+
+# Invoked by the pg_cron job in 20260607110000, which posts without an
+# Authorization header. Gateway JWT verification returns 401 for those calls.
+[functions.send-session-reminders]
+verify_jwt = false

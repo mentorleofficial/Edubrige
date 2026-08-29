@@ -478,7 +478,7 @@ const MenteeSessions = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">My Sessions</h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-base text-muted-foreground">
             Join, reschedule, and review every session in one place.
           </p>
         </div>

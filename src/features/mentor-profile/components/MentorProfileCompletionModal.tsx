@@ -1,34 +1,36 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { calculateCompleteness, type CompletenessData } from "../utils/completeness";
-import { ArrowRight, Lock, CheckCircle2, Circle, Sparkles } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useMentorProfile } from "../hooks/useMentorProfile";
+import { calculateCompleteness } from "../utils/completeness";
+import { ArrowRight, Circle, Sparkles } from "lucide-react";
 
-interface Props {
-  profileData: CompletenessData;
-  isApproved: boolean;
-}
+// The mentor cannot finish the profile while a non-dismissible modal covers
+// the very pages they need to edit, so these stay clear.
+const EXEMPT_PATHS = ["/mentor/profile", "/mentor/offerings"];
 
-const MentorProfileCompletionModal = ({ profileData, isApproved }: Props) => {
+const MentorProfileCompletionModal = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, profile, isApproved } = useAuth();
+  const isMentor = profile?.role === "mentor";
+  const { data } = useMentorProfile(isMentor ? user?.id : undefined);
   const [open, setOpen] = useState(false);
-  const { percentage, missingItems } = calculateCompleteness(profileData);
+
+  const completeness = data ? calculateCompleteness(data) : null;
+  const percentage = completeness?.percentage ?? 100;
+  const missingItems = completeness?.missingItems ?? [];
+
+  const exempt = EXEMPT_PATHS.some((p) => location.pathname.startsWith(p));
+  const shouldShow = isMentor && isApproved && !!data && percentage < 100 && !exempt;
 
   useEffect(() => {
-    if (percentage === 100 || !isApproved) {
+    if (!shouldShow) {
       setOpen(false);
       return;
-    }
-
-    const dismissedAt = localStorage.getItem("mentor_profile_reminder_dismissed_at");
-    if (dismissedAt) {
-      const diff = Date.now() - parseInt(dismissedAt, 10);
-      const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
-      if (diff < threeDaysMs) {
-        return; // Suppress popup for 3 days
-      }
     }
 
     const timer = setTimeout(() => {
@@ -36,25 +38,23 @@ const MentorProfileCompletionModal = ({ profileData, isApproved }: Props) => {
     }, 1200); // 1.2s delay for a smoother page entrance
 
     return () => clearTimeout(timer);
-  }, [percentage, isApproved]);
-
-  const handleDismiss = () => {
-    localStorage.setItem("mentor_profile_reminder_dismissed_at", Date.now().toString());
-    setOpen(false);
-  };
+  }, [shouldShow]);
 
   const handleGoToProfile = () => {
     setOpen(false);
     navigate("/mentor/profile");
   };
 
-  if (percentage === 100 || !isApproved) return null;
+  if (!shouldShow) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(val) => {
-      if (!val) handleDismiss();
-    }}>
-      <DialogContent className="max-w-md sm:max-w-lg border border-primary/20 bg-background/95 backdrop-blur shadow-2xl p-6 rounded-xl animate-in fade-in duration-300">
+    <Dialog open={open}>
+      <DialogContent
+        hideClose
+        onEscapeKeyDown={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+        className="max-w-md sm:max-w-lg border border-primary/20 bg-background/95 backdrop-blur shadow-2xl p-6 rounded-xl animate-in fade-in duration-300"
+      >
         <DialogHeader className="space-y-2">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 mb-2">
             <Sparkles className="h-6 w-6 text-primary animate-pulse" />
@@ -103,19 +103,11 @@ const MentorProfileCompletionModal = ({ profileData, isApproved }: Props) => {
         </div>
 
 
-        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2 mt-4">
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={handleDismiss}
-            className="w-full sm:w-auto"
-          >
-            Remind me later
-          </Button>
+        <DialogFooter className="mt-4">
           <Button
             type="button"
             onClick={handleGoToProfile}
-            className="w-full sm:w-auto bg-primary hover:bg-primary/95 text-primary-foreground font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-primary/10 transition-all hover:scale-[1.02]"
+            className="w-full bg-primary hover:bg-primary/95 text-primary-foreground font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-primary/10 transition-all hover:scale-[1.02]"
           >
             Complete Profile Now
             <ArrowRight className="h-4 w-4" />

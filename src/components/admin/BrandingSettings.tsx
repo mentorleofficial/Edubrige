@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { hexToHsl, hslToHex, isValidHsl } from "@/lib/color";
+import { hexToHsl, hslToHex, isValidHsl, judgeContrast } from "@/lib/color";
+import { cn } from "@/lib/utils";
 import { applyBrandingToDom } from "@/contexts/BrandingContext";
 import { BODY_FONTS, HEADING_FONTS, getFontStack, loadBrandingFonts } from "@/lib/fonts";
 import { Upload, X, RotateCcw, Image as ImageIcon } from "lucide-react";
@@ -25,6 +26,9 @@ interface BrandingRow {
   sidebar_primary: string;
   body_font: string;
   heading_font: string;
+  body_text_color: string;
+  heading_text_color: string;
+  body_font_weight: number;
   mentor_community_url: string;
   leaderboard_enabled: boolean;
   site_url: string;
@@ -33,14 +37,46 @@ interface BrandingRow {
 }
 
 const DEFAULTS = {
-  primary: "199 89% 32%",
+  primary: "224 64% 33%",
   secondary: "40 33% 94%",
   accent: "31 95% 55%",
   sidebar_background: "220 25% 10%",
   sidebar_foreground: "40 33% 96%",
   sidebar_primary: "199 89% 48%",
-  body_font: "DM Sans",
-  heading_font: "DM Serif Display",
+  body_font: "Plus Jakarta Sans",
+  heading_font: "Plus Jakarta Sans",
+  body_text_color: "0 0% 50%",
+  heading_text_color: "0 0% 5%",
+  body_font_weight: 500,
+};
+
+const FONT_WEIGHTS = [
+  { value: 400, label: "400 · Regular" },
+  { value: 500, label: "500 · Medium" },
+  { value: 600, label: "600 · Semibold" },
+];
+
+// A branding row written before a column was added comes back without it, and
+// an undefined colour reaches the pickers as a crash. Fill the gaps on read.
+const withDefaults = (row: Record<string, unknown>): BrandingRow => ({
+  ...(row as unknown as BrandingRow),
+  body_text_color: (row.body_text_color as string) ?? DEFAULTS.body_text_color,
+  heading_text_color: (row.heading_text_color as string) ?? DEFAULTS.heading_text_color,
+  body_font_weight: (row.body_font_weight as number) ?? DEFAULTS.body_font_weight,
+  body_font: (row.body_font as string) ?? DEFAULTS.body_font,
+  heading_font: (row.heading_font as string) ?? DEFAULTS.heading_font,
+});
+
+// Advisory only — a failing ratio is still saveable, since brand guidelines
+// sometimes call for it deliberately.
+const ContrastHint = ({ value }: { value: string }) => {
+  const { passes, label } = judgeContrast(value);
+  return (
+    <p className={cn("text-xs", passes ? "text-muted-foreground" : "text-amber-600 dark:text-amber-500")}>
+      {passes ? "Contrast " : "⚠ Contrast "}
+      {label}
+    </p>
+  );
 };
 
 const PRESETS = [
@@ -132,7 +168,7 @@ const BrandingSettings = () => {
     (async () => {
       const { data } = await supabase.from("branding").select("*").limit(1).single();
       if (data) {
-        const row = data as BrandingRow;
+        const row = withDefaults(data);
         setOriginal(row);
         setDraft(row);
       }
@@ -189,6 +225,9 @@ const BrandingSettings = () => {
         sidebar_primary: draft.sidebar_primary,
         body_font: draft.body_font,
         heading_font: draft.heading_font,
+        body_text_color: draft.body_text_color,
+        heading_text_color: draft.heading_text_color,
+        body_font_weight: draft.body_font_weight,
         mentor_community_url: draft.mentor_community_url,
         leaderboard_enabled: draft.leaderboard_enabled,
         site_url: draft.site_url,
@@ -437,11 +476,64 @@ const BrandingSettings = () => {
                 </Select>
               </div>
             </div>
-            <div className="rounded-md border border-border bg-muted/30 p-4 space-y-1">
-              <div className="text-2xl leading-tight" style={{ fontFamily: getFontStack(draft.heading_font) }}>
+            <div className="space-y-2 sm:max-w-xs">
+              <Label>Body font weight</Label>
+              <Select
+                value={String(draft.body_font_weight)}
+                onValueChange={(v) => update({ body_font_weight: Number(v) })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {FONT_WEIGHTS.map((w) => (
+                    <SelectItem key={w.value} value={String(w.value)}>
+                      <span style={{ fontFamily: getFontStack(draft.body_font), fontWeight: w.value }}>
+                        {w.label}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <ColorTile
+                  label="Heading / bold text"
+                  value={draft.heading_text_color}
+                  defaultValue={DEFAULTS.heading_text_color}
+                  onChange={(v) => update({ heading_text_color: v })}
+                />
+                <ContrastHint value={draft.heading_text_color} />
+              </div>
+              <div className="space-y-2">
+                <ColorTile
+                  label="Body text"
+                  value={draft.body_text_color}
+                  defaultValue={DEFAULTS.body_text_color}
+                  onChange={(v) => update({ body_text_color: v })}
+                />
+                <ContrastHint value={draft.body_text_color} />
+              </div>
+            </div>
+
+            <div className="rounded-md border border-border bg-background p-4 space-y-1">
+              <div
+                className="text-2xl leading-tight"
+                style={{
+                  fontFamily: getFontStack(draft.heading_font),
+                  color: isValidHsl(draft.heading_text_color) ? hslToHex(draft.heading_text_color) : undefined,
+                }}
+              >
                 The quick brown fox
               </div>
-              <div className="text-sm text-muted-foreground" style={{ fontFamily: getFontStack(draft.body_font) }}>
+              <div
+                className="text-base"
+                style={{
+                  fontFamily: getFontStack(draft.body_font),
+                  fontWeight: draft.body_font_weight,
+                  color: isValidHsl(draft.body_text_color) ? hslToHex(draft.body_text_color) : undefined,
+                }}
+              >
                 Pack my box with five dozen liquor jugs — 0123456789.
               </div>
             </div>

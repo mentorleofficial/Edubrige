@@ -570,7 +570,7 @@ const MentorSessions = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">My Sessions</h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-base text-muted-foreground">
               Manage upcoming sessions, share follow-ups, and review past meetings.
             </p>
           </div>

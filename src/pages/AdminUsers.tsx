@@ -35,6 +35,7 @@ import {
 import type { AppRole } from "@/features/admin/api/users";
 import { useAuth } from "@/contexts/AuthContext";
 import { handleError } from "@/lib/handleError";
+import BulkInviteDialog from "@/features/admin/components/BulkInviteDialog";
 import { getResumeSignedUrl } from "@/features/mentor-profile/api/mentorProfile";
 import { formatTimeWindow } from "@/features/mentee-onboarding/profileOptions";
 
@@ -68,6 +69,7 @@ const AdminUsers = () => {
   const deleteMutation = useDeleteUser();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [inviteMode, setInviteMode] = useState<"invite" | "password">("invite");
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
@@ -158,14 +160,21 @@ const AdminUsers = () => {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">Users</h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-base text-muted-foreground mt-1">
               {total} {total === 1 ? "user" : "users"} · {statusFilter}
             </p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
-            <DialogTrigger asChild>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button><UserPlus className="mr-2 h-4 w-4" />Add User</Button>
-            </DialogTrigger>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setDialogOpen(true)}>Add single user</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setBulkOpen(true)}>Bulk invite from CSV</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <BulkInviteDialog open={bulkOpen} onOpenChange={setBulkOpen} />
+          <Dialog open={dialogOpen} onOpenChange={(o) => { setDialogOpen(o); if (!o) resetForm(); }}>
             <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>Create new user</DialogTitle>

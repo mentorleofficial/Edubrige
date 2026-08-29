@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { SENDER_EMAIL, escapeHtml, getEmailBranding, renderEmail, type EmailBranding } from "../_shared/emailLayout.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,15 +7,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SENDER_EMAIL = "noreply@mentorle.in";
 
 interface Recipient {
   email: string;
   name?: string;
 }
 
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 const getSiteUrl = (branding: any): string => {
   if (branding?.site_url) {
@@ -25,55 +23,32 @@ const getSiteUrl = (branding: any): string => {
 };
 
 const buildEmailHtml = (opts: {
-  appName: string;
+  branding: EmailBranding;
   recipientName: string;
   otherPartyName: string;
   sessionTitle: string;
   feedbackUrl: string;
   role: "mentor" | "mentee";
 }) => {
-  const { appName, recipientName, otherPartyName, sessionTitle, feedbackUrl, role } = opts;
-  const heading = role === "mentee" 
-    ? `How was your session with ${escapeHtml(otherPartyName)}?`
-    : `How did your session with ${escapeHtml(otherPartyName)} go?`;
-  
-  const intro = role === "mentee"
-    ? `Hi ${escapeHtml(recipientName)}, we hope you had a great mentorship session on "${escapeHtml(sessionTitle || "your topic")}" with ${escapeHtml(otherPartyName)}.`
-    : `Hi ${escapeHtml(recipientName)}, we hope your mentorship session on "${escapeHtml(sessionTitle || "your topic")}" with ${escapeHtml(otherPartyName)} went well.`;
-
-  const body = role === "mentee"
-    ? `Please take 60 seconds to rate your experience. Your feedback helps your mentor grow and helps other mentees find outstanding guidance.`
-    : `Please take 60 seconds to rate your experience and share notes on the mentee's engagement. Your rating is private to admins, but stars and public logs help us track progress.`;
-
-  const btnLabel = role === "mentee" ? "Share your feedback" : "Rate your mentee";
-
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"/><title>${heading}</title></head>
-<body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-        <tr><td style="padding:28px 24px 8px 24px;">
-          <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;color:#0f172a;">${heading}</h1>
-          <p style="margin:0 0 20px;font-size:14px;line-height:1.5;color:#475569;">${intro}</p>
-          <p style="margin:0 0 20px;font-size:14px;line-height:1.5;color:#475569;">${body}</p>
-        </td></tr>
-        <tr><td align="center" style="padding:0 24px;">
-          <a href="${escapeHtml(feedbackUrl)}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">${btnLabel}</a>
-        </td></tr>
-        <tr><td style="height:24px;"></td></tr>
-        <tr><td style="padding:24px;">
-          <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.5;word-break:break-all;">
-            Rating link: <a href="${escapeHtml(feedbackUrl)}" style="color:#64748b;">${escapeHtml(feedbackUrl)}</a>
-          </p>
-        </td></tr>
-        <tr><td style="background:#f8fafc;padding:16px 24px;text-align:center;font-size:11px;color:#94a3b8;">
-          Sent by ${escapeHtml(appName)}.
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
+  const { branding, recipientName, otherPartyName, sessionTitle, feedbackUrl, role } = opts;
+  const topic = escapeHtml(sessionTitle || "your topic");
+  return renderEmail({
+    branding,
+    heading:
+      role === "mentee"
+        ? `How was your session with ${escapeHtml(otherPartyName)}?`
+        : `How did your session with ${escapeHtml(otherPartyName)} go?`,
+    intro:
+      role === "mentee"
+        ? `Hi ${escapeHtml(recipientName)}, we hope you had a great mentorship session on "${topic}" with ${escapeHtml(otherPartyName)}.`
+        : `Hi ${escapeHtml(recipientName)}, we hope your mentorship session on "${topic}" with ${escapeHtml(otherPartyName)} went well.`,
+    bodyHtml: `<p style="margin:0;font-size:14px;line-height:1.6;color:${branding.body};">${
+      role === "mentee"
+        ? "Please take 60 seconds to rate your experience. Your feedback helps your mentor grow and helps other mentees find outstanding guidance."
+        : "Please take 60 seconds to rate your experience and share notes on the mentee's engagement. Your rating is private to admins."
+    }</p>`,
+    cta: { label: role === "mentee" ? "Share your feedback" : "Rate your mentee", url: feedbackUrl },
+  });
 };
 
 const sendBrevo = async (apiKey: string, senderName: string, args: {
@@ -157,7 +132,8 @@ Deno.serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    const appName = branding?.app_name || "Mentorle";
+    const emailBranding = await getEmailBranding(admin, branding);
+    const appName = emailBranding.appName;
     const siteUrl = getSiteUrl(branding);
 
     const { mentee, mentor } = session;
@@ -172,7 +148,7 @@ Deno.serve(async (req) => {
     const feedbackUrl = `${siteUrl.replace(/\/$/, "")}/session/${session_id}/feedback`;
 
     const menteeHtml = buildEmailHtml({
-      appName,
+      branding: emailBranding,
       recipientName: mentee.full_name,
       otherPartyName: mentor.full_name,
       sessionTitle: session.title,
@@ -181,7 +157,7 @@ Deno.serve(async (req) => {
     });
 
     const mentorHtml = buildEmailHtml({
-      appName,
+      branding: emailBranding,
       recipientName: mentor.full_name,
       otherPartyName: mentee.full_name,
       sessionTitle: session.title,

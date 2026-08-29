@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { BrandingProvider } from "@/contexts/BrandingContext";
+import { StickyActionBarProvider } from "@/contexts/StickyActionBarContext";
 import RoleGuard from "@/components/RoleGuard";
 import MenteeOnboardingGuard from "@/components/MenteeOnboardingGuard";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -30,7 +31,8 @@ const MentorProgramDetail = lazy(() => import("@/pages/MentorProgramDetail"));
 const MenteePrograms = lazy(() => import("@/pages/MenteePrograms"));
 const MenteeProgramDetail = lazy(() => import("@/pages/MenteeProgramDetail"));
 const MentorLanding = lazy(() => import("@/pages/MentorLanding"));
-const MenteeLanding = lazy(() => import("@/pages/MenteeLanding"));
+// Invitation-only: self-serve mentee signup is disabled.
+// const MenteeLanding = lazy(() => import("@/pages/MenteeLanding"));
 const MentorDirectory = lazy(() => import("@/pages/MentorDirectory"));
 const MentorProfile = lazy(() => import("@/pages/MentorProfile"));
 const MentorOfferings = lazy(() => import("@/pages/MentorOfferings"));
@@ -68,6 +70,7 @@ const App = () => (
         <BrowserRouter>
           <BrandingProvider>
             <AuthProvider>
+              <StickyActionBarProvider>
               <Suspense fallback={<RouteFallback />}>
                 <Routes>
                   <Route path="/" element={<Navigate to="/login" replace />} />
@@ -78,7 +81,7 @@ const App = () => (
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/forgot-password" element={<ForgotPassword />} />
                   <Route path="/become-a-mentor" element={<MentorLanding />} />
-                  <Route path="/signup" element={<MenteeLanding />} />
+                  {/* <Route path="/signup" element={<MenteeLanding />} /> */}
                   <Route path="/mentors/:mentorId" element={<PublicMentorProfile />} />
                   <Route path="/auth/jwt/callback" element={<JwtCallback />} />
                   <Route path="/admin/applications" element={<RoleGuard allowedRoles={["admin"]}><AdminApplications /></RoleGuard>} />
@@ -124,6 +127,7 @@ const App = () => (
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </Suspense>
+              </StickyActionBarProvider>
             </AuthProvider>
           </BrandingProvider>
         </BrowserRouter>
