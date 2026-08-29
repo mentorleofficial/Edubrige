@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FolderKanban, Award, AlertCircle, Star } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import MentorProfileCompletionModal from "@/features/mentor-profile/components/MentorProfileCompletionModal";
 import { Link } from "react-router-dom";
 import InactiveMentorBanner from "@/components/InactiveMentorBanner";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
@@ -161,13 +160,6 @@ const MentorDashboard = () => {
           Here's what's happening with your content and sessions
         </p>
       </div>
-
-      {data?.profile && (
-        <MentorProfileCompletionModal
-          profileData={data.profile}
-          isApproved={isApproved}
-        />
-      )}
 
       {!isApproved && <InactiveMentorBanner />}
       {isApproved && profileCompleteness < 100 && (

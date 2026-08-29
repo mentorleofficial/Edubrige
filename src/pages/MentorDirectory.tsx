@@ -246,7 +246,7 @@ const MentorDirectory = () => {
       <div className="space-y-5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Find a Mentor</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <p className="text-muted-foreground mt-1 text-base">
             Browse available mentors and book a session.
           </p>
         </div>

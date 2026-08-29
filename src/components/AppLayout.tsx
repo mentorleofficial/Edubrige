@@ -5,6 +5,7 @@ import ApprovalCelebrationModal from "@/features/mentor-approval/ApprovalCelebra
 import ConsentBanner from "@/components/ConsentBanner";
 import NotificationBell from "@/components/NotificationBell";
 import FeedbackWidget from "@/components/FeedbackWidget";
+import MentorProfileCompletionModal from "@/features/mentor-profile/components/MentorProfileCompletionModal";
 import { cn } from "@/lib/utils";
 
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
@@ -45,6 +46,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
         </main>
       </div>
       <ApprovalCelebrationModal />
+      <MentorProfileCompletionModal />
       <FeedbackWidget />
     </SidebarProvider>
   );

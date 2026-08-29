@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { SENDER_EMAIL, escapeHtml, getEmailBranding, renderEmail, detailRows, type EmailBranding } from "../_shared/emailLayout.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,16 +7,12 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SENDER_EMAIL = "noreply@mentorle.in";
-const SENDER_NAME = "Mentorle";
 
 interface Recipient {
   email: string;
   name?: string;
 }
 
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
 const formatDateTime = (iso: string) => {
   const d = new Date(iso);
@@ -33,6 +30,7 @@ const formatDateTime = (iso: string) => {
 };
 
 const buildEmailHtml = (opts: {
+  branding: EmailBranding;
   role: "mentor" | "mentee";
   recipientName: string;
   otherPartyName: string;
@@ -41,52 +39,25 @@ const buildEmailHtml = (opts: {
   meetingUrl: string;
   durationMinutes: number;
 }) => {
-  const { role, recipientName, otherPartyName, sessionTitle, whenLabel, meetingUrl, durationMinutes } = opts;
-  const heading = `Reminder: Session starting in 30 minutes`;
-  const intro =
-    role === "mentee"
-      ? `Hi ${escapeHtml(recipientName)}, this is a reminder that your mentorship session with ${escapeHtml(otherPartyName)} starts in 30 minutes.`
-      : `Hi ${escapeHtml(recipientName)}, this is a reminder that you have a mentorship session with ${escapeHtml(otherPartyName)} starting in 30 minutes.`;
-
-  return `<!DOCTYPE html>
-<html><head><meta charset="utf-8"/><title>${heading}</title></head>
-<body style="margin:0;padding:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-        <tr><td style="padding:28px 24px 8px 24px;">
-          <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;color:#0f172a;">${heading}</h1>
-          <p style="margin:0 0 20px;font-size:14px;line-height:1.5;color:#475569;">${intro}</p>
-        </td></tr>
-        <tr><td style="padding:0 24px;">
-          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;border-radius:8px;">
-            <tr><td style="padding:16px 20px;font-size:14px;color:#0f172a;">
-              <div style="margin-bottom:8px;"><strong>Title:</strong> ${escapeHtml(sessionTitle || "Mentorship Session")}</div>
-              <div style="margin-bottom:8px;"><strong>When:</strong> ${escapeHtml(whenLabel)}</div>
-              <div style="margin-bottom:8px;"><strong>Duration:</strong> ${durationMinutes} minutes</div>
-              <div><strong>${role === "mentee" ? "Mentor" : "Mentee"}:</strong> ${escapeHtml(otherPartyName)}</div>
-            </td></tr>
-          </table>
-        </td></tr>
-        <tr><td style="height:24px;"></td></tr>
-        <tr><td align="center" style="padding:0 24px;">
-          <a href="${escapeHtml(meetingUrl)}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Join meeting now</a>
-        </td></tr>
-        <tr><td style="padding:24px;">
-          <p style="margin:0;font-size:12px;color:#94a3b8;line-height:1.5;word-break:break-all;">
-            Meeting link: <a href="${escapeHtml(meetingUrl)}" style="color:#64748b;">${escapeHtml(meetingUrl)}</a>
-          </p>
-        </td></tr>
-        <tr><td style="background:#f8fafc;padding:16px 24px;text-align:center;font-size:11px;color:#94a3b8;">
-          Sent by Mentorle. If you didn't expect this email, you can safely ignore it.
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body></html>`;
+  const { branding, role, recipientName, otherPartyName, sessionTitle, whenLabel, meetingUrl, durationMinutes } = opts;
+  return renderEmail({
+    branding,
+    heading: "Your session starts in 30 minutes",
+    intro:
+      role === "mentee"
+        ? `Hi ${escapeHtml(recipientName)}, this is a reminder that your mentorship session with ${escapeHtml(otherPartyName)} starts in 30 minutes.`
+        : `Hi ${escapeHtml(recipientName)}, this is a reminder that you have a mentorship session with ${escapeHtml(otherPartyName)} starting in 30 minutes.`,
+    bodyHtml: detailRows(branding, [
+      ["Session", sessionTitle],
+      ["When", whenLabel],
+      ["Duration", `${durationMinutes} minutes`],
+      [role === "mentee" ? "Mentor" : "Mentee", otherPartyName],
+    ]),
+    cta: meetingUrl ? { label: "Join meeting", url: meetingUrl } : undefined,
+  });
 };
 
-const sendBrevo = async (apiKey: string, args: {
+const sendBrevo = async (apiKey: string, senderName: string, args: {
   to: Recipient;
   subject: string;
   html: string;
@@ -99,7 +70,7 @@ const sendBrevo = async (apiKey: string, args: {
       accept: "application/json",
     },
     body: JSON.stringify({
-      sender: { email: SENDER_EMAIL, name: SENDER_NAME },
+      sender: { email: SENDER_EMAIL, name: senderName },
       to: [{ email: args.to.email, name: args.to.name || args.to.email }],
       subject: args.subject,
       htmlContent: args.html,
@@ -134,6 +105,8 @@ Deno.serve(async (req) => {
     // Query sessions starting in 30 minutes (window of 25 to 35 minutes from now)
     // that have not yet had a reminder sent.
     const now = new Date();
+    const branding = await getEmailBranding(admin);
+
     const minTime = new Date(now.getTime() + 25 * 60 * 1000).toISOString();
     const maxTime = new Date(now.getTime() + 35 * 60 * 1000).toISOString();
 
@@ -176,6 +149,7 @@ Deno.serve(async (req) => {
       }
 
       const menteeHtml = buildEmailHtml({
+        branding,
         role: "mentee",
         recipientName: mentee.full_name,
         otherPartyName: mentor.full_name,
@@ -186,6 +160,7 @@ Deno.serve(async (req) => {
       });
 
       const mentorHtml = buildEmailHtml({
+        branding,
         role: "mentor",
         recipientName: mentor.full_name,
         otherPartyName: mentee.full_name,
@@ -197,12 +172,12 @@ Deno.serve(async (req) => {
 
       // Send emails
       const emailResults = await Promise.allSettled([
-        sendBrevo(BREVO.trim(), {
+        sendBrevo(BREVO.trim(), branding.appName, {
           to: { email: mentee.email, name: mentee.full_name },
           subject: `Reminder: Session starting in 30 minutes — ${whenLabel}`,
           html: menteeHtml,
         }),
-        sendBrevo(BREVO.trim(), {
+        sendBrevo(BREVO.trim(), branding.appName, {
           to: { email: mentor.email, name: mentor.full_name },
           subject: `Reminder: Session starting in 30 minutes — ${whenLabel}`,
           html: mentorHtml,

@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { PhoneInput } from "@/components/ui/phone-input";
 import ResumeUploadCard from "@/components/profile/ResumeUploadCard";
 import { useBranding } from "@/contexts/BrandingContext";
+import { useStickyActionBar } from "@/contexts/StickyActionBarContext";
 
 // ─── Moved outside component so they don't remount on each render ───
 
@@ -100,6 +101,7 @@ const MenteeProfile = () => {
   const { toast } = useToast();
   const invalidate = useInvalidateMenteeProfile();
   const { data, isLoading } = useMenteeProfile(user?.id);
+  const registerSaveBar = useStickyActionBar();
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -1120,7 +1122,7 @@ const MenteeProfile = () => {
       </div>
 
       {/* Sticky save bar */}
-      <div className="sticky bottom-0 z-20 border-t bg-background/95 backdrop-blur shadow-lg -mx-3 -mb-3 sm:-mx-4 sm:-mb-4 md:-mx-6 md:-mb-6 px-3 sm:px-4 md:px-6 py-3 mt-6">
+      <div ref={registerSaveBar} className="sticky bottom-0 z-20 border-t bg-background/95 backdrop-blur shadow-lg -mx-3 -mb-3 sm:-mx-4 sm:-mb-4 md:-mx-6 md:-mb-6 px-3 sm:px-4 md:px-6 py-3 mt-6">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground flex items-center gap-2">
             {hasChanges ? (

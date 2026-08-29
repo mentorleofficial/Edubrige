@@ -256,7 +256,7 @@ const MentorOfferings = () => {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-2xl font-bold">Offerings & Services</h1>
-            <p className="text-muted-foreground text-sm mt-1">
+            <p className="text-muted-foreground text-base mt-1">
               Manage the mentorship sessions you offer. Mentees book sessions under these specific offerings.
             </p>
           </div>
@@ -473,7 +473,9 @@ const MentorOfferings = () => {
                   </Select>
                 </div>
 
-                <div className="space-y-1.5">
+                {/* Pricing is hidden for now — every offering saves at 0 (Free).
+                    Uncomment to bring paid offerings back. */}
+                {/* <div className="space-y-1.5">
                   <Label htmlFor="price">Price (INR) *</Label>
                   <Input
                     id="price"
@@ -484,7 +486,7 @@ const MentorOfferings = () => {
                     onChange={(e) => setPrice(e.target.value)}
                     required
                   />
-                </div>
+                </div> */}
               </div>
 
               <div className="grid grid-cols-2 gap-4">

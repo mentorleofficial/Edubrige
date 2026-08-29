@@ -98,6 +98,31 @@ export async function createUser(input: CreateUserInput) {
   return invokeAdmin({ action: "create", ...input });
 }
 
+export type BulkInviteRow = {
+  email: string;
+  full_name: string;
+  role: Extract<AppRole, "mentor" | "mentee">;
+};
+
+export type BulkInviteResultRow = BulkInviteRow & {
+  status: "sent" | "failed" | "skipped_duplicate";
+  error_message: string | null;
+};
+
+export type BulkInviteResult = {
+  ok: true;
+  batch_id: string;
+  sent: number;
+  failed: number;
+  skipped: number;
+  remaining_today: number;
+  results: BulkInviteResultRow[];
+};
+
+export async function bulkInvite(rows: BulkInviteRow[], filename?: string): Promise<BulkInviteResult> {
+  return (await invokeAdmin({ action: "bulk_invite", rows, filename })) as BulkInviteResult;
+}
+
 export async function setUserDisabled(userId: string, disabled: boolean) {
   return invokeAdmin({
     action: disabled ? "disable" : "restore",

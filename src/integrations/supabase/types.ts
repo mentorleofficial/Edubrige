@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       audit_logs: {
@@ -99,9 +124,12 @@ export type Database = {
           accent_color: string
           app_name: string
           body_font: string
+          body_font_weight: number
+          body_text_color: string
           edubridge_enabled: boolean
           edubridge_webhook_url: string
           heading_font: string
+          heading_text_color: string
           id: string
           leaderboard_enabled: boolean
           leaderboard_refresh_hours: number
@@ -122,9 +150,12 @@ export type Database = {
           accent_color?: string
           app_name?: string
           body_font?: string
+          body_font_weight?: number
+          body_text_color?: string
           edubridge_enabled?: boolean
           edubridge_webhook_url?: string
           heading_font?: string
+          heading_text_color?: string
           id?: string
           leaderboard_enabled?: boolean
           leaderboard_refresh_hours?: number
@@ -145,9 +176,12 @@ export type Database = {
           accent_color?: string
           app_name?: string
           body_font?: string
+          body_font_weight?: number
+          body_text_color?: string
           edubridge_enabled?: boolean
           edubridge_webhook_url?: string
           heading_font?: string
+          heading_text_color?: string
           id?: string
           leaderboard_enabled?: boolean
           leaderboard_refresh_hours?: number
@@ -455,6 +489,88 @@ export type Database = {
           {
             foreignKeyName: "general_feedback_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invite_batch_rows: {
+        Row: {
+          batch_id: string
+          created_at: string
+          email: string
+          error_message: string | null
+          full_name: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          email: string
+          error_message?: string | null
+          full_name: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          status: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          email?: string
+          error_message?: string | null
+          full_name?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invite_batch_rows_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "invite_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invite_batches: {
+        Row: {
+          created_at: string
+          failed_count: number
+          filename: string | null
+          id: string
+          sent_count: number
+          skipped_count: number
+          total_rows: number
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          failed_count?: number
+          filename?: string | null
+          id?: string
+          sent_count?: number
+          skipped_count?: number
+          total_rows?: number
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          failed_count?: number
+          filename?: string | null
+          id?: string
+          sent_count?: number
+          skipped_count?: number
+          total_rows?: number
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invite_batches_uploaded_by_fkey"
+            columns: ["uploaded_by"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -1853,6 +1969,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["admin", "mentor", "mentee"],

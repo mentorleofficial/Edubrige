@@ -4,6 +4,7 @@
 export type FontKind = "body" | "heading";
 
 export const BODY_FONTS: { name: string; gf: string; stack: string }[] = [
+  { name: "Plus Jakarta Sans", gf: "Plus+Jakarta+Sans:wght@400;500;600;700;800", stack: "'Plus Jakarta Sans', system-ui, sans-serif" },
   { name: "DM Sans", gf: "DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400", stack: "'DM Sans', system-ui, sans-serif" },
   { name: "Inter", gf: "Inter:wght@400;500;600;700", stack: "'Inter', system-ui, sans-serif" },
   { name: "Roboto", gf: "Roboto:wght@400;500;700", stack: "'Roboto', system-ui, sans-serif" },
@@ -15,6 +16,7 @@ export const BODY_FONTS: { name: string; gf: string; stack: string }[] = [
 ];
 
 export const HEADING_FONTS: { name: string; gf: string; stack: string }[] = [
+  { name: "Plus Jakarta Sans", gf: "Plus+Jakarta+Sans:wght@400;500;600;700;800", stack: "'Plus Jakarta Sans', system-ui, sans-serif" },
   { name: "DM Serif Display", gf: "DM+Serif+Display", stack: "'DM Serif Display', Georgia, serif" },
   { name: "Playfair Display", gf: "Playfair+Display:wght@400;600;700", stack: "'Playfair Display', Georgia, serif" },
   { name: "Lora", gf: "Lora:wght@400;600;700", stack: "'Lora', Georgia, serif" },
@@ -33,7 +35,9 @@ export const getFontStack = (name: string): string =>
 export const loadBrandingFonts = (bodyFont: string, headingFont: string) => {
   const body = ALL.find((f) => f.name === bodyFont) ?? BODY_FONTS[0];
   const heading = ALL.find((f) => f.name === headingFont) ?? HEADING_FONTS[0];
-  const families = [body.gf, heading.gf].filter(Boolean).join("&family=");
+  // A font offered as both body and heading must not be requested twice —
+  // Google Fonts rejects a URL with a repeated family.
+  const families = [...new Set([body.gf, heading.gf].filter(Boolean))].join("&family=");
   const href = `https://fonts.googleapis.com/css2?family=${families}&display=swap`;
 
   let link = document.getElementById("branding-fonts") as HTMLLinkElement | null;

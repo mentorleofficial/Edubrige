@@ -54,7 +54,7 @@ export default function MenteeBookSession() {
       <div className="max-w-7xl mx-auto  space-y-5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Book a session</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <p className="text-muted-foreground mt-1 text-base">
             Browse offerings from all available mentors and book instantly
           </p>
         </div>

@@ -69,7 +69,17 @@ const AdminApplications = () => {
     return list;
   }, [latestApps, tab, query]);
 
-  const pendingCount = latestApps.filter((a) => a.status === "pending").length;
+  const counts = useMemo(
+    () => ({
+      pending: latestApps.filter((a) => a.status === "pending").length,
+      approved: latestApps.filter((a) => a.status === "approved").length,
+      changes_requested: latestApps.filter((a) => a.status === "changes_requested").length,
+      rejected: latestApps.filter((a) => a.status === "rejected").length,
+      all: latestApps.length,
+    }),
+    [latestApps]
+  );
+
   const variant = (s: string) => {
     if (s === "pending") return "secondary";
     if (s === "approved") return "default";
@@ -146,12 +156,20 @@ const AdminApplications = () => {
           <Tabs value={tab} onValueChange={(v) => { setTab(v as Status); setPicked(new Set()); }}>
             <TabsList className="overflow-x-auto w-full sm:w-auto flex [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
               <TabsTrigger value="pending" className="shrink-0">
-                Pending {pendingCount > 0 && <Badge variant="secondary" className="ml-2">{pendingCount}</Badge>}
+                Pending <Badge variant="secondary" className="ml-2">{counts.pending}</Badge>
               </TabsTrigger>
-              <TabsTrigger value="approved" className="shrink-0">Approved</TabsTrigger>
-              <TabsTrigger value="changes_requested" className="shrink-0">Changes Req.</TabsTrigger>
-              <TabsTrigger value="rejected" className="shrink-0">Rejected</TabsTrigger>
-              <TabsTrigger value="all" className="shrink-0">All</TabsTrigger>
+              <TabsTrigger value="approved" className="shrink-0">
+                Approved <Badge variant="secondary" className="ml-2">{counts.approved}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="changes_requested" className="shrink-0">
+                Changes Req. <Badge variant="secondary" className="ml-2">{counts.changes_requested}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="rejected" className="shrink-0">
+                Rejected <Badge variant="secondary" className="ml-2">{counts.rejected}</Badge>
+              </TabsTrigger>
+              <TabsTrigger value="all" className="shrink-0">
+                All <Badge variant="secondary" className="ml-2">{counts.all}</Badge>
+              </TabsTrigger>
             </TabsList>
           </Tabs>
           <div className="relative sm:ml-auto w-full sm:w-72">

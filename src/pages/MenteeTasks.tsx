@@ -90,7 +90,7 @@ export default function MenteeTasks() {
             <ListTodo className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-bold">My Tasks</h1>
           </div>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-muted-foreground text-base mt-1">
             Action items assigned by your mentors across all your sessions.
           </p>
         </div>

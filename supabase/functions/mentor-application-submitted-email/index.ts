@@ -1,4 +1,5 @@
 // Sends a "Thank you for applying" email to a mentor applicant via Brevo.
+import { SENDER_EMAIL, escapeHtml, getEmailBranding, renderEmail, type EmailBranding } from "../_shared/emailLayout.ts";
 // Called client-side (fire-and-forget) after a successful application insert.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -8,73 +9,31 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 
-const buildHtml = (appName: string, recipientName: string) => {
-  const safe = (s: string) => escapeHtml(s);
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Thank You for Applying</title></head>
-  <body style="margin:0;padding:0;background:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;color:#0f172a;">
-    <table width="100%" cellpadding="0" cellspacing="0" style="background:#fff;padding:32px 16px;">
-      <tr><td align="center">
-        <table width="560" cellpadding="0" cellspacing="0" style="max-width:560px;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
-          <tr><td style="padding:28px 24px 8px;">
-            <h1 style="margin:0 0 16px;font-size:22px;font-weight:700;">Thank You for Applying</h1>
-            <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#475569;">Dear ${safe(recipientName)},</p>
-            <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#475569;">
-              Thank you for applying to become a mentor with ${safe(appName)}.
-            </p>
-            <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#475569;">
-              We are glad to see your interest in sharing your knowledge, experience, and guidance with learners who are preparing for their academic and career journeys.
-            </p>
-            <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#475569;">
-              To proceed with your application, please complete your mentor profile immediately by adding all required details such as your experience, expertise areas, current or previous work background, education, LinkedIn profile, and any relevant portfolio or resume.
-            </p>
-            <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#475569;">
-              A complete profile will help our team review your application accurately and match you with the right mentoring opportunities.
-            </p>
-          </td></tr>
-          <tr><td style="padding:0 24px 8px;">
-            <div style="background:#f8fafc;border-radius:8px;padding:14px 16px;font-size:14px;color:#334155;">
-              <strong style="color:#0f172a;display:block;margin-bottom:6px;">What happens next?</strong>
-              Our team will evaluate your application based on your profile, expertise, experience, and mentoring interests. If your profile is shortlisted, we will get in touch with you for the next step.
-            </div>
-          </td></tr>
-          <tr><td style="padding:8px 24px 24px;">
-            <p style="margin:0 0 4px;font-size:14px;line-height:1.6;color:#475569;">
-              Thank you once again for your willingness to contribute to learner growth.
-            </p>
-            <p style="margin:0;font-size:14px;line-height:1.6;color:#475569;">
-              Warm regards,<br/>
-              <strong>Team ${safe(appName)}</strong>
-            </p>
-          </td></tr>
-          <tr><td style="background:#f8fafc;padding:16px 24px;text-align:center;font-size:11px;color:#94a3b8;">
-            Sent by ${safe(appName)}.
-          </td></tr>
-        </table>
-      </td></tr>
-    </table>
-  </body></html>`;
+const buildHtml = (branding: EmailBranding, recipientName: string) => {
+  const appName = escapeHtml(branding.appName);
+  return renderEmail({
+    branding,
+    heading: "Thank you for applying",
+    intro:
+      `Dear ${escapeHtml(recipientName)},<br/><br/>Thank you for applying to become a mentor with ${appName}. ` +
+      `We are glad to see your interest in sharing your knowledge, experience, and guidance with learners who are preparing for their academic and career journeys.`,
+    bodyHtml: `
+      <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:${branding.body};">
+        To proceed with your application, please complete your mentor profile by adding all required details such as your experience, expertise areas, current or previous work background, education, LinkedIn profile, and any relevant portfolio or resume.
+      </p>
+      <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:${branding.body};">
+        A complete profile will help our team review your application accurately and match you with the right mentoring opportunities.
+      </p>
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px 16px;font-size:14px;color:${branding.body};">
+        <strong style="color:${branding.heading};display:block;margin-bottom:6px;">What happens next?</strong>
+        Our team will evaluate your application based on your profile, expertise, experience, and mentoring interests. If your profile is shortlisted, we will get in touch with you for the next step.
+      </div>
+      <p style="margin:14px 0 0;font-size:14px;line-height:1.6;color:${branding.body};">
+        Thank you once again for your willingness to contribute to learner growth.<br/><br/>Warm regards,<br/>${appName}
+      </p>`,
+  });
 };
-
-function getAppUrl(req: Request, branding?: any): string {
-  if (branding?.site_url) {
-    const dbUrl = branding.site_url.trim();
-    if (dbUrl && !dbUrl.includes("localhost") && !dbUrl.includes("127.0.0.1")) {
-      return dbUrl.startsWith("http") ? dbUrl : `https://${dbUrl}`;
-    }
-  }
-  const envUrl = Deno.env.get("APP_URL") || Deno.env.get("SITE_URL") || Deno.env.get("PUBLIC_APP_URL");
-  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
-    return envUrl.startsWith("http") ? envUrl : `https://${envUrl}`;
-  }
-  const origin = req.headers.get("origin") || req.headers.get("referer") || "";
-  if (origin && !origin.includes("localhost") && !origin.includes("127.0.0.1") && !origin.includes("supabase.co")) {
-    try { return new URL(origin).origin; } catch (_) { /* ignore */ }
-  }
-  return "https://mentorle.vercel.app/";
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -129,7 +88,7 @@ Deno.serve(async (req) => {
       method: "POST",
       headers: { "Content-Type": "application/json", "api-key": BREVO.trim(), accept: "application/json" },
       body: JSON.stringify({
-        sender: { email: "noreply@mentorle.in", name: appName },
+        sender: { email: SENDER_EMAIL, name: appName },
         to: [{ email, name: full_name }],
         subject,
         htmlContent: html,

@@ -94,7 +94,7 @@ const AdminFeedback = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold">Feedback</h1>
-          <p className="text-muted-foreground text-sm">All session ratings submitted by mentors and mentees.</p>
+          <p className="text-muted-foreground text-base">All session ratings submitted by mentors and mentees.</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

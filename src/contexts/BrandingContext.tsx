@@ -14,6 +14,9 @@ interface BrandingConfig {
   sidebar_primary: string;
   body_font: string;
   heading_font: string;
+  body_text_color: string;
+  heading_text_color: string;
+  body_font_weight: number;
   mentor_community_url: string;
   leaderboard_enabled: boolean;
   leaderboard_refresh_hours: number;
@@ -23,15 +26,18 @@ interface BrandingConfig {
 const defaultBranding: BrandingConfig = {
   app_name: "Mentorship Platform",
   logo_url: null,
-  primary_color: "199 89% 32%",
+  primary_color: "224 64% 33%",
   secondary_color: "40 33% 94%",
   accent_color: "31 95% 55%",
   login_bg_url: null,
   sidebar_background: "220 25% 10%",
   sidebar_foreground: "40 33% 96%",
   sidebar_primary: "199 89% 48%",
-  body_font: "DM Sans",
-  heading_font: "DM Serif Display",
+  body_font: "Plus Jakarta Sans",
+  heading_font: "Plus Jakarta Sans",
+  body_text_color: "0 0% 50%",
+  heading_text_color: "0 0% 5%",
+  body_font_weight: 500,
   mentor_community_url: "",
   leaderboard_enabled: true,
   leaderboard_refresh_hours: 24,
@@ -52,6 +58,11 @@ export const applyBrandingToDom = (config: BrandingConfig) => {
   root.style.setProperty("--sidebar-accent", config.sidebar_primary);
   root.style.setProperty("--sidebar-accent-foreground", "0 0% 100%");
   root.style.setProperty("--sidebar-primary-foreground", "0 0% 100%");
+  root.style.setProperty("--foreground", config.heading_text_color);
+  root.style.setProperty("--card-foreground", config.heading_text_color);
+  root.style.setProperty("--popover-foreground", config.heading_text_color);
+  root.style.setProperty("--muted-foreground", config.body_text_color);
+  root.style.setProperty("--font-weight-body", String(config.body_font_weight));
   loadBrandingFonts(config.body_font, config.heading_font);
   // White-label: sync document title and favicon link href text
   if (config.app_name) document.title = config.app_name;
@@ -78,6 +89,9 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           sidebar_primary: (data as any).sidebar_primary ?? defaultBranding.sidebar_primary,
           body_font: (data as any).body_font ?? defaultBranding.body_font,
           heading_font: (data as any).heading_font ?? defaultBranding.heading_font,
+          body_text_color: (data as any).body_text_color ?? defaultBranding.body_text_color,
+          heading_text_color: (data as any).heading_text_color ?? defaultBranding.heading_text_color,
+          body_font_weight: (data as any).body_font_weight ?? defaultBranding.body_font_weight,
           mentor_community_url: (data as any).mentor_community_url ?? "",
           leaderboard_enabled: (data as any).leaderboard_enabled ?? true,
           leaderboard_refresh_hours: (data as any).leaderboard_refresh_hours ?? 24,
