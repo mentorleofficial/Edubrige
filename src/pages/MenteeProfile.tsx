@@ -107,6 +107,7 @@ const MenteeProfile = () => {
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadingResume, setUploadingResume] = useState(false);
+  const [nameTouched, setNameTouched] = useState(false);
 
   // Original fields
   const [fullName, setFullName] = useState("");
@@ -264,6 +265,9 @@ const MenteeProfile = () => {
 
   const firstName = fullName.trim().split(" ")[0] ?? "";
 
+  const nameMissing = !fullName.trim();
+  const showNameError = nameTouched && nameMissing;
+
   const addProtocol = (url: string) => {
     if (!url) return "";
     let clean = url.trim().replace(/\/+$/, "");
@@ -330,6 +334,17 @@ const MenteeProfile = () => {
 
   const handleSave = async () => {
     if (!user || !hasChanges) return;
+
+    if (nameMissing) {
+      setNameTouched(true);
+      toast({
+        variant: "destructive",
+        title: "Name is required",
+        description: "Enter your full name before saving.",
+      });
+      return;
+    }
+
     const cleanLinkedin = addProtocol(linkedin);
     const cleanGithub = addProtocol(github);
     const cleanPortfolio = addProtocol(portfolio);
@@ -481,13 +496,26 @@ const MenteeProfile = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                 <div className="space-y-1.5">
-                  <FieldLabel htmlFor="fullName">Full name</FieldLabel>
+                  <FieldLabel htmlFor="fullName">
+                    Full name <span className="text-destructive">*</span>
+                  </FieldLabel>
                   <Input
                     id="fullName"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
+                    onBlur={() => setNameTouched(true)}
                     placeholder="Alex Rivera"
+                    aria-invalid={showNameError}
+                    aria-describedby={showNameError ? "fullName-error" : undefined}
+                    className={cn(
+                      showNameError && "border-destructive focus-visible:ring-destructive"
+                    )}
                   />
+                  {showNameError && (
+                    <p id="fullName-error" className="text-xs text-destructive">
+                      Name is required
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <FieldLabel htmlFor="orgUnit">Team / department</FieldLabel>

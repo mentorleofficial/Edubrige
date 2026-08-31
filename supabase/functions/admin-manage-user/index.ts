@@ -9,9 +9,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-type Action = "create" | "disable" | "restore" | "delete" | "bulk_invite";
+type Action = "create" | "disable" | "restore" | "delete" | "bulk_invite" | "resend_invite";
 type AppRole = "admin" | "mentor" | "mentee";
 type Mode = "invite" | "password";
+
+// "invite" only works for an address with no auth user yet; resending to someone
+// already created has to go out as a recovery link.
+type InviteLinkType = "invite" | "recovery";
 
 interface BulkRow {
   email?: string;
@@ -49,6 +53,9 @@ const istDayStartUtc = (): string => {
   );
   return new Date(midnightIst - IST_OFFSET_MS).toISOString();
 };
+
+const joinUrl = (base: string, path: string) =>
+  base.endsWith("/") ? `${base}${path}` : `${base}/${path}`;
 
 const json = (body: unknown, status = 200) => {
   if (body && typeof body === "object" && "error" in body) {
@@ -118,28 +125,40 @@ async function inviteOne(
   email: string,
   full_name: string,
   role: AppRole,
+  linkType: InviteLinkType = "invite",
 ): Promise<{ ok: boolean; userId: string | null; error?: string }> {
-  const redirectUrl = ctx.appUrl.endsWith("/")
-    ? `${ctx.appUrl}reset-password`
-    : `${ctx.appUrl}/reset-password`;
+  const redirectUrl = joinUrl(ctx.appUrl, "reset-password");
 
   const { data: linkData, error: inviteErr } = await ctx.admin.auth.admin.generateLink({
-    type: "invite",
+    type: linkType,
     email,
     options: { data: { full_name, role }, redirectTo: redirectUrl },
   });
-  if (inviteErr || !linkData?.properties?.action_link) {
+  if (inviteErr || !linkData?.properties?.hashed_token) {
     return { ok: false, userId: null, error: inviteErr?.message ?? "Failed to generate invitation link" };
   }
 
+  // The emailed link points at our own page carrying the hashed token, not at
+  // GoTrue's /verify action_link. The action_link is consumed by the first GET,
+  // so mail scanners and in-app browser previews burn it before the invitee
+  // ever clicks. Our page redeems the token from JS on a real user click.
+  const acceptUrl =
+    `${redirectUrl}?token_hash=${encodeURIComponent(linkData.properties.hashed_token)}` +
+    `&type=${encodeURIComponent(linkType)}`;
+
   const userId = linkData.user?.id ?? null;
   const appName = ctx.branding.appName;
+  const isResend = linkType === "recovery";
   const html = renderEmail({
     branding: ctx.branding,
-    heading: `You've been invited to join ${appName}`,
-    intro: `Hello ${escapeHtml(full_name)}, you have been invited to join <strong>${escapeHtml(appName)}</strong> as a <strong>${escapeHtml(role)}</strong>. Use the button below to accept the invitation and set your password.`,
-    cta: { label: "Accept invitation", url: linkData.properties.action_link },
-    note: "If you were not expecting this invitation you can safely ignore this email.",
+    heading: isResend
+      ? `Your invitation to join ${appName}`
+      : `You've been invited to join ${appName}`,
+    intro: isResend
+      ? `Hello ${escapeHtml(full_name)}, here is a fresh link to finish setting up your <strong>${escapeHtml(appName)}</strong> account as a <strong>${escapeHtml(role)}</strong>. Any earlier invitation link is no longer valid.`
+      : `Hello ${escapeHtml(full_name)}, you have been invited to join <strong>${escapeHtml(appName)}</strong> as a <strong>${escapeHtml(role)}</strong>. Use the button below to accept the invitation and set your password.`,
+    cta: { label: isResend ? "Set your password" : "Accept invitation", url: acceptUrl },
+    note: "This link can only be used once. If you were not expecting this invitation you can safely ignore this email.",
   });
 
   const res = await fetch("https://api.brevo.com/v3/smtp/email", {
@@ -152,7 +171,9 @@ async function inviteOne(
     body: JSON.stringify({
       sender: { email: SENDER_EMAIL, name: appName },
       to: [{ email, name: full_name }],
-      subject: `Invitation to join ${appName} as a ${role}`,
+      subject: isResend
+        ? `Your invitation to join ${appName}`
+        : `Invitation to join ${appName} as a ${role}`,
       htmlContent: html,
     }),
   });
@@ -162,7 +183,7 @@ async function inviteOne(
     return { ok: false, userId, error: `Brevo error ${res.status}: ${text}` };
   }
 
-  if (role === "mentor") {
+  if (role === "mentor" && !isResend) {
     const { error: appErr } = await ctx.admin.from("mentor_applications").insert({
       full_name,
       email,
@@ -288,6 +309,42 @@ Deno.serve(async (req) => {
       });
 
       return json({ ok: true, user_id: userId, mode });
+    }
+
+    if (action === "resend_invite") {
+      const userId = (body.user_id ?? "").trim();
+      if (!userId) return json({ error: "user_id is required" }, 400);
+
+      const { data: target, error: targetErr } = await admin
+        .from("users")
+        .select("id, email, full_name, role")
+        .eq("id", userId)
+        .maybeSingle();
+      if (targetErr) return json({ error: targetErr.message }, 500);
+      if (!target?.email) return json({ error: "User not found" }, 404);
+
+      const { data: authUser } = await admin.auth.admin.getUserById(userId);
+      if (authUser?.user?.email_confirmed_at) {
+        return json({ error: "This user has already accepted their invitation" }, 400);
+      }
+
+      const role = (target.role ?? "mentee") as AppRole;
+
+      const ctx = await buildInviteCtx(admin, req);
+      if ("error" in ctx) return json({ error: ctx.error }, 500);
+
+      const result = await inviteOne(ctx, target.email, target.full_name ?? "", role, "recovery");
+      if (!result.ok) return json({ error: result.error }, 400);
+
+      await admin.from("audit_logs").insert({
+        user_id: callerId,
+        action: "USER_INVITE_RESENT",
+        entity_type: "users",
+        entity_id: userId,
+        details: { email: target.email, role },
+      });
+
+      return json({ ok: true, user_id: userId });
     }
 
     if (action === "bulk_invite") {

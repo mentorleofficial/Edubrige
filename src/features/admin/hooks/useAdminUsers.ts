@@ -14,6 +14,7 @@ import {
   setUserDisabled,
   toggleMentorActive,
   deleteUser,
+  resendInvite,
   fetchUserProfileAdmin,
 } from "../api/users";
 
@@ -99,6 +100,12 @@ export function useDeleteUser() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
     },
+  });
+}
+
+export function useResendInvite() {
+  return useMutation({
+    mutationFn: ({ userId }: { userId: string }) => resendInvite(userId),
   });
 }
 

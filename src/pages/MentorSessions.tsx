@@ -62,6 +62,8 @@ import {
 import {
   useMentorMentees,
   selectMenteeProgramMap,
+  type MentorMenteeRow,
+  type ProgramLite,
 } from "@/features/mentor-mentees/useMentorMentees";
 import { MenteeDetailsDialog } from "@/features/mentor-mentees/components/MenteeDetailsDialog";
 
@@ -159,30 +161,36 @@ const MentorSessions = () => {
   const { data: menteeRows = [] } = useMentorMentees(user?.id);
   const menteePrograms = useMemo(() => selectMenteeProgramMap(menteeRows), [menteeRows]);
 
+  // Direct-booking rows carry no program, so they take no part in program grouping.
+  const programRows = useMemo(
+    () => menteeRows.filter((r): r is MentorMenteeRow & { program: ProgramLite } => !!r.program),
+    [menteeRows]
+  );
+
   // Build program options from mentee program list (deduped)
   const programOptions: ProgramOption[] = useMemo(() => {
     const map = new Map<string, { id: string; name: string }>();
-    menteeRows.forEach((r) => {
+    programRows.forEach((r) => {
       if (!map.has(r.program.id)) {
         map.set(r.program.id, { id: r.program.id, name: r.program.name });
       }
     });
     return Array.from(map.values());
-  }, [menteeRows]);
+  }, [programRows]);
 
   // Map mentee_id -> program ids (for filtering)
   const menteeProgramIds = useMemo(() => {
     const map: Record<string, Set<string>> = {};
-    menteeRows.forEach((r) => {
+    programRows.forEach((r) => {
       (map[r.mentee.id] ||= new Set()).add(r.program.id);
     });
     return map;
-  }, [menteeRows]);
+  }, [programRows]);
 
   // Cards need program tag id too; rebuild map with ids
   const menteeProgramsWithId = useMemo(() => {
     const map: Record<string, { id: string; name: string; color: string; slug: string }[]> = {};
-    menteeRows.forEach((r) => {
+    programRows.forEach((r) => {
       (map[r.mentee.id] ||= []).push({
         id: r.program.id,
         name: r.program.name,
@@ -191,7 +199,7 @@ const MentorSessions = () => {
       });
     });
     return map;
-  }, [menteeRows]);
+  }, [programRows]);
 
   const updateStatus = useUpdateSessionStatus(user?.id);
   const updateDetails = useUpdateSessionDetails(user?.id);
