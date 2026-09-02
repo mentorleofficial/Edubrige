@@ -29,7 +29,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, MoreHorizontal, Search, UserPlus } from "lucide-react";
 import {
-  useAdminUsers, useCreateUser, useToggleMentorActive, useSetUserDisabled, useDeleteUser,
+  useAdminUsers, useCreateUser, useToggleMentorActive, useSetUserDisabled, useDeleteUser, useResendInvite,
   useAdminUserDetails, type RoleFilter, type StatusFilter,
 } from "@/features/admin";
 import type { AppRole } from "@/features/admin/api/users";
@@ -67,6 +67,7 @@ const AdminUsers = () => {
   const createMutation = useCreateUser();
   const disableMutation = useSetUserDisabled();
   const deleteMutation = useDeleteUser();
+  const resendMutation = useResendInvite();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -146,6 +147,18 @@ const AdminUsers = () => {
       toast({ title: "User deleted" });
     } catch (err) {
       handleError(err, "Failed to delete user");
+    }
+  };
+
+  const handleResendInvite = async (userId: string) => {
+    try {
+      await resendMutation.mutateAsync({ userId });
+      toast({
+        title: "Invitation resent",
+        description: "A fresh link is on its way. Any earlier link is now invalid.",
+      });
+    } catch (err) {
+      handleError(err, "Failed to resend invitation");
     }
   };
 
@@ -359,6 +372,8 @@ const AdminUsers = () => {
                             pending={disableMutation.isPending}
                             onDeleteUser={handleDeleteUser}
                             deletePending={deleteMutation.isPending}
+                            onResendInvite={handleResendInvite}
+                            resendPending={resendMutation.isPending}
                           />
                         </TableCell>
                       </TableRow>
@@ -875,6 +890,7 @@ const UserDetailsDialogContent = ({ userId, role }: { userId: string; role: AppR
 
 const UserRowActions = ({
   user, isSelf, onViewDetails, onSetDisabled, pending, onDeleteUser, deletePending,
+  onResendInvite, resendPending,
 }: {
   user: { id: string; full_name: string; is_disabled: boolean };
   isSelf: boolean;
@@ -883,6 +899,8 @@ const UserRowActions = ({
   pending: boolean;
   onDeleteUser: (id: string) => void;
   deletePending: boolean;
+  onResendInvite: (id: string) => void;
+  resendPending: boolean;
 }) => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
@@ -900,6 +918,11 @@ const UserRowActions = ({
           <DropdownMenuItem onClick={onViewDetails}>View details</DropdownMenuItem>
           {!isSelf && (
             <>
+              {!user.is_disabled && (
+                <DropdownMenuItem disabled={resendPending} onClick={() => onResendInvite(user.id)}>
+                  Resend invitation
+                </DropdownMenuItem>
+              )}
               {user.is_disabled ? (
                 <DropdownMenuItem onClick={() => setConfirmOpen(true)}>Restore user</DropdownMenuItem>
               ) : (

@@ -130,6 +130,13 @@ export async function setUserDisabled(userId: string, disabled: boolean) {
   });
 }
 
+export async function resendInvite(userId: string) {
+  return invokeAdmin({
+    action: "resend_invite",
+    user_id: userId,
+  });
+}
+
 export async function deleteUser(userId: string) {
   return invokeAdmin({
     action: "delete",

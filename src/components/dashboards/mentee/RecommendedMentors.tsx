@@ -46,15 +46,21 @@ const RecommendedMentors = ({ mentors }: { mentors: RecommendedMentor[] }) => {
                 >
                   <div className="absolute top-3 right-3 z-20 flex gap-1.5">
                     <button
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        const url = `${window.location.origin}/book/${m.user_id}`;
-                        navigator.clipboard.writeText(url);
-                        setSharedId(m.user_id);
-                        toast.success("Link copied");
-                        setTimeout(() => setSharedId(null), 1500);
+                        const url = `${window.location.origin}/mentors/${m.user_id}`;
+                        try {
+                          await navigator.clipboard.writeText(url);
+                          setSharedId(m.user_id);
+                          toast.success("Link copied to clipboard");
+                          setTimeout(() => setSharedId((cur) => (cur === m.user_id ? null : cur)), 1500);
+                        } catch {
+                          toast.error("Could not copy link");
+                        }
                       }}
                       className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm text-white hover:bg-black/70"
+                      title="Copy share link"
+                      aria-label="Copy share link"
                     >
                       {sharedId === m.user_id ? <Check className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> : <Share2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
                     </button>
