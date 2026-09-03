@@ -62,7 +62,7 @@ const json = (body: unknown, status = 200) => {
     console.error("admin-manage-user error:", body.error);
   }
   return new Response(JSON.stringify(body), {
-    status: 200, // Always 200 to let client handle the error body directly
+    status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 };

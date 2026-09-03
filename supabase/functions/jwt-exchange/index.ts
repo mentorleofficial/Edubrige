@@ -3,7 +3,7 @@
 //
 // The external JWT IS the auth — no caller auth header required.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 import { jwtVerify, importSPKI, createRemoteJWKSet } from "https://esm.sh/jose@5.9.6";
 
 const corsHeaders = {

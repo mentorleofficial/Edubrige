@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
+import { SESSION_EXPIRED_MESSAGE } from "@/lib/session";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -18,6 +20,7 @@ const Login = () => {
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/dashboard";
+  const sessionExpired = searchParams.get("expired") === "1";
 
   const safeRedirect = redirectTo.startsWith("/") ? redirectTo : "/dashboard";
 
@@ -67,6 +70,11 @@ const Login = () => {
           <CardDescription>Sign in to continue guiding learner journeys.</CardDescription>
         </CardHeader>
         <CardContent>
+          {sessionExpired && (
+            <Alert className="mb-4">
+              <AlertDescription>{SESSION_EXPIRED_MESSAGE}</AlertDescription>
+            </Alert>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
