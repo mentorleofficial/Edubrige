@@ -1,7 +1,7 @@
 // Sync queued outbound events to EduBridge with HMAC-SHA256 signing.
 // Admin-triggered. Processes a batch of pending/failed events and updates their status.
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

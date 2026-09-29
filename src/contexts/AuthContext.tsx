@@ -89,11 +89,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (window.location.pathname !== "/reset-password" && window.location.pathname !== "/forgot-password") {
           // Session exists but we can't load the user row (RLS 403, missing row,
           // stale token). Clear the orphaned session to avoid redirect loops.
+          // Local scope only: a transient read failure here must not revoke the
+          // user's sessions on their other devices.
           setProfile(null);
           setMentorActive(false);
           writeCache(null);
           lastFetchedFor.current = null;
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: "local" });
         }
         return;
       }
@@ -242,7 +244,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       /* noop */
     }
 
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
     setProfile(null);
     setMentorActive(false);
     setProfileCompleteness(100);

@@ -1,5 +1,7 @@
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import { assertLocalSession, endDeadSession } from "@/lib/session";
 
 export type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -86,8 +88,29 @@ export type CreateUserInput = {
 };
 
 async function invokeAdmin(body: Record<string, unknown>) {
+  await assertLocalSession();
+
   const { data, error } = await supabase.functions.invoke("admin-manage-user", { body });
-  if (error) throw error;
+
+  if (error) {
+    const response = error instanceof FunctionsHttpError ? error.context : null;
+    if (response instanceof Response) {
+      // 401 means the token was rejected outright, so the session is gone even
+      // though it still looks valid locally. 403 is a live session without the
+      // rights for this action — surface that, do not sign the user out.
+      if (response.status === 401) throw await endDeadSession();
+
+      const payload = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      if (payload && typeof payload === "object" && "error" in payload && payload.error) {
+        throw new Error(String((payload as { error: string }).error));
+      }
+    }
+    throw error;
+  }
+
   if (data && typeof data === "object" && "error" in data && data.error) {
     throw new Error(String((data as { error: string }).error));
   }

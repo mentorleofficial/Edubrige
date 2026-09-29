@@ -1,6 +1,6 @@
 // Recomputes mentor leaderboard stats (last 30 days) and re-evaluates badge awards.
 // Callable by any authenticated admin; service role used internally for writes.
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
