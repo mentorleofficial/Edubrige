@@ -3,7 +3,7 @@ import { formatISTDate, formatISTDateTime, formatIST } from "@/lib/datetime";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CalendarRange, ChevronLeft, ChevronRight, Video } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeHttpUrl } from "@/lib/utils";
 import type { MentorDashSession } from "@/features/mentor-dashboard/useMentorDashboardData";
 
 const WEEKS_TO_SHOW = 12;
@@ -212,7 +212,7 @@ const WeeklySchedule = ({ sessions }: { sessions: MentorDashSession[] }) => {
                       <div className="flex flex-col items-end justify-between py-0.5 gap-2">
                         {isUpcoming && s.meeting_url && (
                           <a
-                            href={s.meeting_url}
+                            href={safeHttpUrl(s.meeting_url)}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors whitespace-nowrap"

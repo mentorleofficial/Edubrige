@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Clock, AlertTriangle, AlertCircle, RefreshCw, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -86,6 +87,35 @@ const InactiveMentorBanner = () => {
 
   if (loading) {
     return <div className="h-10 w-full animate-pulse bg-muted rounded-md" />;
+  }
+
+  // 0. Invited (admin created the account; the mentor has not applied yet)
+  if (app?.status === "invited") {
+    return (
+      <>
+        <Alert className="border-primary/30 bg-primary/5">
+          <FileText className="h-4 w-4 text-primary" />
+          <AlertTitle className="font-semibold">Complete Your Mentor Application</AlertTitle>
+          <AlertDescription className="text-muted-foreground text-sm mt-1 space-y-3">
+            <div>
+              Welcome! An admin created your mentor account. Complete your application to submit it for review — availability and session features unlock once it is approved.
+            </div>
+            <div>
+              <Button size="sm" onClick={() => setShowFormDialog(true)} className="bg-primary text-primary-foreground font-medium">
+                <FileText className="mr-2 h-3.5 w-3.5" /> Complete Application
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+        <MentorApplicationDialog
+          open={showFormDialog}
+          onOpenChange={(open) => {
+            setShowFormDialog(open);
+            if (!open) fetchStatus();
+          }}
+        />
+      </>
+    );
   }
 
   // 1. Pending status
@@ -234,19 +264,21 @@ const InactiveMentorBanner = () => {
     );
   }
 
-  // 4. Default / Legacy fallback (Approved but inactive)
+  // 4. Fallback: approved but not currently active (e.g. profile incomplete, or
+  // an admin deactivated the account). Do NOT reopen the application form here —
+  // that would file a brand-new pending application for an already-approved mentor.
   return (
     <Alert className="border-accent bg-accent/10">
       <Clock className="h-4 w-4" />
-      <AlertTitle>Account Pending Activation</AlertTitle>
+      <AlertTitle>Account Not Active</AlertTitle>
       <AlertDescription className="text-muted-foreground text-sm mt-1 space-y-3">
         <div>
-          Your mentor account is approved but not yet active. You can complete your profile while an admin
-          finalizes activation. Availability and session features will unlock once you're activated.
+          Your mentor account isn't active right now. Finish your profile to 100% to unlock availability and
+          sessions; if it's already complete, an admin needs to reactivate your account.
         </div>
         <div>
-          <Button size="sm" onClick={() => setShowFormDialog(true)} className="bg-primary text-primary-foreground font-medium">
-            <FileText className="mr-2 h-3.5 w-3.5" /> Complete Profile Details
+          <Button asChild size="sm" className="bg-primary text-primary-foreground font-medium">
+            <Link to="/mentor/profile"><FileText className="mr-2 h-3.5 w-3.5" /> Go to My Profile</Link>
           </Button>
         </div>
       </AlertDescription>

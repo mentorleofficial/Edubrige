@@ -53,10 +53,11 @@ export const useAdminSessions = (filters: AdminSessionFilters) => {
 
       if (filters.programId) {
         // Restrict to sessions where the mentor belongs to that program
-        const { data: pm } = await supabase
+        const { data: pm, error: pmErr } = await supabase
           .from("program_mentors")
           .select("mentor_id")
           .eq("program_id", filters.programId);
+        if (pmErr) throw pmErr;
         const allowed = new Set((pm || []).map((p: any) => p.mentor_id));
         rows = rows.filter((r) => allowed.has(r.mentor_id));
       }

@@ -195,15 +195,23 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
     if (!user?.email) return;
     const fetchExistingApp = async () => {
       try {
-        const { data } = await supabase
+        const { data, error: existingErr } = await supabase
           .from("mentor_applications")
           .select("*")
           .ilike("email", user.email)
           .order("created_at", { ascending: false })
           .limit(1)
           .maybeSingle();
+        if (existingErr) {
+          // Without the existing application we'd insert a duplicate instead of
+          // updating it, so tell the user rather than silently showing a blank form.
+          toast({ variant: "destructive", title: "Couldn't load your application", description: "Please refresh and try again before resubmitting." });
+          return;
+        }
         if (data) {
-          if (data.status === "changes_requested") {
+          // Both an admin invite ('invited') and a change request leave an existing
+          // row to update in place, so we don't create a duplicate application.
+          if (data.status === "changes_requested" || data.status === "invited") {
             setExistingAppId(data.id);
           }
           form.reset({
@@ -264,8 +272,14 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
   const addTag = () => {
     const t = tagInput.trim();
     if (!t) return;
-    if (expertise.length >= 10) return;
-    if (expertise.some((e) => e.toLowerCase() === t.toLowerCase())) return;
+    if (expertise.length >= 10) {
+      setExpertiseError("You can add up to 10 expertise tags.");
+      return;
+    }
+    if (expertise.some((e) => e.toLowerCase() === t.toLowerCase())) {
+      setExpertiseError(`"${t}" is already added.`);
+      return;
+    }
     setExpertise([...expertise, t]);
     setTagInput("");
     setExpertiseError(null);
@@ -308,9 +322,9 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
         }
       } catch (err: any) {
         console.error("Error checking email existence", err);
-        form.setError("email", { 
-          type: "manual", 
-          message: `Email check failed: ${err.message || 'Database function missing'}. Please ensure SQL migrations are applied.` 
+        form.setError("email", {
+          type: "manual",
+          message: "We couldn't verify this email right now. Please try again in a moment.",
         });
         return false;
       }
@@ -361,15 +375,16 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
 
   const checkCooldown = async (email: string): Promise<boolean> => {
     try {
-      const { data: branding } = await supabase
+      const { data: branding, error: brandingErr } = await supabase
         .from("branding")
         .select("rejection_cooldown_days")
         .limit(1)
         .maybeSingle();
+      if (brandingErr) throw brandingErr;
       const cooldownDays = branding?.rejection_cooldown_days ?? 30;
       if (cooldownDays <= 0) return false;
 
-      const { data: lastRejectedApp } = await supabase
+      const { data: lastRejectedApp, error: lastErr } = await supabase
         .from("mentor_applications")
         .select("reviewed_at")
         .ilike("email", email)
@@ -377,6 +392,7 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
         .order("reviewed_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (lastErr) throw lastErr;
 
       if (lastRejectedApp?.reviewed_at) {
         const reviewedDate = new Date(lastRejectedApp.reviewed_at);
@@ -394,6 +410,14 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
       }
     } catch (e) {
       console.error("Error checking application cooldown:", e);
+      // Fail closed: if we can't confirm eligibility, don't silently skip the
+      // rejection cooldown — ask the applicant to retry.
+      toast({
+        variant: "destructive",
+        title: "Couldn't check your eligibility",
+        description: "Please try submitting again in a moment.",
+      });
+      return true;
     }
     return false;
   };
@@ -585,7 +609,7 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
 
       const { error: insErr } = await supabase.from("mentor_applications").insert({
         full_name: pending.values.full_name,
-        email: pending.values.email,
+        email: pending.values.email.trim().toLowerCase(),
         phone: pending.values.phone || null,
         linkedin_url: pending.values.linkedin_url || null,
         portfolio_url: pending.values.portfolio_url || null,
@@ -601,7 +625,9 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
         current_organization: pending.values.current_organization || null,
         current_role: pending.values.current_role || null,
       });
-      if (insErr) console.error("application insert failed", insErr);
+      // The account is verified but the application is the whole point of this
+      // flow — if it doesn't save, tell the applicant instead of showing "You're in!".
+      if (insErr) throw new Error(`Your account was verified, but we couldn't save your application: ${insErr.message}. Please try submitting again from your dashboard.`);
 
       // Fire-and-forget: send "thank you for applying" email
       supabase.functions.invoke("mentor-application-submitted-email", {
@@ -634,7 +660,15 @@ const MentorApplicationForm = ({ onComplete }: Props) => {
         navigate("/dashboard");
       }, 1200);
     } catch (err: any) {
-      toast({ variant: "destructive", title: "Invalid code", description: err.message });
+      // Distinguish a wrong/expired code from a later failure (e.g. saving the
+      // application), which is not the user mistyping the code.
+      const msg = err?.message ?? "";
+      const isCodeError = /otp|token|code|expired|invalid/i.test(msg) && !/application|profile/i.test(msg);
+      toast({
+        variant: "destructive",
+        title: isCodeError ? "Invalid code" : "Verification problem",
+        description: msg || "Something went wrong. Please try again.",
+      });
     } finally {
       setVerifying(false);
     }

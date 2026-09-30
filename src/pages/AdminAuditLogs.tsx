@@ -1,6 +1,7 @@
 import { formatISTDateTime } from "@/lib/datetime";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { handleError } from "@/lib/handleError";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,11 +18,12 @@ const AdminAuditLogs = () => {
 
   useEffect(() => {
     const fetchLogs = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("audit_logs")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(200);
+      if (error) handleError(error, "Couldn't load audit logs");
       setLogs(data || []);
       setLoading(false);
     };

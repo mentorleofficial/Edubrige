@@ -1,9 +1,15 @@
 import { formatISTDate } from "@/lib/datetime";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeFn } from "@/lib/functionError";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -28,13 +34,19 @@ const AdminApplications = () => {
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState<"approve" | "reject" | null>(null);
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [bulkRejectReason, setBulkRejectReason] = useState("");
 
   const fetchApps = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("mentor_applications")
       .select("*")
       .order("created_at", { ascending: false });
+    if (error) {
+      // Surface the failure instead of rendering an empty "No applications" table.
+      toast({ variant: "destructive", title: "Couldn't load applications", description: error.message });
+    }
     setApps(data || []);
     setLoading(false);
     setPicked(new Set());
@@ -97,49 +109,72 @@ const AdminApplications = () => {
     setPicked(allOnPage ? new Set() : new Set(filtered.map((a) => a.id)));
   };
 
-  const eligibleIds = (action: "approve" | "reject") =>
+  // Both pending and changes-requested applications are actionable, so selecting
+  // only "changes requested" no longer makes the buttons do nothing silently.
+  const eligibleIds = () =>
     Array.from(picked).filter((id) => {
       const a = apps.find((x) => x.id === id);
-      return a && a.status === "pending";
+      return a && (a.status === "pending" || a.status === "changes_requested");
     });
 
   const bulkApprove = async () => {
-    const ids = eligibleIds("approve");
-    if (!ids.length) return;
+    const ids = eligibleIds();
+    if (!ids.length) {
+      toast({ variant: "destructive", title: "Nothing to approve", description: "None of the selected applications are awaiting review." });
+      return;
+    }
     setBulkBusy("approve");
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      let ok = 0, fail = 0;
+      const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined;
+      let ok = 0;
+      const errors: string[] = [];
       for (const id of ids) {
-        const { data, error } = await supabase.functions.invoke("approve-mentor-application", {
-          body: { application_id: id, admin_notes: null },
-          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
-        });
-        if (error || data?.error) fail++; else ok++;
+        try {
+          await invokeFn("approve-mentor-application", { body: { application_id: id, admin_notes: null }, headers });
+          ok++;
+        } catch (e) {
+          const name = apps.find((x) => x.id === id)?.full_name ?? "Applicant";
+          errors.push(`${name}: ${(e as Error).message}`);
+        }
       }
-      toast({ title: `Approved ${ok} application${ok === 1 ? "" : "s"}`, description: fail ? `${fail} failed.` : undefined, variant: fail ? "destructive" : "default" });
+      toast({
+        title: `Approved ${ok} application${ok === 1 ? "" : "s"}`,
+        description: errors.length ? `${errors.length} failed — ${errors[0]}${errors.length > 1 ? " (…)" : ""}` : undefined,
+        variant: errors.length ? "destructive" : "default",
+      });
       await fetchApps();
     } finally { setBulkBusy(null); }
   };
 
   const bulkReject = async () => {
-    const ids = eligibleIds("reject");
-    if (!ids.length || !user) return;
+    const ids = eligibleIds();
+    if (!ids.length || !user) {
+      toast({ variant: "destructive", title: "Nothing to reject", description: "None of the selected applications are awaiting review." });
+      return;
+    }
+    const reason = bulkRejectReason.trim();
+    if (!reason) {
+      toast({ variant: "destructive", title: "Reason required", description: "Enter a reason — it is emailed to each applicant." });
+      return;
+    }
     setBulkBusy("reject");
     const { data: { session } } = await supabase.auth.getSession();
     const { error } = await supabase
       .from("mentor_applications")
-      .update({ status: "rejected", reviewed_by: user.id, reviewed_at: new Date().toISOString() })
+      .update({ status: "rejected", rejection_reason: reason, admin_notes: reason, reviewed_by: user.id, reviewed_at: new Date().toISOString() })
       .in("id", ids);
     if (!error) {
       await Promise.allSettled(ids.map((id) =>
         supabase.functions.invoke("mentor-application-decision-email", {
-          body: { application_id: id, decision: "rejected", notes: "" },
+          body: { application_id: id, decision: "rejected", notes: reason },
           headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
         })
       ));
     }
     setBulkBusy(null);
+    setRejectOpen(false);
+    setBulkRejectReason("");
     if (error) toast({ variant: "destructive", title: "Bulk reject failed", description: error.message });
     else { toast({ title: `Rejected ${ids.length} application${ids.length === 1 ? "" : "s"}` }); await fetchApps(); }
   };
@@ -189,7 +224,13 @@ const AdminApplications = () => {
               <span className="text-sm font-medium">{picked.size} selected</span>
               <div className="ml-auto flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => setPicked(new Set())}>Clear</Button>
-                <Button size="sm" variant="destructive" disabled={!!bulkBusy} onClick={bulkReject}>
+                <Button size="sm" variant="destructive" disabled={!!bulkBusy} onClick={() => {
+                  if (!eligibleIds().length) {
+                    toast({ variant: "destructive", title: "Nothing to reject", description: "None of the selected applications are awaiting review." });
+                    return;
+                  }
+                  setRejectOpen(true);
+                }}>
                   {bulkBusy === "reject" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
                   Reject pending
                 </Button>
@@ -259,6 +300,30 @@ const AdminApplications = () => {
       </div>
 
       <ApplicationDetailDialog application={selected} open={open} onOpenChange={setOpen} onUpdated={fetchApps} />
+
+      <AlertDialog open={rejectOpen} onOpenChange={(o) => { if (!o) { setRejectOpen(false); setBulkRejectReason(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject {eligibleIds().length} application{eligibleIds().length === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This reason is emailed to each applicant. It is required.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Textarea
+            rows={3}
+            value={bulkRejectReason}
+            onChange={(e) => setBulkRejectReason(e.target.value)}
+            placeholder="Provide a clear reason for rejection…"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkBusy === "reject"}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={bulkReject} disabled={bulkBusy === "reject" || !bulkRejectReason.trim()}>
+              {bulkBusy === "reject" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Reject applications
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };

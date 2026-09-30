@@ -3,6 +3,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { calculateCompleteness } from "@/features/mentor-profile/utils/completeness";
+import { endDeactivatedSession, isDeactivatedError } from "@/lib/session";
 
 type AppRole = Database["public"]["Enums"]["app_role"];
 
@@ -71,40 +72,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   // Dedupe parallel profile fetches across onAuthStateChange + getSession.
-  const fetchingFor = useRef<string | null>(null);
+  // Both callers await the SAME in-flight promise, so `loading` is only cleared
+  // once the profile has actually resolved — never early by a duplicate call.
+  const inFlight = useRef<{ userId: string; promise: Promise<void> } | null>(null);
   const lastFetchedFor = useRef<string | null>(null);
 
-  const fetchProfile = async (userId: string) => {
-    if (fetchingFor.current === userId) return;
-    fetchingFor.current = userId;
-    try {
-      const { data: profileData, error: profileError } = await supabase
-        .from("users")
-        .select("id, email, full_name, role, avatar_url")
-        .eq("id", userId)
-        .single();
+  const fetchProfile = (userId: string): Promise<void> => {
+    if (inFlight.current?.userId === userId) return inFlight.current.promise;
+    const promise = doFetchProfile(userId).finally(() => {
+      if (inFlight.current?.userId === userId) inFlight.current = null;
+    });
+    inFlight.current = { userId, promise };
+    return promise;
+  };
 
-      if (profileError || !profileData) {
-        console.error("[auth] profile fetch failed", profileError);
-        if (window.location.pathname !== "/reset-password" && window.location.pathname !== "/forgot-password") {
-          // Session exists but we can't load the user row (RLS 403, missing row,
-          // stale token). Clear the orphaned session to avoid redirect loops.
-          // Local scope only: a transient read failure here must not revoke the
-          // user's sessions on their other devices.
-          setProfile(null);
-          setMentorActive(false);
-          writeCache(null);
-          lastFetchedFor.current = null;
-          await supabase.auth.signOut({ scope: "local" });
+  const doFetchProfile = async (userId: string) => {
+    const { data: profileData, error: profileError } = await supabase
+      .from("users")
+      .select("id, email, full_name, role, avatar_url")
+      .eq("id", userId)
+      .single();
+
+    if (profileError && isDeactivatedError(profileError)) {
+      setProfile(null);
+      writeCache(null);
+      lastFetchedFor.current = null;
+      await endDeactivatedSession();
+      return;
+    }
+
+    if (profileError || !profileData) {
+      console.error("[auth] profile fetch failed", profileError);
+      const path = window.location.pathname;
+      if (path !== "/reset-password" && path !== "/forgot-password") {
+        // Session exists but we can't load the user row (RLS 403, missing row,
+        // stale token). Clear the orphaned session to avoid redirect loops.
+        // Local scope only: a transient read failure here must not revoke the
+        // user's sessions on their other devices.
+        setProfile(null);
+        setMentorActive(false);
+        writeCache(null);
+        lastFetchedFor.current = null;
+        await supabase.auth.signOut({ scope: "local" });
+        // Tell the user why they were signed out instead of bouncing silently.
+        // This also applies when the sign-in started on /login itself (the Login
+        // page navigates away as soon as signIn resolves, so the message would be
+        // lost); only skip it when the explanation is already being shown.
+        if (!(path === "/login" && window.location.search.includes("error=profile"))) {
+          window.location.assign("/login?error=profile");
         }
-        return;
       }
+      return;
+    }
 
       let isActive = true;
       let completeness = 100;
 
       if (profileData.role === "mentor") {
-        const [{ data: mp }, { count: activeOfferingsCount }] = await Promise.all([
+        const [{ data: mp, error: mpErr }, { count: activeOfferingsCount, error: offErr }] = await Promise.all([
           supabase
             .from("mentor_profiles")
             .select("is_active, bio, expertise, qualifications, experiences, resume_url, headline, phone, years_experience, linkedin_url, professional_status, current_organization, current_role")
@@ -116,6 +141,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .eq("mentor_id", userId)
             .eq("status", "active"),
         ]);
+
+        if (mpErr || offErr) {
+          // A failed read must not look like "inactive / 0% complete" — that would
+          // lock an approved mentor out with a false message. Keep the last known
+          // state (from cache) and try again on the next load.
+          console.error("[auth] mentor profile fetch failed", mpErr ?? offErr);
+          const prev = readCache();
+          const keepActive = prev?.profile?.id === userId ? prev.isApproved ?? true : true;
+          const keepComplete = prev?.profile?.id === userId ? prev.profileCompleteness ?? 100 : 100;
+          setProfile(profileData);
+          setIsApproved(keepActive);
+          setProfileCompleteness(keepComplete);
+          setMentorActive(keepActive && keepComplete === 100);
+          return;
+        }
 
         isActive = !!mp?.is_active;
 
@@ -142,16 +182,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setProfileCompleteness(completeness);
       setIsApproved(isActive);
 
-      writeCache({
-        profile: profileData,
-        mentorActive: activeState,
-        profileCompleteness: completeness,
-        isApproved: isActive,
-      });
-      lastFetchedFor.current = userId;
-    } finally {
-      fetchingFor.current = null;
-    }
+    writeCache({
+      profile: profileData,
+      mentorActive: activeState,
+      profileCompleteness: completeness,
+      isApproved: isActive,
+    });
+    lastFetchedFor.current = userId;
   };
 
   useEffect(() => {
@@ -214,6 +251,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
+  // Re-check the account while the user is signed in, so a deactivation by an
+  // admin takes effect within a minute (or on returning to the tab) even on a
+  // screen that makes no further requests.
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid) return;
+    const check = async () => {
+      const { error } = await supabase.from("users").select("id").eq("id", uid).maybeSingle();
+      if (error && isDeactivatedError(error)) await endDeactivatedSession();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") check();
+    };
+    const timer = window.setInterval(check, 60_000);
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [user?.id]);
+
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
@@ -234,11 +294,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signOut = async () => {
     let logoutUrl: string | null = null;
     try {
-      const { data: cfg } = await supabase
-        .from("jwt_config")
-        .select("enabled, logout_redirect_url")
-        .limit(1)
-        .maybeSingle();
+      // Via a definer RPC: jwt_config is admin-only, so mentors/mentees could
+      // never read their configured logout redirect through the table directly.
+      const { data: cfgRows } = await supabase.rpc("get_jwt_login_config");
+      const cfg = Array.isArray(cfgRows) ? cfgRows[0] : cfgRows;
       if (cfg?.enabled && cfg.logout_redirect_url) logoutUrl = cfg.logout_redirect_url;
     } catch {
       /* noop */

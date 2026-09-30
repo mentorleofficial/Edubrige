@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, ChevronLeft, ChevronRight, Clock, Globe, Info, Video, Copy } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeHttpUrl } from "@/lib/utils";
 import {
   getMonthMatrix,
   getRangesForDate,
@@ -216,8 +216,9 @@ export default function BookingModal({ mentorId, offeringId, open, onOpenChange,
     const scheduledAt = toISTDate(selectedDate, selectedTime);
     const duration = selectedOffering?.duration_minutes ?? 30;
 
+    const isReschedule = !!rescheduleSessionId;
     try {
-      const { meetingUrl } = await bookMutation.mutateAsync({
+      const { sessionId, meetingUrl } = await bookMutation.mutateAsync({
         mentorId,
         menteeId: user.id,
         scheduledAt,
@@ -230,33 +231,30 @@ export default function BookingModal({ mentorId, offeringId, open, onOpenChange,
         programId: selectedProgramId,
       });
 
-      if (mentor?.email && user.email) {
-        supabase.functions.invoke("send-booking-email", {
-          body: {
-            mentorEmail: mentor.email,
-            mentorName: mentor.full_name || "your mentor",
-            menteeEmail: user.email,
-            menteeName: (user.user_metadata as Record<string, unknown>)?.full_name || user.email,
-            scheduledAtISO: scheduledAt.toISOString(),
-            durationMinutes: duration,
-            meetingUrl,
-            menteeNotes: notes || undefined,
-          },
-        }).catch(() => {});
-      }
+      // The function loads recipients from the session itself; it only needs the id.
+      supabase.functions.invoke("send-booking-email", {
+        body: { session_id: sessionId },
+      }).catch(() => {});
 
-      toast({ title: "Session booked!", description: `Scheduled for ${formatISTDateTime(scheduledAt)}` });
+      toast({
+        title: isReschedule ? "Session rescheduled!" : "Session booked!",
+        description: `Scheduled for ${formatISTDateTime(scheduledAt)}`,
+      });
       setBookedSession({ scheduledAt, meetingUrl });
     } catch (e) {
       const err = e as { message?: string; code?: string };
+      const msg = err?.message ?? "";
+      // The mentee's own conflict carries a clear DB message ("You already have a
+      // booked session…"); only a mentor-side clash is really "just taken".
       const friendly =
-        err?.message?.includes("already been rescheduled")
+        msg.includes("already been rescheduled")
           ? "This session has already been rescheduled once."
-          : err?.message?.includes("overlap") || err?.code === "23P01" || err?.code === "23505"
+          : /you already have a booked session/i.test(msg)
+          ? "You already have a session booked at that time."
+          : /mentor already has a booked session/i.test(msg) || err?.code === "23P01" || err?.code === "23505"
           ? "That slot was just taken — please pick another."
-          : err?.message ?? "Booking failed";
-      toast({ variant: "destructive", title: "Booking failed", description: friendly });
-
+          : msg || (isReschedule ? "Reschedule failed" : "Booking failed");
+      toast({ variant: "destructive", title: isReschedule ? "Reschedule failed" : "Booking failed", description: friendly });
     }
   };
 
@@ -274,13 +272,13 @@ export default function BookingModal({ mentorId, offeringId, open, onOpenChange,
               <div className="mx-auto mb-2 h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                 <CheckCircle className="h-6 w-6 text-primary" />
               </div>
-              <DialogTitle className="text-center text-xl">Session booked!</DialogTitle>
+              <DialogTitle className="text-center text-xl">{rescheduleSessionId ? "Session rescheduled!" : "Session booked!"}</DialogTitle>
             </DialogHeader>
             <p className="text-center text-sm text-muted-foreground">
               with <strong>{mentor?.full_name}</strong> on{" "}
               {formatISTDateTime(bookedSession.scheduledAt)}
             </p>
-            <a href={bookedSession.meetingUrl} target="_blank" rel="noopener noreferrer" className="block">
+            <a href={safeHttpUrl(bookedSession.meetingUrl)} target="_blank" rel="noopener noreferrer" className="block">
               <Button size="lg" className="w-full">
                 <Video className="mr-2 h-4 w-4" /> Join meeting
               </Button>

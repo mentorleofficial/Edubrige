@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useMentors, useMenteeFavorites, useToggleFavorite } from "@/features/mentors";
 import { useMyPrograms } from "@/features/programs/hooks/useMyPrograms";
 import { supabase } from "@/integrations/supabase/client";
+import { handleError } from "@/lib/handleError";
 import { useAuth } from "@/contexts/AuthContext";
 import ExpertiseFilter from "@/features/mentors/components/ExpertiseFilter";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -70,10 +71,11 @@ const MentorDirectory = () => {
     }
     (async () => {
       const programIds = myPrograms.map((p) => p.id);
-      const { data: pm } = await supabase
+      const { data: pm, error: pmErr } = await supabase
         .from("program_mentors")
         .select("program_id, mentor_id")
         .in("program_id", programIds);
+      if (pmErr) handleError(pmErr, "Couldn't load program information");
       const byMentor: Record<string, { id: string; name: string; slug: string; color: string }[]> = {};
       const programMap = new Map(myPrograms.map((p) => [p.id, p]));
       (pm || []).forEach((row: any) => {

@@ -83,11 +83,12 @@ export function useMentorMentees(userId?: string) {
       );
       const userById: Record<string, MenteeRow> = {};
       if (menteeIds.length > 0) {
-        const { data: us } = await supabase
+        const { data: us, error: usErr } = await supabase
           .from("users")
           .select("id, full_name, email, avatar_url")
           .in("id", menteeIds)
           .eq("is_disabled", false);
+        if (usErr) throw usErr;
         (us ?? []).forEach((u) => (userById[u.id as string] = u as MenteeRow));
       }
 

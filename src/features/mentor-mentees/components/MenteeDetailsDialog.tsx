@@ -2,6 +2,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import StoredFileLink from "@/components/StoredFileLink";
 import { Separator } from "@/components/ui/separator";
 import {
   Loader2, Github, Globe, Clock, Linkedin, FileText, MapPin,
@@ -311,15 +312,14 @@ export const MenteeDetailsDialog = ({ menteeId, open, onOpenChange }: MenteeDeta
                     </a>
                   )}
                   {profile.resume_url && (
-                    <a
-                      href={profile.resume_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <StoredFileLink
+                      bucket="mentee-resumes"
+                      value={profile.resume_url}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border hover:bg-muted transition-colors"
                     >
                       <FileText className="h-3.5 w-3.5" />
                       Resume
-                    </a>
+                    </StoredFileLink>
                   )}
                 </div>
               </>

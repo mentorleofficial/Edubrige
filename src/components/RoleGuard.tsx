@@ -1,4 +1,4 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
@@ -15,6 +15,7 @@ interface RoleGuardProps {
 const RoleGuard = ({ children, allowedRoles, requireActiveMentor }: RoleGuardProps) => {
   const { profile, loading, mentorActive, isApproved, profileCompleteness } = useAuth();
   const { toast } = useToast();
+  const location = useLocation();
 
   const blockedInactive = !!profile && profile.role === "mentor" && requireActiveMentor && !mentorActive;
 
@@ -23,8 +24,8 @@ const RoleGuard = ({ children, allowedRoles, requireActiveMentor }: RoleGuardPro
       if (!isApproved) {
         toast({
           variant: "destructive",
-          title: "Account Pending Activation",
-          description: "Your mentor account is approved but pending admin finalization.",
+          title: "Account Not Active Yet",
+          description: "This area unlocks once your mentor application is approved by an admin.",
         });
       } else if (profileCompleteness < 100) {
         toast({
@@ -52,7 +53,9 @@ const RoleGuard = ({ children, allowedRoles, requireActiveMentor }: RoleGuardPro
   }
 
   if (!profile) {
-    return <Navigate to="/login" replace />;
+    // Preserve where the user was headed so login can send them back there.
+    const redirect = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirect=${redirect}`} replace />;
   }
 
   if (!allowedRoles.includes(profile.role)) {

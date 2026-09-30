@@ -91,6 +91,7 @@ const PublicMentorProfile = () => {
   const [mentor, setMentor] = useState<PublicMentor | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [rating, setRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
   const [offeringDetail, setOfferingDetail] = useState<any>(null);
   const [bookingModalOpen, setBookingModalOpen] = useState(false);
@@ -135,9 +136,16 @@ const PublicMentorProfile = () => {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(mentorId);
 
       // SECURITY DEFINER RPC: returns only public-safe mentor fields, no email.
-      const { data: rows } = await supabase.rpc("get_public_mentor", {
+      const { data: rows, error: rowsErr } = await supabase.rpc("get_public_mentor", {
         _slug_or_id: mentorId,
       });
+      if (rowsErr) {
+        // A failed request is not the same as "this mentor doesn't exist".
+        setLoadFailed(true);
+        setNotFound(true);
+        setLoading(false);
+        return;
+      }
       const mp = Array.isArray(rows) && rows.length ? (rows[0] as any) : null;
 
       if (!mp) {
@@ -200,11 +208,13 @@ const PublicMentorProfile = () => {
       <div className="min-h-screen flex items-center justify-center p-6">
         <Card className="max-w-md w-full text-center">
           <CardHeader>
-            <CardTitle>Mentor not found</CardTitle>
+            <CardTitle>{loadFailed ? "Couldn't load this profile" : "Mentor not found"}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-muted-foreground text-sm">
-              This profile doesn't exist or isn't currently active.
+              {loadFailed
+                ? "Something went wrong while loading this mentor. Please refresh and try again."
+                : "This profile doesn't exist or isn't currently active."}
             </p>
             <Button asChild variant="outline">
               <Link to="/"><ArrowLeft className="h-4 w-4" /> Back home</Link>

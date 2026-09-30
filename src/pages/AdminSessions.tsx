@@ -1,4 +1,5 @@
 import { formatISTDateTime } from "@/lib/datetime";
+import { safeHttpUrl } from "@/lib/utils";
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import AppLayout from "@/components/AppLayout";
@@ -71,7 +72,8 @@ const AdminSessions = () => {
   const programsQuery = useQuery({
     queryKey: ["all-programs"],
     queryFn: async () => {
-      const { data } = await supabase.from("programs").select("id, name").order("name");
+      const { data, error } = await supabase.from("programs").select("id, name").order("name");
+      if (error) throw error;
       return data || [];
     },
   });
@@ -88,8 +90,14 @@ const AdminSessions = () => {
       patch.cancellation_reason = "Cancelled by admin";
     }
     const { error } = await supabase.from("sessions").update(patch).eq("id", id);
+    const label: Record<string, string> = {
+      completed: "Session marked as completed",
+      no_show: "Session marked as no-show",
+      cancelled: "Session cancelled",
+      booked: "Session reopened",
+    };
     if (error) toast({ variant: "destructive", title: "Error", description: error.message });
-    else { toast({ title: `Session ${newStatus}` }); refresh(); }
+    else { toast({ title: label[newStatus] ?? "Session updated" }); refresh(); }
   };
 
   const exportCsv = () => {
@@ -262,7 +270,7 @@ const AdminSessions = () => {
                 {detail.meeting_url && (
                   <div>
                     <p className="text-xs uppercase tracking-wider text-muted-foreground">Meeting link</p>
-                    <a href={detail.meeting_url} target="_blank" rel="noreferrer" className="text-primary hover:underline break-all">{detail.meeting_url}</a>
+                    <a href={safeHttpUrl(detail.meeting_url)} target="_blank" rel="noreferrer" className="text-primary hover:underline break-all">{detail.meeting_url}</a>
                   </div>
                 )}
                 {detail.mentee_notes && (

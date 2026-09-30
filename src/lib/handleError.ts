@@ -1,10 +1,15 @@
 import { toast } from "@/hooks/use-toast";
+import { endDeactivatedSession, isDeactivatedError } from "./session";
 
 /**
  * Standardized error handler — surfaces a toast and logs to console.
  * Pass a friendly fallback message for when the error has no usable message.
  */
 export function handleError(error: unknown, fallback = "Something went wrong") {
+  if (isDeactivatedError(error)) {
+    endDeactivatedSession();
+    return "Your account has been deactivated";
+  }
   const message = extractMessage(error) ?? fallback;
   // eslint-disable-next-line no-console
   console.error("[app-error]", error);

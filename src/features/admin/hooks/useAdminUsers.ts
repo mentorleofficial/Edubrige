@@ -15,11 +15,12 @@ import {
   toggleMentorActive,
   deleteUser,
   resendInvite,
+  listPendingInvites,
   fetchUserProfileAdmin,
 } from "../api/users";
 
 const adminUsersKey = (params: FetchUsersParams) =>
-  ["admin", "users", params.page, params.pageSize, params.role, params.status ?? "active"] as const;
+  ["admin", "users", params.page, params.pageSize, params.role, params.status ?? "active", params.search ?? ""] as const;
 
 export function useAdminUsers(params: FetchUsersParams) {
   return useQuery({
@@ -103,9 +104,21 @@ export function useDeleteUser() {
   });
 }
 
+export const pendingInvitesKey = ["admin", "users", "pending-invites"] as const;
+
+export function usePendingInvites() {
+  return useQuery({
+    queryKey: pendingInvitesKey,
+    queryFn: listPendingInvites,
+    staleTime: 30_000,
+  });
+}
+
 export function useResendInvite() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ userId }: { userId: string }) => resendInvite(userId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: pendingInvitesKey }),
   });
 }
 

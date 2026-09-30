@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeFn } from "@/lib/functionError";
 import { useBranding } from "@/contexts/BrandingContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -20,12 +21,12 @@ const JwtCallback = () => {
   useEffect(() => {
     const run = async () => {
       try {
-        // Load JWT config to know which param name carries the token
-        const { data: cfg } = await supabase
-          .from("jwt_config")
-          .select("token_param_name, enabled, login_redirect_url")
-          .limit(1)
-          .maybeSingle();
+        // Load JWT config via a definer RPC (the jwt_config table is admin-only, so
+        // an anonymous visitor arriving via SSO can't read it directly).
+        const { data: cfgRows, error: cfgErr } = await supabase.rpc("get_jwt_login_config");
+        // A failed lookup is not the same as SSO being switched off.
+        if (cfgErr) throw new Error("Couldn't load sign-in settings. Please try again.");
+        const cfg = Array.isArray(cfgRows) ? cfgRows[0] : cfgRows;
 
         if (!cfg?.enabled) {
           throw new Error("External JWT login is not enabled");
@@ -45,13 +46,12 @@ const JwtCallback = () => {
           throw new Error(`No "${paramName}" token found in URL`);
         }
 
-        const { data, error } = await supabase.functions.invoke("jwt-exchange", {
+        const data = await invokeFn<{ access_token?: string; refresh_token?: string }>("jwt-exchange", {
           body: { token },
         });
 
-        if (error) throw new Error(error.message || "Token exchange failed");
         if (!data?.access_token || !data?.refresh_token) {
-          throw new Error(data?.error || "Invalid response from server");
+          throw new Error("Invalid response from server");
         }
 
         const { error: setErr } = await supabase.auth.setSession({

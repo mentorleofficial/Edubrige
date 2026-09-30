@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { safeHttpUrl } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -251,7 +252,7 @@ const MenteeSessions = () => {
     if (isUpcoming && s.meeting_url) {
       primary.push(
         <Button asChild size="sm" key="join">
-          <a href={s.meeting_url} target="_blank" rel="noreferrer">
+          <a href={safeHttpUrl(s.meeting_url)} target="_blank" rel="noreferrer">
             <Video className="mr-1 h-3.5 w-3.5" /> Join now
           </a>
         </Button>
@@ -430,7 +431,7 @@ const MenteeSessions = () => {
     <>
       {nextSession.meeting_url ? (
         <Button asChild size="lg">
-          <a href={nextSession.meeting_url} target="_blank" rel="noreferrer">
+          <a href={safeHttpUrl(nextSession.meeting_url)} target="_blank" rel="noreferrer">
             <Video className="mr-2 h-4 w-4" /> Join now
           </a>
         </Button>

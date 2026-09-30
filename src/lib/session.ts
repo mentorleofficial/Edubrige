@@ -21,6 +21,28 @@ export async function endDeadSession(): Promise<SessionExpiredError> {
   return new SessionExpiredError();
 }
 
+// The server rejects every request from a deactivated account (see the
+// block_disabled_users pre-request hook) with this message, and GoTrue refuses
+// banned users with "User is banned".
+export function isDeactivatedError(error: unknown): boolean {
+  const e = error as { message?: unknown; hint?: unknown } | null;
+  const text = `${e?.message ?? ""} ${e?.hint ?? ""}`;
+  return /account has been deactivated|account_deactivated|user is banned/i.test(text);
+}
+
+let endingDeactivated = false;
+export async function endDeactivatedSession(): Promise<void> {
+  if (endingDeactivated) return;
+  endingDeactivated = true;
+  await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+  try {
+    localStorage.removeItem("app:lastAuth");
+  } catch {
+    /* noop */
+  }
+  if (typeof window !== "undefined") window.location.assign("/login?error=deactivated");
+}
+
 // getSession() reads localStorage and never calls the server, so it cannot tell
 // that a session was revoked remotely — only that one is missing entirely. That
 // case is still worth catching: supabase-js silently falls back to the anon key

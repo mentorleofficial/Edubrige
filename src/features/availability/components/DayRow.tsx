@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import { TimeSelect } from "./TimeSelect";
 import { CopyTimesPopover } from "./CopyTimesPopover";
 import { DAYS_SHORT, normalizeHHMM, rangesOverlap, toMinutes } from "../timeUtils";
+import { useToast } from "@/hooks/use-toast";
 import type { WeeklySlot } from "../api/availability";
 
 interface Props {
@@ -27,6 +28,7 @@ export function DayRow({
   onCopy,
 }: Props) {
   const enabled = slots.length > 0;
+  const { toast } = useToast();
 
   const error = useMemo(() => {
     for (const s of slots) {
@@ -38,6 +40,28 @@ export function DayRow({
     return null;
   }, [slots]);
 
+  // Reject a change before it is persisted, so we never save (and then show
+  // "Saved" next to) an invalid range.
+  const validateCandidate = (candidate: WeeklySlot[]): string | null => {
+    for (const s of candidate) {
+      if (toMinutes(normalizeHHMM(s.end_time)) <= toMinutes(normalizeHHMM(s.start_time))) {
+        return "End time must be after start time";
+      }
+    }
+    if (rangesOverlap(candidate)) return "Time ranges overlap";
+    return null;
+  };
+
+  const tryUpdate = (id: string, patch: { start_time?: string; end_time?: string }) => {
+    const candidate = slots.map((s) => (s.id === id ? { ...s, ...patch } : s));
+    const problem = validateCandidate(candidate);
+    if (problem) {
+      toast({ variant: "destructive", title: "Invalid time range", description: problem });
+      return;
+    }
+    onUpdate(id, patch);
+  };
+
   const handleAddRange = () => {
     if (slots.length === 0) {
       onAdd("09:00", "17:00");
@@ -47,6 +71,12 @@ export function DayRow({
     const latestEnd = slots
       .map((s) => toMinutes(normalizeHHMM(s.end_time)))
       .reduce((a, b) => Math.max(a, b), 0);
+    // Don't propose a range when the day is already full to the end — that would
+    // create an overlapping suggestion (VAL-07).
+    if (latestEnd >= 23 * 60 + 30) {
+      toast({ title: "No free time left", description: "This day is already scheduled up to the end of the evening." });
+      return;
+    }
     const startMin = Math.min(latestEnd + 60, 22 * 60);
     const endMin = Math.min(startMin + 60, 23 * 60 + 45);
     const fmt = (m: number) =>
@@ -79,12 +109,12 @@ export function DayRow({
               <div key={slot.id} className="flex items-center gap-2 flex-wrap">
                 <TimeSelect
                   value={slot.start_time}
-                  onChange={(v) => onUpdate(slot.id, { start_time: v })}
+                  onChange={(v) => tryUpdate(slot.id, { start_time: v })}
                 />
                 <span className="text-muted-foreground">–</span>
                 <TimeSelect
                   value={slot.end_time}
-                  onChange={(v) => onUpdate(slot.id, { end_time: v })}
+                  onChange={(v) => tryUpdate(slot.id, { end_time: v })}
                 />
                 <Button
                   variant="ghost"

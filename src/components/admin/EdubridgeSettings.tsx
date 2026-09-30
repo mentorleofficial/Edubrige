@@ -1,6 +1,7 @@
 import { formatISTDateTime } from "@/lib/datetime";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeFn } from "@/lib/functionError";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,11 +69,12 @@ const EdubridgeSettings = () => {
       console.error("Error loading settings:", err);
     }
 
-    const { data: evs } = await supabase
+    const { data: evs, error: evsErr } = await supabase
       .from("outbound_events")
       .select("id, event_type, status, attempts, last_error, created_at, sent_at")
       .order("created_at", { ascending: false })
       .limit(25);
+    if (evsErr) toast({ variant: "destructive", title: "Couldn't load sync history", description: evsErr.message });
     setEvents((evs as OutboundEvent[]) ?? []);
   };
 
@@ -95,41 +97,24 @@ const EdubridgeSettings = () => {
       })
       .eq("id", rowId);
 
+    setSaving(false);
     if (error) {
-      console.warn("Failed to save with leaderboard_refresh_hours, trying fallback:", error);
-      const { error: fallbackError } = await supabase
-        .from("branding")
-        .update({
-          edubridge_webhook_url: url.trim(),
-          edubridge_enabled: enabled,
-        })
-        .eq("id", rowId);
-
-      setSaving(false);
-
-      if (fallbackError) {
-        toast({ variant: "destructive", title: "Save failed", description: fallbackError.message });
-      } else {
-        toast({
-          title: "EduBridge settings saved",
-          description: "Note: Leaderboard interval was not saved because the column does not exist in the database. Please run migrations.",
-        });
-      }
+      toast({ variant: "destructive", title: "Save failed", description: error.message });
     } else {
-      setSaving(false);
       toast({ title: "Settings saved successfully" });
     }
   };
 
   const syncNow = async () => {
     setSyncing(true);
-    const { data, error } = await supabase.functions.invoke("sync-to-edubridge", { body: {} });
-    setSyncing(false);
-    if (error || data?.error) {
-      toast({ variant: "destructive", title: "Sync failed", description: error?.message || data?.error });
-    } else {
+    try {
+      const data = await invokeFn<{ sent?: number; failed?: number }>("sync-to-edubridge", { body: {} });
       toast({ title: "Sync complete", description: `Sent ${data?.sent ?? 0} · Failed ${data?.failed ?? 0}` });
       load();
+    } catch (e) {
+      toast({ variant: "destructive", title: "Sync failed", description: (e as Error).message });
+    } finally {
+      setSyncing(false);
     }
   };
 

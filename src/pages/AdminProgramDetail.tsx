@@ -192,6 +192,7 @@ const AdminProgramDetail = () => {
   const { toast } = useToast();
 
   const [program, setProgram] = useState<Program | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [tags, setTags] = useState<TagRow[]>([]);
   const [allMentors, setAllMentors] = useState<UserRow[]>([]);
   const [allMentees, setAllMentees] = useState<UserRow[]>([]);
@@ -234,26 +235,36 @@ const AdminProgramDetail = () => {
     if (!slug) return;
     // Look up program by slug; if param looks like a UUID, fall back to id lookup and redirect to the slug URL.
     let p: Program | null = null;
+    let loadErr: string | null = null;
     if (UUID_RE.test(slug)) {
-      const { data } = await supabase.from("programs").select("*").eq("id", slug).maybeSingle();
+      const { data, error } = await supabase.from("programs").select("*").eq("id", slug).maybeSingle();
       p = data ?? null;
+      loadErr = error?.message ?? null;
       if (p?.slug) {
         navigate(`/admin/programs/${p.slug}`, { replace: true });
         return;
       }
     } else {
-      const { data } = await supabase.from("programs").select("*").eq("slug", slug).maybeSingle();
+      const { data, error } = await supabase.from("programs").select("*").eq("slug", slug).maybeSingle();
       p = data ?? null;
+      loadErr = error?.message ?? null;
     }
     setProgram(p);
+    setNotFound(!p);
+    if (loadErr) toast({ variant: "destructive", title: "Couldn't load program", description: loadErr });
     if (!p) return;
 
-    const [{ data: t }, { data: pm }, { data: pme }, { data: ma }] = await Promise.all([
+    const [{ data: t, error: tErr }, { data: pm, error: pmErr }, { data: pme, error: pmeErr }, { data: ma, error: maErr }] = await Promise.all([
       supabase.from("program_tags").select("*").eq("program_id", p.id).order("label"),
       supabase.from("program_mentors").select("mentor_id").eq("program_id", p.id),
       supabase.from("program_mentees").select("mentee_id").eq("program_id", p.id),
       supabase.from("mentor_mentee_assignments").select("id, mentor_id, mentee_id").eq("program_id", p.id),
     ]);
+    const membersErr = tErr ?? pmErr ?? pmeErr ?? maErr;
+    if (membersErr) {
+      toast({ variant: "destructive", title: "Couldn't load program members", description: membersErr.message });
+      return;
+    }
     setTags(t || []);
     setProgramMentors((pm || []).map(({ mentor_id }) => mentor_id));
     setProgramMentees((pme || []).map(({ mentee_id }) => mentee_id));
@@ -498,14 +509,9 @@ const AdminProgramDetail = () => {
 
   const deleteProgram = async () => {
     if (!program) return;
-    // Children are removed via cascading deletes triggered by removing program_mentors / program_mentees
-    // first; we explicitly delete dependent rows here for safety, then the program itself.
-    const { error: a1 } = await supabase.from("mentor_mentee_assignments").delete().eq("program_id", program.id);
-    if (a1) return toast({ variant: "destructive", title: "Delete failed", description: a1.message });
-    await supabase.from("program_mentors").delete().eq("program_id", program.id);
-    await supabase.from("program_mentees").delete().eq("program_id", program.id);
-    await supabase.from("program_tags").delete().eq("program_id", program.id);
-    const { error } = await supabase.from("programs").delete().eq("id", program.id);
+    // One transactional RPC removes the program and all its children together, so
+    // a mid-way failure can't leave a program stripped of its members.
+    const { error } = await supabase.rpc("delete_program", { _program_id: program.id });
     if (error) {
       toast({ variant: "destructive", title: "Delete failed", description: error.message });
       return;
@@ -516,7 +522,18 @@ const AdminProgramDetail = () => {
   };
 
 
-  if (!program) return <AppLayout><p className="text-muted-foreground">Loading…</p></AppLayout>;
+  if (!program) return (
+    <AppLayout>
+      {notFound ? (
+        <div className="space-y-3">
+          <p className="text-muted-foreground">This program doesn't exist or may have been deleted.</p>
+          <Button variant="outline" onClick={() => navigate("/admin/programs")}>Back to programs</Button>
+        </div>
+      ) : (
+        <p className="text-muted-foreground">Loading…</p>
+      )}
+    </AppLayout>
+  );
 
   const hasMentors = mentorsInProgram.length > 0;
   const hasMentees = menteesInProgram.length > 0;

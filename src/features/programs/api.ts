@@ -146,10 +146,11 @@ function mapPublicMentorRow(row: PublicMentorRow, email = ""): ProgramMember {
 }
 
 export async function fetchProgramMentors(programId: string): Promise<ProgramMember[]> {
-  const { data: rows } = await supabase
+  const { data: rows, error: rowsErr } = await supabase
     .from("program_mentors")
     .select("mentor_id")
     .eq("program_id", programId);
+  if (rowsErr) throw rowsErr;
   const ids = new Set((rows || []).map((r) => r.mentor_id).filter(Boolean));
   if (ids.size === 0) return [];
 
@@ -163,27 +164,30 @@ export async function fetchProgramMentors(programId: string): Promise<ProgramMem
 }
 
 export async function fetchProgramMentees(programId: string): Promise<ProgramMember[]> {
-  const { data: rows } = await supabase
+  const { data: rows, error: rowsErr } = await supabase
     .from("program_mentees")
     .select("mentee_id")
     .eq("program_id", programId);
+  if (rowsErr) throw rowsErr;
   const ids = Array.from(new Set((rows || []).map((r) => r.mentee_id).filter(Boolean)));
   if (ids.length === 0) return [];
-  const { data: users } = await supabase
+  const { data: users, error: usersErr } = await supabase
     .from("users")
     .select("id, full_name, email, avatar_url")
     .in("id", ids)
     .eq("is_disabled", false)
     .order("full_name");
+  if (usersErr) throw usersErr;
   return (users || []) as ProgramMember[];
 }
 
 export async function fetchProgramTags(programId: string): Promise<ProgramTag[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("program_tags")
     .select("*")
     .eq("program_id", programId)
     .order("label");
+  if (error) throw error;
   return data || [];
 }
 
@@ -191,12 +195,13 @@ export async function fetchProgramTags(programId: string): Promise<ProgramTag[]>
  * For a given mentee in a program, return the assigned mentor (if any).
  */
 export async function fetchMyAssignedMentor(programId: string, menteeId: string) {
-  const { data: row } = await supabase
+  const { data: row, error: rowErr } = await supabase
     .from("mentor_mentee_assignments")
     .select("mentor_id")
     .eq("program_id", programId)
     .eq("mentee_id", menteeId)
     .maybeSingle();
+  if (rowErr) throw rowErr;
   if (!row?.mentor_id) return null;
 
   const [{ data: u }, { data: profileRows, error: profileErr }] = await Promise.all([
@@ -228,18 +233,20 @@ export async function fetchMyAssignedMentees(
   programId: string,
   mentorId: string,
 ): Promise<ProgramMember[]> {
-  const { data: rows } = await supabase
+  const { data: rows, error: rowsErr } = await supabase
     .from("mentor_mentee_assignments")
     .select("mentee_id")
     .eq("program_id", programId)
     .eq("mentor_id", mentorId);
+  if (rowsErr) throw rowsErr;
   const ids = Array.from(new Set((rows || []).map((r) => r.mentee_id).filter(Boolean)));
   if (ids.length === 0) return [];
-  const { data: users } = await supabase
+  const { data: users, error: usersErr } = await supabase
     .from("users")
     .select("id, full_name, email, avatar_url")
     .in("id", ids)
     .eq("is_disabled", false)
     .order("full_name");
+  if (usersErr) throw usersErr;
   return (users || []) as ProgramMember[];
 }

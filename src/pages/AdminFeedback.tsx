@@ -1,6 +1,7 @@
 import { formatISTDate, formatISTDateTime } from "@/lib/datetime";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { handleError } from "@/lib/handleError";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -51,13 +52,14 @@ const AdminFeedback = () => {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("feedback")
         .select(
           "id, rating, comment, audience, created_at, submitted_by, response, responded_at, session:sessions!feedback_session_id_fkey(id, scheduled_at, mentor:users!sessions_mentor_id_fkey(full_name), mentee:users!sessions_mentee_id_fkey(full_name)), submitter:users!feedback_submitted_by_fkey(full_name)"
         )
         .order("created_at", { ascending: false })
         .limit(500);
+      if (error) handleError(error, "Couldn't load feedback");
       setRows((data as any) || []);
       setLoading(false);
     })();

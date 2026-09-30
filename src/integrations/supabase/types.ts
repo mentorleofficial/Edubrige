@@ -7,11 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -1612,19 +1607,16 @@ export type Database = {
       }
       user_roles: {
         Row: {
-          email: string | null
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Insert: {
-          email?: string | null
           id?: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Update: {
-          email?: string | null
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
@@ -1683,6 +1675,7 @@ export type Database = {
         Returns: boolean
       }
       check_email_exists: { Args: { email_to_check: string }; Returns: boolean }
+      delete_program: { Args: { _program_id: string }; Returns: undefined }
       generate_mentor_slug: {
         Args: { _full_name: string; _user_id: string }
         Returns: string
@@ -1693,6 +1686,15 @@ export type Database = {
           duration_minutes: number
           id: string
           scheduled_at: string
+        }[]
+      }
+      get_jwt_login_config: {
+        Args: never
+        Returns: {
+          enabled: boolean
+          login_redirect_url: string
+          logout_redirect_url: string
+          token_param_name: string
         }[]
       }
       get_mentee_profile_for_mentor: {
@@ -1825,6 +1827,23 @@ export type Database = {
           title: string
         }[]
       }
+      reschedule_session: {
+        Args: {
+          _duration: number
+          _mentor_id: string
+          _notes: string
+          _offering_id: string
+          _old_session_id: string
+          _program_id: string
+          _scheduled_at: string
+          _title: string
+          _topic: string
+        }
+        Returns: {
+          meeting_url: string
+          session_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "mentor" | "mentee"
@@ -1833,6 +1852,7 @@ export type Database = {
         | "approved"
         | "rejected"
         | "changes_requested"
+        | "invited"
       badge_tier: "bronze" | "silver" | "gold"
       dsr_kind: "export" | "correction" | "deletion" | "withdrawal"
       dsr_status: "pending" | "in_review" | "completed" | "rejected"
@@ -1980,6 +2000,7 @@ export const Constants = {
         "approved",
         "rejected",
         "changes_requested",
+        "invited",
       ],
       badge_tier: ["bronze", "silver", "gold"],
       dsr_kind: ["export", "correction", "deletion", "withdrawal"],
@@ -1996,3 +2017,4 @@ export const Constants = {
     },
   },
 } as const
+

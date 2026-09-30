@@ -151,10 +151,11 @@ export function useAllDsrs() {
       const rows = (data ?? []) as DataSubjectRequest[];
       const ids = Array.from(new Set(rows.map((r) => r.user_id)));
       if (!ids.length) return rows;
-      const { data: users } = await supabase
+      const { data: users, error: usersErr } = await supabase
         .from("users")
         .select("id, email, full_name")
         .in("id", ids);
+      if (usersErr) throw usersErr;
       const byId = new Map((users ?? []).map((u) => [u.id, u]));
       return rows.map((r) => ({
         ...r,

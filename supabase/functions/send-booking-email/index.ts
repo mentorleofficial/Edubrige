@@ -15,15 +15,11 @@ interface Recipient {
   name?: string;
 }
 
+// The caller sends only the session id. Everything else is loaded from the
+// database with the service role, so this endpoint can no longer be used to send
+// arbitrary branded email to arbitrary recipients (open relay).
 interface Payload {
-  mentorEmail: string;
-  mentorName: string;
-  menteeEmail: string;
-  menteeName: string;
-  scheduledAtISO: string;
-  durationMinutes: number;
-  meetingUrl: string;
-  menteeNotes?: string;
+  session_id: string;
 }
 
 
@@ -161,28 +157,76 @@ Deno.serve(async (req) => {
     }
     const apiKey = rawKey.trim();
 
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+    const ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // Require a real signed-in caller. verify_jwt is off at the gateway (so a
+    // stale token doesn't 401), so the check is done here instead.
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing authorization" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } } });
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData.user) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
+      SUPABASE_URL,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
       { auth: { autoRefreshToken: false, persistSession: false } },
     );
     const branding = await getEmailBranding(admin);
 
-    console.log("BREVO_API_KEY debug:", {
-      length: apiKey.length,
-      prefix: apiKey.slice(0, 9),
-      startsWithXkeysib: apiKey.startsWith("xkeysib-"),
-    });
+    const { session_id } = (await req.json()) as Payload;
+    if (!session_id) {
+      return new Response(JSON.stringify({ error: "session_id is required" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    const body = (await req.json()) as Payload;
-    const required: (keyof Payload)[] = ["mentorEmail", "mentorName", "menteeEmail", "menteeName", "scheduledAtISO", "durationMinutes", "meetingUrl"];
-    for (const k of required) {
-      if (body[k] === undefined || body[k] === null || body[k] === "") {
-        return new Response(JSON.stringify({ error: `Missing field: ${k}` }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    // Load recipients and details from the session itself, and confirm the caller
+    // is a participant (or an admin) before sending anything.
+    const { data: session, error: sessionErr } = await admin
+      .from("sessions")
+      .select("mentor_id, mentee_id, scheduled_at, duration_minutes, meeting_url, mentee_notes, mentor:users!sessions_mentor_id_fkey(email, full_name), mentee:users!sessions_mentee_id_fkey(email, full_name)")
+      .eq("id", session_id)
+      .maybeSingle();
+    if (sessionErr || !session) {
+      return new Response(JSON.stringify({ error: "Session not found" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const callerId = userData.user.id;
+    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: callerId, _role: "admin" });
+    if (callerId !== session.mentor_id && callerId !== session.mentee_id && !isAdmin) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const mentor = (session as { mentor?: { email?: string; full_name?: string } }).mentor ?? {};
+    const mentee = (session as { mentee?: { email?: string; full_name?: string } }).mentee ?? {};
+    const body = {
+      mentorEmail: mentor.email ?? "",
+      mentorName: mentor.full_name ?? "your mentor",
+      menteeEmail: mentee.email ?? "",
+      menteeName: mentee.full_name ?? "your mentee",
+      scheduledAtISO: session.scheduled_at,
+      durationMinutes: session.duration_minutes,
+      meetingUrl: session.meeting_url,
+      menteeNotes: session.mentee_notes || undefined,
+    };
+    if (!body.mentorEmail || !body.menteeEmail) {
+      return new Response(JSON.stringify({ error: "Session participants have no email on file" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const whenLabel = formatDateTime(body.scheduledAtISO);

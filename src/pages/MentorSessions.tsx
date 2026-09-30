@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { safeHttpUrl } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -228,11 +229,18 @@ const MentorSessions = () => {
 
   const saveEdit = () => {
     if (!editing) return;
+    // Same rule as the booking page: the link is shown to the mentee as a
+    // clickable link, so only a full http(s) URL is accepted.
+    const link = editMeetingUrl.trim();
+    if (link && !safeHttpUrl(link)) {
+      toast({ variant: "destructive", title: "Invalid meeting link", description: "Enter a full URL starting with http:// or https://" });
+      return;
+    }
     updateDetails.mutate(
       {
         id: editing.id,
         notes: editNotes,
-        meeting_url: editMeetingUrl,
+        meeting_url: link,
         title: editTitle,
         topic: editTopic,
       },
@@ -310,7 +318,7 @@ const MentorSessions = () => {
     if (isUpcoming && s.meeting_url) {
       primary.push(
         <Button asChild size="sm" key="join">
-          <a href={s.meeting_url} target="_blank" rel="noreferrer">
+          <a href={safeHttpUrl(s.meeting_url)} target="_blank" rel="noreferrer">
             <Video className="mr-1 h-3.5 w-3.5" /> Join now
           </a>
         </Button>
@@ -352,17 +360,22 @@ const MentorSessions = () => {
     }
 
     if (s.status === "booked") {
+      // Completed / no-show only make sense once the session has started.
+      if (new Date(s.scheduled_at).getTime() <= Date.now()) {
+        overflow.push(
+          {
+            label: "Mark complete",
+            icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+            onClick: () => updateStatus.mutate({ id: s.id, status: "completed" }),
+          },
+          {
+            label: "Mark no-show",
+            icon: <UserX className="h-3.5 w-3.5" />,
+            onClick: () => updateStatus.mutate({ id: s.id, status: "no_show" }),
+          },
+        );
+      }
       overflow.push(
-        {
-          label: "Mark complete",
-          icon: <CheckCircle2 className="h-3.5 w-3.5" />,
-          onClick: () => updateStatus.mutate({ id: s.id, status: "completed" }),
-        },
-        {
-          label: "Mark no-show",
-          icon: <UserX className="h-3.5 w-3.5" />,
-          onClick: () => updateStatus.mutate({ id: s.id, status: "no_show" }),
-        },
         {
           label: "Cancel session",
           icon: <X className="h-3.5 w-3.5" />,
@@ -536,7 +549,7 @@ const MentorSessions = () => {
     <>
       {nextSession.meeting_url ? (
         <Button asChild size="lg">
-          <a href={nextSession.meeting_url} target="_blank" rel="noreferrer">
+          <a href={safeHttpUrl(nextSession.meeting_url)} target="_blank" rel="noreferrer">
             <Video className="mr-2 h-4 w-4" /> Join now
           </a>
         </Button>

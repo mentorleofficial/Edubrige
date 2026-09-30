@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeFn } from "@/lib/functionError";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,7 +67,11 @@ const JwtSettings = () => {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("jwt_config").select("*").limit(1).single();
+      const { data, error } = await supabase.from("jwt_config").select("*").limit(1).single();
+      if (error) {
+        toast({ variant: "destructive", title: "Couldn't load JWT settings", description: error.message });
+        return;
+      }
       if (data) {
         const row = data as unknown as JwtRow;
         setOriginal(row);
@@ -117,15 +122,14 @@ const JwtSettings = () => {
     if (!testToken.trim()) return;
     setTesting(true);
     setTestResult(null);
-    const { data, error } = await supabase.functions.invoke("validate-jwt-config", {
-      body: { token: testToken.trim() },
-    });
-    setTesting(false);
-    if (error) {
-      setTestResult({ ok: false, errors: [error.message] });
-      return;
+    try {
+      const data = await invokeFn("validate-jwt-config", { body: { token: testToken.trim() } });
+      setTestResult(data);
+    } catch (e) {
+      setTestResult({ ok: false, errors: [(e as Error).message] });
+    } finally {
+      setTesting(false);
     }
-    setTestResult(data);
   };
 
   if (!draft) return <div className="text-muted-foreground text-sm">Loading JWT config…</div>;

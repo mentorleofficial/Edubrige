@@ -2,6 +2,7 @@ import { formatISTDate } from "@/lib/datetime";
 import { ensureAbsoluteUrl } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeFn } from "@/lib/functionError";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,8 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
   const [inputText, setInputText] = useState("");
   const [busy, setBusy] = useState(false);
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
+  const [resumeError, setResumeError] = useState(false);
+  const [resumeReloadKey, setResumeReloadKey] = useState(0);
 
   const [isLoadingResume, setIsLoadingResume] = useState(false);
 
@@ -36,9 +39,11 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
     const fetchResume = async () => {
       if (!open || !application?.resume_url) {
         setResumeUrl(null);
+        setResumeError(false);
         return;
       }
       setIsLoadingResume(true);
+      setResumeError(false);
       try {
         const { data, error } = await supabase.storage
           .from("mentor-resumes")
@@ -49,6 +54,7 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
         }
       } catch (err: any) {
         console.error("Failed to load resume signed URL:", err);
+        if (active) setResumeError(true);
       } finally {
         if (active) setIsLoadingResume(false);
       }
@@ -57,7 +63,7 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
     return () => {
       active = false;
     };
-  }, [open, application?.resume_url]);
+  }, [open, application?.resume_url, resumeReloadKey]);
 
   const handleAction = async () => {
     if (!application || !selectedAction) return;
@@ -78,28 +84,22 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
       const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined;
 
       if (selectedAction === "approve") {
-        const { data, error } = await supabase.functions.invoke("approve-mentor-application", {
+        await invokeFn("approve-mentor-application", {
           body: { application_id: application.id, admin_notes: inputText.trim() || null },
           headers,
         });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
         toast({ title: "Application approved", description: "Mentor account activated." });
       } else if (selectedAction === "reject") {
-        const { data, error } = await supabase.functions.invoke("reject-mentor-application", {
+        await invokeFn("reject-mentor-application", {
           body: { application_id: application.id, rejection_reason: inputText.trim() },
           headers,
         });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
         toast({ title: "Application rejected" });
       } else if (selectedAction === "changes") {
-        const { data, error } = await supabase.functions.invoke("request-application-changes", {
+        await invokeFn("request-application-changes", {
           body: { application_id: application.id, changes_feedback: inputText.trim() },
           headers,
         });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
         toast({ title: "Changes requested from mentor" });
       }
 
@@ -188,17 +188,26 @@ const ApplicationDetailDialog = ({ application, open, onOpenChange, onUpdated }:
           </div>
 
           {application.resume_url && (
-            <Button variant="outline" size="sm" asChild disabled={isLoadingResume || !resumeUrl}>
-              {resumeUrl ? (
-                <a href={resumeUrl} target="_blank" rel="noopener noreferrer">
-                  <FileText className="mr-2 h-4 w-4" />Open Resume
-                </a>
-              ) : (
-                <span className="flex items-center">
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading Resume...
-                </span>
-              )}
-            </Button>
+            resumeError ? (
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => setResumeReloadKey((k) => k + 1)}>
+                  <RefreshCw className="mr-2 h-4 w-4" />Retry
+                </Button>
+                <span className="text-sm text-destructive">Resume unavailable</span>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" asChild disabled={isLoadingResume || !resumeUrl}>
+                {resumeUrl ? (
+                  <a href={resumeUrl} target="_blank" rel="noopener noreferrer">
+                    <FileText className="mr-2 h-4 w-4" />Open Resume
+                  </a>
+                ) : (
+                  <span className="flex items-center">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading Resume...
+                  </span>
+                )}
+              </Button>
+            )
           )}
 
           {application.status === "rejected" && application.rejection_reason && (

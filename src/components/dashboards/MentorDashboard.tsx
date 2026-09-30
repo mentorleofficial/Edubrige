@@ -31,7 +31,7 @@ const MentorDashboard = () => {
   const { user, profile, isApproved, profileCompleteness } = useAuth();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { data, isLoading } = useMentorDashboardData(user?.id);
+  const { data, isLoading, isError, refetch } = useMentorDashboardData(user?.id);
   const { data: programs = [] } = useMyPrograms();
   const { data: badges = [] } = useMentorBadges(user?.id);
 
@@ -118,7 +118,11 @@ const MentorDashboard = () => {
     );
     const completed = sessions.filter((s) => s.status === "completed");
     const hours = completed.reduce((sum, s) => sum + (s.duration_minutes || 0), 0) / 60;
-    const ratings = (data?.feedback ?? []).map((f) => f.rating);
+    // Only ratings the mentor *received* (audience "mentor", and not self-submitted)
+    // count towards their average — not the ratings they gave their mentees.
+    const ratings = (data?.feedback ?? [])
+      .filter((f) => f.audience === "mentor" && f.submitted_by !== user?.id)
+      .map((f) => f.rating);
     const avg = ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null;
     const next = upcoming.sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))[0] ?? null;
     const mentees = new Set(sessions.map((s) => s.mentee_id)).size;
@@ -130,9 +134,22 @@ const MentorDashboard = () => {
       next,
       mentees,
     };
-  }, [data]);
+  }, [data, user?.id]);
 
   const firstName = profile?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "there";
+
+  if (isError && !data) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Couldn't load your dashboard</AlertTitle>
+        <AlertDescription className="space-y-2">
+          <div>Something went wrong while loading your sessions and ratings.</div>
+          <Button size="sm" variant="outline" onClick={() => refetch()}>Try again</Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
 
   if (isLoading || !data) {
     return (

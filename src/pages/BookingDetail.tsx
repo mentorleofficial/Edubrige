@@ -123,12 +123,19 @@ const BookingDetail = () => {
 
   const handleSaveDetails = async () => {
     if (!booking) return;
+    // Only accept a real http(s) URL as the meeting link — this value is rendered
+    // as a clickable link to the mentee, so a javascript:/other scheme is rejected.
+    const link = displayMeetingUrl.trim();
+    if (link && !/^https?:\/\/\S+$/i.test(link)) {
+      toast({ variant: "destructive", title: "Invalid meeting link", description: "Enter a full URL starting with http:// or https://" });
+      return;
+    }
     setSavingDetails(true);
     try {
       await updateDetails.mutateAsync({
         id: booking.id,
         notes: displayNotes,
-        meeting_url: displayMeetingUrl,
+        meeting_url: link,
       });
       setMeetingUrl(null);
       setNotes(null);
@@ -351,9 +358,9 @@ const BookingDetail = () => {
                     onChange={(e) => setMeetingUrl(e.target.value)}
                   />
                 </div>
-                {displayMeetingUrl && (
+                {/^https?:\/\/\S+$/i.test(displayMeetingUrl.trim()) && (
                   <a
-                    href={displayMeetingUrl}
+                    href={displayMeetingUrl.trim()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
@@ -520,23 +527,28 @@ const BookingDetail = () => {
           {/* Status actions — only for booked */}
           {booking.status === "booked" && (
             <div className="flex flex-wrap gap-2 sm:justify-end">
-              <Button
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white flex-1 sm:flex-none"
-                disabled={updateStatus.isPending}
-                onClick={handleMarkCompleted}
-              >
-                <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Mark completed
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="flex-1 sm:flex-none"
-                disabled={updateStatus.isPending}
-                onClick={handleMarkNoShow}
-              >
-                <UserX className="h-3.5 w-3.5 mr-1.5" /> No-show
-              </Button>
+              {/* Completed / no-show only once the session has started. */}
+              {new Date(booking.scheduled_at).getTime() <= Date.now() && (
+                <>
+                  <Button
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white flex-1 sm:flex-none"
+                    disabled={updateStatus.isPending}
+                    onClick={handleMarkCompleted}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Mark completed
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 sm:flex-none"
+                    disabled={updateStatus.isPending}
+                    onClick={handleMarkNoShow}
+                  >
+                    <UserX className="h-3.5 w-3.5 mr-1.5" /> No-show
+                  </Button>
+                </>
+              )}
               <Button
                 size="sm"
                 variant="outline"

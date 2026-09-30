@@ -21,6 +21,9 @@ import {
   CheckCircle2,
   Clock,
 } from "lucide-react";
+import StoredFileLink from "@/components/StoredFileLink";
+
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 import { useToast } from "@/hooks/use-toast";
 import {
   useSessionActionItems,
@@ -97,6 +100,10 @@ export default function SessionActionItemsPanel({
   const handleAdd = async () => {
     const t = newTitle.trim();
     if (!t) return;
+    if (newFiles.some((f) => f.size > MAX_ATTACHMENT_BYTES)) {
+      toast({ variant: "destructive", title: "File too large", description: "Attachments can be at most 10 MB." });
+      return;
+    }
     try {
       let uploadedAttachments: { name: string; url: string }[] = [];
       if (newFiles.length > 0) {
@@ -195,6 +202,10 @@ export default function SessionActionItemsPanel({
     files: FileList | null
   ) => {
     if (!files || files.length === 0) return;
+    if (Array.from(files).some((f) => f.size > MAX_ATTACHMENT_BYTES)) {
+      toast({ variant: "destructive", title: "File too large", description: "Attachments can be at most 10 MB." });
+      return;
+    }
     setIsUploading(item.id);
     try {
       // Pre-flight check for mentees to handle race condition when mentor toggles it off
@@ -393,21 +404,20 @@ export default function SessionActionItemsPanel({
                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-background border shadow-xs">
                               {getFileIcon(att.name)}
                             </div>
-                            <a href={att.url} target="_blank" rel="noreferrer" className="font-medium hover:underline text-foreground truncate flex-1 min-w-0 max-w-[130px] sm:max-w-[170px]" title={att.name}>
+                            <StoredFileLink bucket="session-attachments" value={att.url} className="font-medium hover:underline text-foreground truncate flex-1 min-w-0 max-w-[130px] sm:max-w-[170px]" title={att.name}>
                               {att.name}
-                            </a>
+                            </StoredFileLink>
                           </div>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <a
-                              href={att.url}
-                              download
-                              target="_blank"
-                              rel="noreferrer"
+                            <StoredFileLink
+                              bucket="session-attachments"
+                              value={att.url}
+                              downloadName={att.name}
                               className="flex h-6 w-6 items-center justify-center rounded hover:bg-background text-muted-foreground hover:text-foreground transition-colors border shadow-xs"
                               title="Download file"
                             >
                               <Download className="h-3.5 w-3.5" />
-                            </a>
+                            </StoredFileLink>
                             {canEdit && (
                               <button
                                 type="button"
@@ -436,21 +446,20 @@ export default function SessionActionItemsPanel({
                             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-background border shadow-xs">
                               {getFileIcon(att.name)}
                             </div>
-                            <a href={att.url} target="_blank" rel="noreferrer" className="font-medium hover:underline text-foreground truncate flex-1 min-w-0 max-w-[130px] sm:max-w-[170px]" title={att.name}>
+                            <StoredFileLink bucket="session-attachments" value={att.url} className="font-medium hover:underline text-foreground truncate flex-1 min-w-0 max-w-[130px] sm:max-w-[170px]" title={att.name}>
                               {att.name}
-                            </a>
+                            </StoredFileLink>
                           </div>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <a
-                              href={att.url}
-                              download
-                              target="_blank"
-                              rel="noreferrer"
+                            <StoredFileLink
+                              bucket="session-attachments"
+                              value={att.url}
+                              downloadName={att.name}
                               className="flex h-6 w-6 items-center justify-center rounded hover:bg-background text-muted-foreground hover:text-foreground transition-colors border shadow-xs"
                               title="Download file"
                             >
                               <Download className="h-3.5 w-3.5" />
-                            </a>
+                            </StoredFileLink>
                             {!canEdit && (
                               <button
                                 type="button"

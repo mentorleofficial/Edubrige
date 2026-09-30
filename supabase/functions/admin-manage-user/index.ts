@@ -9,13 +9,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-type Action = "create" | "disable" | "restore" | "delete" | "bulk_invite" | "resend_invite";
+type Action = "create" | "disable" | "restore" | "delete" | "bulk_invite" | "resend_invite" | "list_pending_invites";
 type AppRole = "admin" | "mentor" | "mentee";
 type Mode = "invite" | "password";
 
-// "invite" only works for an address with no auth user yet; resending to someone
-// already created has to go out as a recovery link.
-type InviteLinkType = "invite" | "recovery";
+// Re-inviting an address that was invited but never accepted is allowed by
+// GoTrue: it reuses the same user and invalidates the previous link. Once the
+// invite is accepted, a re-invite is refused ("already registered").
 
 interface BulkRow {
   email?: string;
@@ -125,12 +125,13 @@ async function inviteOne(
   email: string,
   full_name: string,
   role: AppRole,
-  linkType: InviteLinkType = "invite",
+  opts: { resend?: boolean } = {},
 ): Promise<{ ok: boolean; userId: string | null; error?: string }> {
+  const isResend = !!opts.resend;
   const redirectUrl = joinUrl(ctx.appUrl, "reset-password");
 
   const { data: linkData, error: inviteErr } = await ctx.admin.auth.admin.generateLink({
-    type: linkType,
+    type: "invite",
     email,
     options: { data: { full_name, role }, redirectTo: redirectUrl },
   });
@@ -144,11 +145,18 @@ async function inviteOne(
   // ever clicks. Our page redeems the token from JS on a real user click.
   const acceptUrl =
     `${redirectUrl}?token_hash=${encodeURIComponent(linkData.properties.hashed_token)}` +
-    `&type=${encodeURIComponent(linkType)}`;
+    `&type=invite`;
 
   const userId = linkData.user?.id ?? null;
+
+  // Stamp the authoritative role into app_metadata (service-role only), so when
+  // the invitee confirms their email the role is honoured even for 'admin'.
+  // handle_new_user only trusts user_metadata for mentor/mentee.
+  if (userId) {
+    await ctx.admin.auth.admin.updateUserById(userId, { app_metadata: { role } }).catch(() => {});
+  }
+
   const appName = ctx.branding.appName;
-  const isResend = linkType === "recovery";
   const html = renderEmail({
     branding: ctx.branding,
     heading: isResend
@@ -157,7 +165,7 @@ async function inviteOne(
     intro: isResend
       ? `Hello ${escapeHtml(full_name)}, here is a fresh link to finish setting up your <strong>${escapeHtml(appName)}</strong> account as a <strong>${escapeHtml(role)}</strong>. Any earlier invitation link is no longer valid.`
       : `Hello ${escapeHtml(full_name)}, you have been invited to join <strong>${escapeHtml(appName)}</strong> as a <strong>${escapeHtml(role)}</strong>. Use the button below to accept the invitation and set your password.`,
-    cta: { label: isResend ? "Set your password" : "Accept invitation", url: acceptUrl },
+    cta: { label: "Accept invitation", url: acceptUrl },
     note: "This link can only be used once. If you were not expecting this invitation you can safely ignore this email.",
   });
 
@@ -183,13 +191,20 @@ async function inviteOne(
     return { ok: false, userId, error: `Brevo error ${res.status}: ${text}` };
   }
 
-  if (role === "mentor" && !isResend) {
+  // Re-inviting someone still pending (resend, or the same address in a later
+  // CSV) must not create a second placeholder application.
+  const { count: existingApps } = await ctx.admin
+    .from("mentor_applications")
+    .select("id", { count: "exact", head: true })
+    .eq("email", email.toLowerCase());
+  if (role === "mentor" && !isResend && !existingApps) {
+    // 'invited' (not 'changes_requested') so the mentor's dashboard shows
+    // onboarding wording rather than "the admin reviewed and requested changes".
     const { error: appErr } = await ctx.admin.from("mentor_applications").insert({
       full_name,
-      email,
+      email: email.toLowerCase(),
       bio: "",
-      status: "changes_requested",
-      changes_feedback: "Please complete your profile details to submit for review.",
+      status: "invited",
     });
     if (appErr) console.error("Failed to create placeholder mentor application:", appErr);
   }
@@ -277,18 +292,19 @@ Deno.serve(async (req) => {
           password,
           email_confirm: true,
           user_metadata: { full_name, role },
+          app_metadata: { role },
         });
         if (error) return json({ error: error.message }, 400);
         userId = data.user?.id ?? null;
 
-        // If the created user is a mentor, create a placeholder application in changes_requested status
+        // If the created user is a mentor, create a placeholder application in the
+        // 'invited' state so their dashboard shows onboarding, not review, wording.
         if (role === "mentor") {
           const { error: appErr } = await admin.from("mentor_applications").insert({
             full_name,
-            email,
+            email: email.toLowerCase(),
             bio: "",
-            status: "changes_requested",
-            changes_feedback: "Please complete your profile details to submit for review.",
+            status: "invited",
           });
           if (appErr) {
             console.error("Failed to create placeholder mentor application:", appErr);
@@ -311,29 +327,52 @@ Deno.serve(async (req) => {
       return json({ ok: true, user_id: userId, mode });
     }
 
+    if (action === "list_pending_invites") {
+      const pending: { id: string; email: string; full_name: string; role: string; invited_at: string | null }[] = [];
+      for (let page = 1; page <= 50; page++) {
+        const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+        if (error) return json({ error: error.message }, 500);
+        for (const u of data.users) {
+          if (u.email_confirmed_at || !u.invited_at) continue;
+          const meta = (u.user_metadata ?? {}) as { full_name?: string; role?: string };
+          const app = (u.app_metadata ?? {}) as { role?: string };
+          pending.push({
+            id: u.id,
+            email: u.email ?? "",
+            full_name: meta.full_name ?? "",
+            role: app.role ?? meta.role ?? "mentee",
+            invited_at: u.invited_at ?? null,
+          });
+        }
+        if (data.users.length < 1000) break;
+      }
+      pending.sort((a, b) => (b.invited_at ?? "").localeCompare(a.invited_at ?? ""));
+      return json({ ok: true, invites: pending });
+    }
+
     if (action === "resend_invite") {
       const userId = (body.user_id ?? "").trim();
       if (!userId) return json({ error: "user_id is required" }, 400);
 
-      const { data: target, error: targetErr } = await admin
-        .from("users")
-        .select("id, email, full_name, role")
-        .eq("id", userId)
-        .maybeSingle();
-      if (targetErr) return json({ error: targetErr.message }, 500);
-      if (!target?.email) return json({ error: "User not found" }, 404);
-
-      const { data: authUser } = await admin.auth.admin.getUserById(userId);
-      if (authUser?.user?.email_confirmed_at) {
+      // Pending invitees have no public.users row yet (it is created when they
+      // accept), so the target is read from auth directly.
+      const { data: authData, error: authErr } = await admin.auth.admin.getUserById(userId);
+      if (authErr || !authData?.user?.email) return json({ error: "Invitation not found" }, 404);
+      const au = authData.user;
+      if (au.email_confirmed_at) {
         return json({ error: "This user has already accepted their invitation" }, 400);
       }
-
-      const role = (target.role ?? "mentee") as AppRole;
+      const target = {
+        email: au.email as string,
+        full_name: ((au.user_metadata ?? {}) as { full_name?: string }).full_name ?? "",
+      };
+      const claimed = ((au.app_metadata ?? {}) as { role?: string }).role ?? ((au.user_metadata ?? {}) as { role?: string }).role;
+      const role = (["admin", "mentor", "mentee"].includes(claimed ?? "") ? claimed : "mentee") as AppRole;
 
       const ctx = await buildInviteCtx(admin, req);
       if ("error" in ctx) return json({ error: ctx.error }, 500);
 
-      const result = await inviteOne(ctx, target.email, target.full_name ?? "", role, "recovery");
+      const result = await inviteOne(ctx, target.email, target.full_name, role, { resend: true });
       if (!result.ok) return json({ error: result.error }, 400);
 
       await admin.from("audit_logs").insert({
@@ -489,6 +528,13 @@ Deno.serve(async (req) => {
         })
         .eq("id", targetId);
       if (updErr) return json({ error: updErr.message }, 400);
+
+      // Actually block sign-in: flip the flag AND ban/unban the auth user so
+      // existing sessions cannot keep operating and the user cannot log back in.
+      const { error: banErr } = await admin.auth.admin.updateUserById(targetId, {
+        ban_duration: disabling ? "876000h" : "none",
+      });
+      if (banErr) console.error("Failed to update auth ban state:", banErr.message);
 
       await admin.from("audit_logs").insert({
         user_id: callerId,
