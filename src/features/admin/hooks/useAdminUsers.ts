@@ -5,6 +5,7 @@ import {
   type BulkInviteRow,
   type FetchUsersParams,
   type FetchUsersResult,
+  type PendingInvitesParams,
   type RoleFilter,
   type StatusFilter,
   type AppRole,
@@ -106,11 +107,12 @@ export function useDeleteUser() {
 
 export const pendingInvitesKey = ["admin", "users", "pending-invites"] as const;
 
-export function usePendingInvites() {
+export function usePendingInvites(params: PendingInvitesParams) {
   return useQuery({
-    queryKey: pendingInvitesKey,
-    queryFn: listPendingInvites,
+    queryKey: [...pendingInvitesKey, params.page, params.pageSize, params.role, params.search ?? ""],
+    queryFn: () => listPendingInvites(params),
     staleTime: 30_000,
+    placeholderData: (prev) => prev,
   });
 }
 

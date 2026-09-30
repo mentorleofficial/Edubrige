@@ -163,14 +163,17 @@ const BookingCard = ({
 
             {booking.status === "booked" && (
               <>
-                <Button
-                  size="sm"
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                  disabled={isUpdating}
-                  onClick={() => onUpdateStatus(booking.id, "completed")}
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Mark completed
-                </Button>
+                {/* Completed only once the session has started. */}
+                {new Date(booking.scheduled_at).getTime() <= Date.now() && (
+                  <Button
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={isUpdating}
+                    onClick={() => onUpdateStatus(booking.id, "completed")}
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Mark completed
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"

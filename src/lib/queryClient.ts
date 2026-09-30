@@ -21,6 +21,7 @@ export const queryClient = new QueryClient({
         endDeactivatedSession();
         return;
       }
+      if (query.meta?.silent) return;
       // Only surface a toast when a component is actively observing this query
       if (query.state.data !== undefined) {
         handleError(error, "Failed to refresh data");

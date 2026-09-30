@@ -175,9 +175,25 @@ export type PendingInvite = {
 
 // Invitations that haven't been accepted yet. These people have no profile row
 // until they accept, so they never appear in the regular Users list.
-export async function listPendingInvites(): Promise<PendingInvite[]> {
-  const data = (await invokeAdmin({ action: "list_pending_invites" })) as { invites?: PendingInvite[] };
-  return data?.invites ?? [];
+export type PendingInvitesParams = {
+  page: number;
+  pageSize: number;
+  role: RoleFilter;
+  search?: string;
+};
+
+export async function listPendingInvites(
+  params: PendingInvitesParams,
+): Promise<{ rows: PendingInvite[]; total: number }> {
+  const data = (await invokeAdmin({
+    action: "list_pending_invites",
+    page: params.page,
+    page_size: params.pageSize,
+    role: params.role === "all" ? undefined : params.role,
+    search: params.search || undefined,
+  })) as { invites?: PendingInvite[]; total?: number };
+  const rows = data?.invites ?? [];
+  return { rows, total: data?.total ?? rows.length };
 }
 
 export async function resendInvite(userId: string) {

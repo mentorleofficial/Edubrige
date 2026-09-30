@@ -30,6 +30,10 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) }) },
 }));
 
+vi.mock("@/hooks/useStoredFileUrl", () => ({
+  useStoredFileUrl: () => null,
+}));
+
 vi.mock("@/features/mentee-onboarding/hooks/useMenteeProfileStatus", () => ({
   useMenteeProfile: () => ({
     // A realistic onboarded mentee: onboarding guarantees goals/interests/areas,

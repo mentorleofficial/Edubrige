@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { openStoredFile } from "@/lib/storedFile";
+import { useStoredFileUrl } from "@/hooks/useStoredFileUrl";
 import { handleError } from "@/lib/handleError";
 import { validPhone } from "@/features/mentor-profile/schema";
 import { useAuth } from "@/contexts/AuthContext";
@@ -144,6 +145,7 @@ const MenteeProfile = () => {
   const [preferredMentorQualities, setPreferredMentorQualities] = useState<string[]>([]);
   const [instagram, setInstagram] = useState("");
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
+  const resumeHref = useStoredFileUrl("mentee-resumes", resumeUrl);
 
   const [originalData, setOriginalData] = useState<any>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -1099,6 +1101,7 @@ const MenteeProfile = () => {
             {/* Resume */}
             <ResumeUploadCard
               hasResume={!!resumeUrl}
+              viewHref={resumeHref}
               onView={resumeUrl ? () => { openStoredFile("mentee-resumes", resumeUrl).catch((e) => handleError(e, "Couldn't open your resume")); } : undefined}
               uploading={uploadingResume}
               onSelectFile={handleResumeUpload}

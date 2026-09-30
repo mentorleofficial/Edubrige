@@ -60,7 +60,11 @@ const AdminUsers = () => {
     return () => clearTimeout(t);
   }, [searchInput]);
 
+  const [view, setView] = useState<"users" | "invites">("users");
+  const [invitePage, setInvitePage] = useState(0);
+
   useEffect(() => { setPage(0); }, [roleFilter, statusFilter, search]);
+  useEffect(() => { setInvitePage(0); }, [roleFilter, search]);
 
   const queryParams = { page, pageSize: PAGE_SIZE, role: roleFilter, status: statusFilter, search };
   const { data, isLoading, isFetching } = useAdminUsers(queryParams);
@@ -69,7 +73,7 @@ const AdminUsers = () => {
   const disableMutation = useSetUserDisabled();
   const deleteMutation = useDeleteUser();
   const resendMutation = useResendInvite();
-  const pendingInvites = usePendingInvites();
+  const pendingInvites = usePendingInvites({ page: invitePage, pageSize: PAGE_SIZE, role: roleFilter, search });
   const [resendingId, setResendingId] = useState<string | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -85,6 +89,14 @@ const AdminUsers = () => {
   const rows = data?.rows ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const invites = pendingInvites.data?.rows ?? [];
+  const inviteTotal = pendingInvites.data?.total ?? 0;
+  const inviteTotalPages = Math.max(1, Math.ceil(inviteTotal / PAGE_SIZE));
+
+  // A refetch can empty the last page (an invite was accepted, or resent and moved to the top).
+  useEffect(() => {
+    if (invitePage > 0 && invitePage >= inviteTotalPages) setInvitePage(inviteTotalPages - 1);
+  }, [invitePage, inviteTotalPages]);
 
   // Search now runs server-side across all users (see fetchAdminUsers), so the
   // rows returned are already the matches for the current page.
@@ -176,7 +188,9 @@ const AdminUsers = () => {
           <div>
             <h1 className="text-2xl font-bold">Users</h1>
             <p className="text-base text-muted-foreground mt-1">
-              {total} {total === 1 ? "user" : "users"} · {statusFilter}
+              {view === "users"
+                ? `${total} ${total === 1 ? "user" : "users"} · ${statusFilter}`
+                : `${inviteTotal} pending ${inviteTotal === 1 ? "invitation" : "invitations"}`}
             </p>
           </div>
           <DropdownMenu>
@@ -258,6 +272,16 @@ const AdminUsers = () => {
           </Dialog>
         </div>
 
+        <Tabs value={view} onValueChange={(v) => setView(v as "users" | "invites")}>
+          <TabsList>
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="invites" className="gap-2">
+              Pending invites
+              <Badge variant="secondary" className="h-5 px-1.5">{inviteTotal}</Badge>
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -277,16 +301,20 @@ const AdminUsers = () => {
               <SelectItem value="mentee">Mentee</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-            <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="disabled">Deactivated</SelectItem>
-              <SelectItem value="all">All</SelectItem>
-            </SelectContent>
-          </Select>
+          {view === "users" && (
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+              <SelectTrigger className="w-full sm:w-[160px]"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="disabled">Deactivated</SelectItem>
+                <SelectItem value="all">All</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
         </div>
 
+        {view === "users" ? (
+        <>
         <Card>
           <CardContent className="p-0 overflow-x-auto">
             <Table>
@@ -401,67 +429,94 @@ const AdminUsers = () => {
             </Button>
           </div>
         </div>
-
+        </>
+        ) : (
+        <>
         {/* Invited users only get a profile row once they accept, so they are
             listed here (read from auth) — this is where invites are resent. */}
+        <p className="text-sm text-muted-foreground -mt-2">
+          Invited but not accepted yet. Resending sends a fresh link and cancels the previous one.
+        </p>
         <Card>
-          <CardContent className="p-0">
-            <div className="flex items-center justify-between px-4 py-3 border-b">
-              <div>
-                <h2 className="font-semibold">Pending invitations</h2>
-                <p className="text-xs text-muted-foreground">
-                  Invited but not accepted yet. Resending sends a fresh link and cancels the previous one.
-                </p>
-              </div>
-              <Badge variant="secondary">{pendingInvites.data?.length ?? 0}</Badge>
-            </div>
-            {pendingInvites.isLoading ? (
-              <div className="p-4 space-y-2"><Skeleton className="h-8 w-full" /><Skeleton className="h-8 w-full" /></div>
-            ) : pendingInvites.isError ? (
-              <div className="p-4 text-sm text-destructive flex items-center gap-3">
-                Couldn't load pending invitations.
-                <Button size="sm" variant="outline" onClick={() => pendingInvites.refetch()}>Try again</Button>
-              </div>
-            ) : (pendingInvites.data?.length ?? 0) === 0 ? (
-              <p className="p-4 text-sm text-muted-foreground">No pending invitations.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Invited</TableHead>
-                      <TableHead className="text-right">Action</TableHead>
+          <CardContent className="p-0 overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Invited</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingInvites.isLoading ? (
+                  Array.from({ length: 6 }).map((_, i) => (
+                    <TableRow key={`isk-${i}`}>
+                      {Array.from({ length: 5 }).map((__, j) => (
+                        <TableCell key={j}><Skeleton className="h-4 w-24" /></TableCell>
+                      ))}
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pendingInvites.data!.map((inv) => (
-                      <TableRow key={inv.id}>
-                        <TableCell className="font-medium">{inv.full_name || "—"}</TableCell>
-                        <TableCell>{inv.email}</TableCell>
-                        <TableCell><Badge variant="outline" className="capitalize">{inv.role}</Badge></TableCell>
-                        <TableCell className="text-muted-foreground">{inv.invited_at ? formatISTDate(inv.invited_at) : "—"}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={resendingId === inv.id}
-                            onClick={() => handleResendInvite(inv.id, inv.email)}
-                          >
-                            {resendingId === inv.id && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
-                            Resend invitation
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+                  ))
+                ) : pendingInvites.isError ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-12">
+                      <div className="flex items-center justify-center gap-3 text-sm text-destructive">
+                        Couldn't load pending invitations.
+                        <Button size="sm" variant="outline" onClick={() => pendingInvites.refetch()}>Try again</Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : invites.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                      {search || roleFilter !== "all" ? "No pending invitations match your filters" : "No pending invitations"}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  invites.map((inv) => (
+                    <TableRow key={inv.id}>
+                      <TableCell className="font-medium">{inv.full_name || "—"}</TableCell>
+                      <TableCell className="text-muted-foreground">{inv.email}</TableCell>
+                      <TableCell>
+                        <Badge variant={roleBadgeVariant(inv.role as AppRole)}>{inv.role}</Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{inv.invited_at ? formatISTDate(inv.invited_at) : "—"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={resendingId === inv.id}
+                          onClick={() => handleResendInvite(inv.id, inv.email)}
+                        >
+                          {resendingId === inv.id && <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />}
+                          Resend invitation
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
+
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            Page {invitePage + 1} of {inviteTotalPages}
+            {pendingInvites.isFetching && !pendingInvites.isLoading && " · refreshing…"}
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setInvitePage((p) => Math.max(0, p - 1))} disabled={invitePage === 0 || pendingInvites.isLoading}>
+              Previous
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setInvitePage((p) => p + 1)} disabled={invitePage + 1 >= inviteTotalPages || pendingInvites.isLoading}>
+              Next
+            </Button>
+          </div>
+        </div>
+        </>
+        )}
       </div>
 
       <Dialog open={!!detailsUser} onOpenChange={(o) => { if (!o) setDetailsUser(null); }}>

@@ -36,6 +36,10 @@ interface Payload {
   // bulk_invite
   rows?: BulkRow[];
   filename?: string;
+  // list_pending_invites
+  page?: number;
+  page_size?: number;
+  search?: string;
 }
 
 const MAX_PER_UPLOAD = 20;
@@ -346,8 +350,20 @@ Deno.serve(async (req) => {
         }
         if (data.users.length < 1000) break;
       }
-      pending.sort((a, b) => (b.invited_at ?? "").localeCompare(a.invited_at ?? ""));
-      return json({ ok: true, invites: pending });
+      const search = String(body.search ?? "").trim().toLowerCase().slice(0, 100);
+      const roleFilter = ["admin", "mentor", "mentee"].includes(body.role ?? "") ? body.role : null;
+      const matches = pending.filter((p) =>
+        (!roleFilter || p.role === roleFilter) &&
+        (!search || p.email.toLowerCase().includes(search) || p.full_name.toLowerCase().includes(search))
+      );
+      matches.sort((a, b) => (b.invited_at ?? "").localeCompare(a.invited_at ?? ""));
+      const pageSize = Math.min(100, Math.max(1, Math.floor(Number(body.page_size) || 25)));
+      const page = Math.max(0, Math.floor(Number(body.page) || 0));
+      return json({
+        ok: true,
+        invites: matches.slice(page * pageSize, (page + 1) * pageSize),
+        total: matches.length,
+      });
     }
 
     if (action === "resend_invite") {
