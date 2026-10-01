@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { SESSION_EXPIRED_MESSAGE } from "@/lib/session";
+import { SESSION_EXPIRED_MESSAGE, isDeactivatedError } from "@/lib/session";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -21,6 +21,8 @@ const Login = () => {
   const [searchParams] = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/dashboard";
   const sessionExpired = searchParams.get("expired") === "1";
+  const profileError = searchParams.get("error") === "profile";
+  const deactivated = searchParams.get("error") === "deactivated";
 
   const safeRedirect = redirectTo.startsWith("/") ? redirectTo : "/dashboard";
 
@@ -41,7 +43,9 @@ const Login = () => {
       toast({
         variant: "destructive",
         title: "Login failed",
-        description: error.message || "Invalid credentials",
+        description: isDeactivatedError(error)
+          ? "This account has been deactivated. Contact your administrator."
+          : error.message || "Invalid credentials",
       });
     } finally {
       setIsLoading(false);
@@ -67,12 +71,22 @@ const Login = () => {
             </div>
           )}
           <CardTitle className="text-2xl">{branding.app_name}</CardTitle>
-          <CardDescription>Sign in to continue guiding learner journeys.</CardDescription>
+          <CardDescription>Sign in to your account to continue.</CardDescription>
         </CardHeader>
         <CardContent>
           {sessionExpired && (
             <Alert className="mb-4">
               <AlertDescription>{SESSION_EXPIRED_MESSAGE}</AlertDescription>
+            </Alert>
+          )}
+          {deactivated && (
+            <Alert className="mb-4" variant="destructive">
+              <AlertDescription>Your account has been deactivated. Contact your administrator if you think this is a mistake.</AlertDescription>
+            </Alert>
+          )}
+          {profileError && (
+            <Alert className="mb-4" variant="destructive">
+              <AlertDescription>We couldn't load your account, so you were signed out. Please sign in again.</AlertDescription>
             </Alert>
           )}
           <form onSubmit={handleSubmit} className="space-y-4">

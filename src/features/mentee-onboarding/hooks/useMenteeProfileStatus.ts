@@ -19,6 +19,9 @@ export function useMenteeProfileStatus(userId: string | undefined) {
     // briefly think the profile is incomplete during auth hydration.
     loading: !userId || q.isPending,
     isComplete: !!q.data?.onboarded_at,
+    // Surfaced so guards can fail open on a transient read error instead of
+    // wrongly bouncing an already-onboarded mentee back into onboarding.
+    error: q.isError,
     data: q.data,
   };
 }

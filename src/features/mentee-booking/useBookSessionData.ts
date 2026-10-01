@@ -180,6 +180,28 @@ export function useBookSession() {
   const qc = useQueryClient();
   return useMutation<BookSessionResult, Error, BookSessionInput>({
     mutationFn: async (input) => {
+      // Reschedule goes through an RPC that cancels the old session and inserts
+      // the new one in a single transaction, so a partial failure cannot leave a
+      // duplicate and moving into the old slot no longer trips the overlap guard.
+      if (input.rescheduleId) {
+        const { data, error } = await supabase
+          .rpc("reschedule_session", {
+            _old_session_id: input.rescheduleId,
+            _mentor_id: input.mentorId,
+            _scheduled_at: input.scheduledAt.toISOString(),
+            _duration: input.durationMinutes,
+            _notes: input.notes,
+            _title: input.title,
+            _topic: input.topic ?? "",
+            _offering_id: input.offeringId || null,
+            _program_id: input.programId || null,
+          })
+          .single();
+        if (error || !data) throw error || new Error("Reschedule failed");
+        const row = data as { session_id: string; meeting_url: string };
+        return { sessionId: row.session_id, meetingUrl: row.meeting_url };
+      }
+
       const meetingId =
         globalThis.crypto?.randomUUID?.() ??
         `${Date.now()}-${Math.random().toString(36).slice(2)}${Math.random().toString(36).slice(2)}`;
@@ -198,23 +220,10 @@ export function useBookSession() {
           meeting_url: meetingUrl,
           offering_id: input.offeringId || null,
           program_id: input.programId || null,
-          rescheduled_from_id: input.rescheduleId || null,
         })
         .select("id")
         .single();
       if (error || !inserted) throw error || new Error("Insert failed");
-
-      if (input.rescheduleId) {
-        await supabase
-          .from("sessions")
-          .update({
-            status: "cancelled",
-            cancelled_by: input.menteeId,
-            cancelled_at: new Date().toISOString(),
-            cancellation_reason: "Rescheduled",
-          })
-          .eq("id", input.rescheduleId);
-      }
 
       return { sessionId: inserted.id, meetingUrl };
     },

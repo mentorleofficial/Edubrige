@@ -23,6 +23,7 @@ export type FetchUsersParams = {
   pageSize: number;
   role: RoleFilter;
   status?: StatusFilter;
+  search?: string;
 };
 
 export type FetchUsersResult = {
@@ -35,6 +36,7 @@ export async function fetchAdminUsers({
   pageSize,
   role,
   status = "active",
+  search,
 }: FetchUsersParams): Promise<FetchUsersResult> {
   const from = page * pageSize;
   const to = from + pageSize - 1;
@@ -51,6 +53,13 @@ export async function fetchAdminUsers({
   if (role !== "all") query = query.eq("role", role);
   if (status === "active") query = query.eq("is_disabled", false);
   else if (status === "disabled") query = query.eq("is_disabled", true);
+
+  // Search across the whole result set, not just the current page. Strip
+  // characters that would break the PostgREST or() filter grammar.
+  const term = (search ?? "").trim().replace(/[,()%*]/g, " ").trim();
+  if (term) {
+    query = query.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`);
+  }
 
   const { data, error, count } = await query;
   if (error) throw error;
@@ -104,9 +113,12 @@ async function invokeAdmin(body: Record<string, unknown>) {
         .clone()
         .json()
         .catch(() => null);
-      if (payload && typeof payload === "object" && "error" in payload && payload.error) {
-        throw new Error(String((payload as { error: string }).error));
-      }
+      // Functions reply { error }; the gateway replies { message } when a
+      // function is unreachable. Surface either instead of the generic text.
+      const reason = payload && typeof payload === "object"
+        ? (payload as { error?: unknown; message?: unknown }).error ?? (payload as { message?: unknown }).message
+        : null;
+      if (reason) throw new Error(String(reason));
     }
     throw error;
   }
@@ -151,6 +163,37 @@ export async function setUserDisabled(userId: string, disabled: boolean) {
     action: disabled ? "disable" : "restore",
     user_id: userId,
   });
+}
+
+export type PendingInvite = {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+  invited_at: string | null;
+};
+
+// Invitations that haven't been accepted yet. These people have no profile row
+// until they accept, so they never appear in the regular Users list.
+export type PendingInvitesParams = {
+  page: number;
+  pageSize: number;
+  role: RoleFilter;
+  search?: string;
+};
+
+export async function listPendingInvites(
+  params: PendingInvitesParams,
+): Promise<{ rows: PendingInvite[]; total: number }> {
+  const data = (await invokeAdmin({
+    action: "list_pending_invites",
+    page: params.page,
+    page_size: params.pageSize,
+    role: params.role === "all" ? undefined : params.role,
+    search: params.search || undefined,
+  })) as { invites?: PendingInvite[]; total?: number };
+  const rows = data?.invites ?? [];
+  return { rows, total: data?.total ?? rows.length };
 }
 
 export async function resendInvite(userId: string) {

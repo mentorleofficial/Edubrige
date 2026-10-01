@@ -68,8 +68,17 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json();
-    const full_name: string = String(body?.full_name ?? "").trim();
-    const email: string = String(body?.email ?? "").trim();
+    const full_name: string = String(body?.full_name ?? "").trim().slice(0, 100);
+    // The confirmation always goes to the signed-in applicant's own address —
+    // never to an address supplied in the request — so this can't be used to
+    // send platform email to arbitrary people.
+    const email: string = String(u.user.email ?? "").trim().toLowerCase();
+    const requested = String(body?.email ?? "").trim().toLowerCase();
+    if (requested && requested !== email) {
+      return new Response(JSON.stringify({ error: "You can only send this confirmation to your own email address" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (!full_name || !email) {
       return new Response(JSON.stringify({ error: "full_name and email are required" }), {
@@ -79,9 +88,10 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_KEY);
     const { data: branding } = await admin.from("branding").select("*").limit(1).maybeSingle();
-    const appName = branding?.app_name || "Mentorship Platform";
+    const emailBranding = await getEmailBranding(admin, branding);
+    const appName = emailBranding.appName;
 
-    const html = buildHtml(appName, full_name);
+    const html = buildHtml(emailBranding, full_name);
     const subject = `Thank You for Applying to Become a Mentor with ${appName}`;
 
     const res = await fetch("https://api.brevo.com/v3/smtp/email", {

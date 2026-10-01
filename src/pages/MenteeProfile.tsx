@@ -1,4 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
+import { openStoredFile } from "@/lib/storedFile";
+import { useStoredFileUrl } from "@/hooks/useStoredFileUrl";
+import { handleError } from "@/lib/handleError";
+import { validPhone } from "@/features/mentor-profile/schema";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
@@ -141,6 +145,7 @@ const MenteeProfile = () => {
   const [preferredMentorQualities, setPreferredMentorQualities] = useState<string[]>([]);
   const [instagram, setInstagram] = useState("");
   const [resumeUrl, setResumeUrl] = useState<string | null>(null);
+  const resumeHref = useStoredFileUrl("mentee-resumes", resumeUrl);
 
   const [originalData, setOriginalData] = useState<any>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -172,7 +177,7 @@ const MenteeProfile = () => {
       workExperience: d.work_experience ?? [],
       preferredIndustries: d.preferred_industries ?? [],
       preferredSessionTypes: d.preferred_session_types ?? [],
-      preferredTimeWindows: Array.from(new Set((d.preferred_time_windows ?? []).map(formatTimeWindow))),
+      preferredTimeWindows: Array.from(new Set(((d.preferred_time_windows ?? []) as string[]).map(formatTimeWindow))),
       preferredMentorQualities: d.preferred_mentor_qualities ?? [],
       instagram: d.instagram_url ?? "",
       resumeUrl: d.resume_url ?? null,
@@ -345,10 +350,38 @@ const MenteeProfile = () => {
       return;
     }
 
+    // Keep the profile page in step with the onboarding rules, so a mentee can't
+    // clear required fields below the thresholds they had to meet to sign up.
+    if (fullName.trim().length < 2) {
+      toast({ variant: "destructive", title: "Name too short", description: "Enter your full name (at least 2 characters)." });
+      return;
+    }
+    if (goals.trim().length < 20) {
+      toast({ variant: "destructive", title: "Tell us your goals", description: "Please describe your goals in at least 20 characters." });
+      return;
+    }
+    if (interests.length < 3) {
+      toast({ variant: "destructive", title: "Add more interests", description: "Pick at least 3 interests." });
+      return;
+    }
+    if (areas.length < 1) {
+      toast({ variant: "destructive", title: "Pick a mentor area", description: "Choose at least one preferred mentor area." });
+      return;
+    }
+    if (phone.trim() && !validPhone(phone.trim())) {
+      toast({ variant: "destructive", title: "Invalid phone", description: "Enter a valid phone number, or leave it blank." });
+      return;
+    }
+
     const cleanLinkedin = addProtocol(linkedin);
     const cleanGithub = addProtocol(github);
     const cleanPortfolio = addProtocol(portfolio);
     const cleanInstagram = addProtocol(instagram);
+
+    if (cleanInstagram && !/instagram\.com\//i.test(cleanInstagram)) {
+      toast({ variant: "destructive", title: "Invalid Instagram", description: "Must be an instagram.com/… URL" });
+      return;
+    }
 
     if (cleanLinkedin && !/linkedin\.com\/(in|pub)\//i.test(cleanLinkedin)) {
       toast({ variant: "destructive", title: "Invalid LinkedIn", description: "Must be a linkedin.com/in/… URL" });
@@ -1068,7 +1101,8 @@ const MenteeProfile = () => {
             {/* Resume */}
             <ResumeUploadCard
               hasResume={!!resumeUrl}
-              viewHref={resumeUrl}
+              viewHref={resumeHref}
+              onView={resumeUrl ? () => { openStoredFile("mentee-resumes", resumeUrl).catch((e) => handleError(e, "Couldn't open your resume")); } : undefined}
               uploading={uploadingResume}
               onSelectFile={handleResumeUpload}
               onRemove={handleRemoveResume}

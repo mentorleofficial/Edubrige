@@ -208,8 +208,8 @@ export default function EventForm({
 
   // Get schedule validation error if any
   const getValidationError = () => {
-    if (!formData.title) return "Title is required";
-    if (!formData.description) return "Description is required";
+    if (!formData.title.trim()) return "Title is required";
+    if (!formData.description.trim()) return "Description is required";
 
     if (isMultiSession) {
       if (sessions.length === 0) return "At least one session is required";
@@ -221,12 +221,11 @@ export default function EventForm({
         if (s.start_time >= s.end_time) {
           return `Session ${i + 1} start time must be before end time`;
         }
-        // If creating a new event, verify session date isn't in the past
-        if (!initialData) {
-          const sessionDate = new Date(`${s.date}T00:00:00`);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          if (sessionDate < today) {
+        // If creating a new event, verify the session start isn't in the past
+        // (compared at the minute, not just the date, so "earlier today" fails).
+        if (!initialData && s.start_time) {
+          const sessionStart = new Date(`${s.date}T${s.start_time}`);
+          if (sessionStart < new Date()) {
             return `Session ${i + 1} cannot be scheduled in the past`;
           }
         }
@@ -259,8 +258,9 @@ export default function EventForm({
       }
 
       if (formData.registration_deadline) {
-        const deadline = new Date(`${formData.registration_deadline}T23:59:59`);
-        if (deadline > start) {
+        // Compare dates only, so the message ("before or on the event start
+        // date") matches behaviour — a same-day deadline is allowed.
+        if (formData.registration_deadline > formData.start_date) {
           return "Registration deadline must be before or on the event start date";
         }
       }
@@ -309,6 +309,8 @@ export default function EventForm({
     
     const submitData = {
       ...formData,
+      title: formData.title.trim(),
+      description: formData.description.trim(),
       speaker_linkedin: formData.speaker_linkedin ? cleanUrl(formData.speaker_linkedin) : "",
       speaker_github: formData.speaker_github ? cleanUrl(formData.speaker_github) : "",
       sessions: validSessions

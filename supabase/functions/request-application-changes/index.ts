@@ -71,11 +71,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Look up the existing user (created during apply via signUp)
+    const updateRes = await admin
+      .from("mentor_applications")
+      .update({
+        status: "changes_requested",
+        changes_feedback: changes_feedback,
+        admin_notes: changes_feedback,
+        reviewed_by: userData.user.id,
+        reviewed_at: new Date().toISOString(),
+      })
+      .eq("id", application_id);
+    if (updateRes.error) {
+      return new Response(JSON.stringify({ error: `Failed to request changes: ${updateRes.error.message}` }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Notify only after the status change is saved, so the applicant is never
+    // told about a decision that didn't actually persist.
+    // Look up the existing user (created during apply via signUp). Normalise the
+    // email so the notification reaches the account even if the applicant typed
+    // capitals; auth stores addresses lower-cased.
+    const emailLc = (app.email ?? "").trim().toLowerCase();
     const { data: existing } = await admin
       .from("users")
       .select("id")
-      .eq("email", app.email)
+      .eq("email", emailLc)
       .maybeSingle();
 
     if (existing?.id) {
@@ -87,16 +108,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    await admin
-      .from("mentor_applications")
-      .update({
-        status: "changes_requested",
-        changes_feedback: changes_feedback,
-        admin_notes: changes_feedback,
-        reviewed_by: userData.user.id,
-        reviewed_at: new Date().toISOString(),
-      })
-      .eq("id", application_id);
 
     await admin.from("audit_logs").insert({
       user_id: userData.user.id,

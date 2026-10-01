@@ -44,10 +44,14 @@ type UserUpdate = {
 };
 
 export async function fetchMenteeProfile(userId: string): Promise<MenteeProfileData> {
-  const [{ data: u }, { data: p }] = await Promise.all([
+  const [{ data: u, error: uErr }, { data: p, error: pErr }] = await Promise.all([
     supabase.from("users").select("full_name, email, avatar_url").eq("id", userId).maybeSingle(),
     supabase.from("mentee_profiles").select("*").eq("user_id", userId).maybeSingle(),
   ]);
+  // Surface read failures: returning an empty profile would look "not onboarded"
+  // and bounce an onboarded mentee back into the onboarding wizard.
+  if (uErr) throw uErr;
+  if (pErr) throw pErr;
 
   const profile = p as Record<string, unknown> | null;
   return {
@@ -148,7 +152,9 @@ export async function uploadMenteeResume(userId: string, file: File): Promise<st
 }
 
 export async function uploadMenteeAvatar(userId: string, file: File): Promise<string> {
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const ext = ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" } as Record<string, string>)[file.type];
+  if (!ext) throw new Error("Please choose a JPEG, PNG or WebP image.");
+  if (file.size > 2 * 1024 * 1024) throw new Error("Image must be under 2 MB.");
   const path = `avatars/${userId}/${Date.now()}.${ext}`;
   const { error } = await supabase.storage
     .from("branding-assets")

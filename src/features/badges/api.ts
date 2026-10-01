@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeFn } from "@/lib/functionError";
 
 export type Badge = {
   id: string;
@@ -77,7 +78,8 @@ export function useLeaderboard() {
       const rows = (data ?? []) as Omit<LeaderboardRow, "mentor">[];
       if (!rows.length) return [];
       // list_public_mentors already filters is_active = true — use it as the active-mentor allowlist
-      const { data: users } = await supabase.rpc("list_public_mentors");
+      const { data: users, error: usersErr } = await supabase.rpc("list_public_mentors");
+      if (usersErr) throw usersErr;
       const byId = new Map((users ?? []).map((u: any) => [u.user_id, { id: u.user_id, full_name: u.full_name, avatar_url: u.avatar_url }]));
       // Only include rows whose mentor is in the active list
       return rows
@@ -92,9 +94,7 @@ export function useRefreshEngagement() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke("refresh-mentor-engagement");
-      if (error) throw error;
-      return data;
+      return await invokeFn("refresh-mentor-engagement");
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: leaderboardKey });

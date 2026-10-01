@@ -30,9 +30,22 @@ vi.mock("@/integrations/supabase/client", () => ({
   supabase: { from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null }) }) }) }) },
 }));
 
+vi.mock("@/hooks/useStoredFileUrl", () => ({
+  useStoredFileUrl: () => null,
+}));
+
 vi.mock("@/features/mentee-onboarding/hooks/useMenteeProfileStatus", () => ({
   useMenteeProfile: () => ({
-    data: { id: "mentee-1", full_name: "Ritik Sharma", headline: "Aspiring PM" },
+    // A realistic onboarded mentee: onboarding guarantees goals/interests/areas,
+    // and the profile page now enforces the same minimums (VAL-02).
+    data: {
+      id: "mentee-1",
+      full_name: "Ritik Sharma",
+      headline: "Aspiring PM",
+      goals: "I want to break into product management within the next year.",
+      interests: ["Product", "Design", "Analytics"],
+      preferred_mentor_areas: ["Career Guidance"],
+    },
     isLoading: false,
   }),
   useInvalidateMenteeProfile: () => vi.fn(),

@@ -166,7 +166,11 @@ const BrandingSettings = () => {
 
   useEffect(() => {
     (async () => {
-      const { data } = await supabase.from("branding").select("*").limit(1).single();
+      const { data, error } = await supabase.from("branding").select("*").limit(1).single();
+      if (error) {
+        toast({ variant: "destructive", title: "Couldn't load branding settings", description: error.message });
+        return;
+      }
       if (data) {
         const row = withDefaults(data);
         setOriginal(row);

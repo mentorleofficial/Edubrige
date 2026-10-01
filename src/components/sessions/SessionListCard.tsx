@@ -17,7 +17,7 @@ import {
   MoreHorizontal,
   Star,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeHttpUrl } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import {
   formatIST,
@@ -212,7 +212,7 @@ export default function SessionListCard({
             <div className="flex items-center gap-2">
               <Link2 className="h-3.5 w-3.5 text-primary shrink-0" />
               <a
-                href={data.meetingUrl}
+                href={safeHttpUrl(data.meetingUrl)}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center gap-1 text-primary hover:underline truncate min-w-0"

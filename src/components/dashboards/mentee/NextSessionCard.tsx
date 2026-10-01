@@ -1,4 +1,5 @@
 import { formatISTDateTime } from "@/lib/datetime";
+import { safeHttpUrl } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -85,7 +86,7 @@ const NextSessionCard = ({ session }: { session: DashSession | null }) => {
           <div className="flex flex-wrap items-center gap-2">
             {session.meeting_url ? (
               <Button asChild>
-                <a href={session.meeting_url} target="_blank" rel="noreferrer">
+                <a href={safeHttpUrl(session.meeting_url)} target="_blank" rel="noreferrer">
                   <Video className="mr-2 h-4 w-4" /> Join
                 </a>
               </Button>

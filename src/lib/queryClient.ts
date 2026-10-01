@@ -1,5 +1,6 @@
 import { QueryCache, QueryClient, MutationCache } from "@tanstack/react-query";
 import { handleError } from "./handleError";
+import { endDeactivatedSession, isDeactivatedError } from "./session";
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,6 +16,12 @@ export const queryClient = new QueryClient({
   },
   queryCache: new QueryCache({
     onError: (error, query) => {
+      // A deactivated account is signed out at once, whatever it was loading.
+      if (isDeactivatedError(error)) {
+        endDeactivatedSession();
+        return;
+      }
+      if (query.meta?.silent) return;
       // Only surface a toast when a component is actively observing this query
       if (query.state.data !== undefined) {
         handleError(error, "Failed to refresh data");
@@ -22,6 +29,12 @@ export const queryClient = new QueryClient({
     },
   }),
   mutationCache: new MutationCache({
-    onError: (error) => handleError(error, "Action failed"),
+    onError: (error) => {
+      if (isDeactivatedError(error)) {
+        endDeactivatedSession();
+        return;
+      }
+      handleError(error, "Action failed");
+    },
   }),
 });

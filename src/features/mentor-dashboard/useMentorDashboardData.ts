@@ -91,6 +91,9 @@ export const useMentorDashboardData = (userId?: string) => {
           .eq("status", "active"),
       ]);
 
+      const loadErr = mpRes.error ?? avRes.error ?? userRes.error ?? offeringsCountRes.error;
+      if (loadErr) throw loadErr;
+
       const sessionIds = sessions.map((s) => s.id);
       let feedback: MentorDashFeedback[] = [];
       if (sessionIds.length > 0) {
@@ -99,6 +102,9 @@ export const useMentorDashboardData = (userId?: string) => {
           .select("id, session_id, rating, comment, created_at, submitted_by, audience")
           .in("audience", ["mentor", "mentee"])
           .in("session_id", sessionIds);
+        // Without feedback we can't tell which sessions are already rated, and
+        // the "rate your session" prompt would reappear for them — fail loudly.
+        if (fbRes.error) throw fbRes.error;
         feedback = (fbRes.data as MentorDashFeedback[] | null) ?? [];
       }
 

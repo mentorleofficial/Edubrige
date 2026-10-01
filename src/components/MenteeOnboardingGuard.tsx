@@ -18,7 +18,7 @@ const Spinner = () => (
  */
 const MenteeOnboardingGuard = ({ children }: Props) => {
   const { profile, user, loading: authLoading } = useAuth();
-  const { loading, isComplete } = useMenteeProfileStatus(user?.id);
+  const { loading, isComplete, error } = useMenteeProfileStatus(user?.id);
 
   if (profile?.role !== "mentee") return <>{children}</>;
 
@@ -27,6 +27,10 @@ const MenteeOnboardingGuard = ({ children }: Props) => {
   if (authLoading || !user?.id) return <Spinner />;
 
   if (loading) return <Spinner />;
+
+  // Fail open on a transient read error rather than bouncing a mentee who may
+  // already be onboarded into the onboarding wizard.
+  if (error) return <>{children}</>;
 
   if (!isComplete) return <Navigate to="/onboarding/mentee" replace />;
 

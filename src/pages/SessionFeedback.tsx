@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { handleError } from "@/lib/handleError";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -44,11 +45,16 @@ const SessionFeedback = () => {
   useEffect(() => {
     const load = async () => {
       if (!sessionId || !user) return;
-      const { data: s } = await supabase
+      const { data: s, error: sErr } = await supabase
         .from("sessions")
         .select("id, scheduled_at, mentor_id, mentee_id, mentor:users!sessions_mentor_id_fkey(full_name), mentee:users!sessions_mentee_id_fkey(full_name)")
         .eq("id", sessionId)
         .maybeSingle();
+      if (sErr) {
+        handleError(sErr, "Couldn't load this session");
+        setLoading(false);
+        return;
+      }
       if (!s) { setLoading(false); return; }
       setSession(s as any);
       const role: Role | null = s.mentor_id === user.id ? "mentor" : s.mentee_id === user.id ? "mentee" : null;
@@ -56,13 +62,21 @@ const SessionFeedback = () => {
 
       if (role) {
         const audience = role === "mentee" ? "mentor" : "mentee";
-        const { data: fb } = await supabase
+        const { data: fb, error: fbErr } = await supabase
           .from("feedback")
           .select("rating, comment")
           .eq("session_id", sessionId)
           .eq("submitted_by", user.id)
           .eq("audience", audience)
           .maybeSingle();
+        if (fbErr) {
+          // Without knowing whether feedback already exists, letting the user
+          // submit again could create a duplicate — stop and say so.
+          handleError(fbErr, "Couldn't check your existing feedback");
+          setSession(null);
+          setLoading(false);
+          return;
+        }
         if (fb) setExisting(fb);
       }
       setLoading(false);

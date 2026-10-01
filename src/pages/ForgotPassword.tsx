@@ -19,6 +19,7 @@ export default function ForgotPassword() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isResending, setIsResending] = useState(false);
+  const [otpVerified, setOtpVerified] = useState(false);
   
   const branding = useBranding();
   const navigate = useNavigate();
@@ -30,28 +31,19 @@ export default function ForgotPassword() {
 
     setIsLoading(true);
     try {
-      const { data: exists } = await supabase.rpc("check_email_exists", {
-        email_to_check: email.trim(),
-      });
-
-      if (!exists) {
-        toast({
-          variant: "destructive",
-          title: "Account not found",
-          description: "No account found with this email address.",
-        });
-        return;
-      }
-
+      // Neutral flow: we do not reveal whether an account exists (that was an
+      // enumeration oracle, and a failed lookup wrongly showed "Account not
+      // found"). GoTrue silently no-ops for unknown addresses.
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
         redirectTo: `${window.location.origin}/reset-password`,
       });
 
       if (error) throw error;
 
+      setOtpVerified(false);
       toast({
-        title: "Verification code sent",
-        description: "Please check your email for the 8-digit recovery code.",
+        title: "Check your email",
+        description: "If an account exists for this address, an 8-digit recovery code is on its way.",
       });
       setStep("verify");
     } catch (err: any) {
@@ -74,6 +66,7 @@ export default function ForgotPassword() {
 
       if (error) throw error;
 
+      setOtpVerified(false); // a fresh code invalidates any previously verified one
       toast({
         title: "Code resent",
         description: "A new 8-digit code has been sent to your email.",
@@ -113,16 +106,21 @@ export default function ForgotPassword() {
 
     setIsLoading(true);
     try {
-      // 1. Verify the 8-digit recovery OTP code
-      const { error: otpError } = await supabase.auth.verifyOtp({
-        email: email.trim(),
-        token: otp.trim(),
-        type: "recovery",
-      });
+      // 1. Verify the 8-digit recovery OTP — but only once. A recovery code is
+      // single-use, so if the first attempt verified the code and then the
+      // password update failed (e.g. reused password), retrying must NOT
+      // re-verify (that would fail with "expired") — only re-run the update.
+      if (!otpVerified) {
+        const { error: otpError } = await supabase.auth.verifyOtp({
+          email: email.trim(),
+          token: otp.trim(),
+          type: "recovery",
+        });
+        if (otpError) throw otpError;
+        setOtpVerified(true);
+      }
 
-      if (otpError) throw otpError;
-
-      // 2. The OTP was verified successfully and a session has been set. Update the password.
+      // 2. The OTP was verified and a session has been set. Update the password.
       const { error: updateError } = await supabase.auth.updateUser({
         password: password,
       });
@@ -220,10 +218,11 @@ export default function ForgotPassword() {
                     type="text"
                     placeholder="12345678"
                     maxLength={8}
+                    inputMode="numeric"
                     autoComplete="one-time-code"
                     className="pl-10 font-mono tracking-widest text-center text-lg"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 8))}
                     required
                   />
                 </div>

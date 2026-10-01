@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import AppLayout from "@/components/AppLayout";
+import StoredFileLink from "@/components/StoredFileLink";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMenteeTasks, type MenteeTaskRow } from "@/features/action-items/useMenteeTasks";
 import { useToggleActionItem } from "@/features/action-items/useActionItems";
@@ -266,12 +267,11 @@ function AttachmentList({ label, items }: { label: string; items: { name: string
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {items.map((att, i) => (
-          <a
+          <StoredFileLink
             key={i}
-            href={att.url}
-            target="_blank"
-            rel="noreferrer"
-            className="group flex items-center justify-between gap-2 rounded-lg border bg-muted/30 hover:bg-muted/50 p-2 text-xs"
+            bucket="session-attachments"
+            value={att.url}
+            className="group flex w-full items-center justify-between gap-2 rounded-lg border bg-muted/30 hover:bg-muted/50 p-2 text-xs"
           >
             <div className="flex items-center gap-2 min-w-0">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-background border">
@@ -280,7 +280,7 @@ function AttachmentList({ label, items }: { label: string; items: { name: string
               <span className="font-medium truncate" title={att.name}>{att.name}</span>
             </div>
             <Download className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100" />
-          </a>
+          </StoredFileLink>
         ))}
       </div>
     </div>

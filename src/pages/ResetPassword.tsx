@@ -10,6 +10,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, MailWarning } from "lucide-react";
 
+// Shown when the page is opened with no link token at all — nothing was
+// "used" or "expired", the visitor simply didn't arrive from an email link.
+const NO_LINK_MESSAGE =
+  "This page only works from the link in your invitation or password-reset email. Open the most recent email, or request a new link.";
+
 const LINK_EXPIRED_MESSAGE =
   "This link has already been used or has expired. Invitation and reset links work only once.";
 
@@ -54,10 +59,10 @@ const ResetPassword = () => {
     // Rendering the form without a live session would let the user type a password
     // only to have updateUser reject it with "Auth session missing!", so every
     // redemption path confirms the session landed before showing the form.
-    const finishIfSession = async () => {
+    const finishIfSession = async (noSessionMessage = LINK_EXPIRED_MESSAGE) => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) finish();
-      else fail(LINK_EXPIRED_MESSAGE);
+      else fail(noSessionMessage);
     };
     const fail = (message: string) => {
       if (isSubscribed) {
@@ -128,7 +133,7 @@ const ResetPassword = () => {
         return;
       }
 
-      await finishIfSession();
+      await finishIfSession(NO_LINK_MESSAGE);
     };
 
     initializeSession();
@@ -245,7 +250,7 @@ const ResetPassword = () => {
           {brandMark}
           <CardTitle className="text-2xl">Set Password</CardTitle>
           <CardDescription>
-            Enter a secure password for your new account on {branding.app_name}
+            Choose a secure password to continue on {branding.app_name}
           </CardDescription>
         </CardHeader>
         <CardContent>

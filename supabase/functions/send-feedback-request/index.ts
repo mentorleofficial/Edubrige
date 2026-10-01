@@ -85,12 +85,29 @@ Deno.serve(async (req) => {
   try {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const ANON_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
     const BREVO = Deno.env.get("BREVO_API_KEY");
 
     if (!BREVO) {
       return new Response(JSON.stringify({ error: "BREVO_API_KEY not configured" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Require a signed-in caller (this function relies on gateway JWT, which the
+    // anon key passes, so identity is confirmed here).
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing authorization" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } } });
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData.user) {
+      return new Response(JSON.stringify({ error: "Invalid token" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -112,6 +129,8 @@ Deno.serve(async (req) => {
         id,
         title,
         status,
+        mentor_id,
+        mentee_id,
         mentor:users!sessions_mentor_id_fkey(email, full_name),
         mentee:users!sessions_mentee_id_fkey(email, full_name)
       `)
@@ -122,6 +141,21 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Session not found" }), {
         status: 404,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Only the session's mentor (or an admin) may trigger its feedback request,
+    // and only once the session is completed.
+    const callerId = userData.user.id;
+    const { data: isAdmin } = await admin.rpc("has_role", { _user_id: callerId, _role: "admin" });
+    if (callerId !== session.mentor_id && !isAdmin) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (session.status !== "completed") {
+      return new Response(JSON.stringify({ error: "Feedback can only be requested for completed sessions" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 

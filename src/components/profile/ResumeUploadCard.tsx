@@ -12,9 +12,9 @@ const ACCEPT_MIME = [
 interface ResumeUploadCardProps {
   /** Whether a resume is already saved and available to view. */
   hasResume: boolean;
-  /** Direct href for viewing a public resume. If omitted and `onView` is set, View is a button. */
+  /** Ready-to-open URL (public or pre-signed); rendered as a new-tab link and preferred over `onView`. */
   viewHref?: string | null;
-  /** Resolve + open a private (signed-url) resume. */
+  /** Fallback: resolve + open a private (signed-url) resume on click. */
   onView?: () => void;
   /** Spinner while resolving a signed view URL. */
   viewing?: boolean;
@@ -69,6 +69,18 @@ const ResumeUploadCard = ({
   };
 
   const renderView = () => {
+    if (viewHref) {
+      return (
+        <a
+          href={viewHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+        >
+          View resume <ExternalLink className="h-3 w-3" />
+        </a>
+      );
+    }
     if (onView) {
       return (
         <Button
@@ -81,18 +93,6 @@ const ResumeUploadCard = ({
         >
           {viewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "View resume"}
         </Button>
-      );
-    }
-    if (viewHref) {
-      return (
-        <a
-          href={viewHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-        >
-          View resume <ExternalLink className="h-3 w-3" />
-        </a>
       );
     }
     return null;

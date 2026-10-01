@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { handleError } from "@/lib/handleError";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,12 +47,14 @@ const AdminPrograms = () => {
 
   const load = async () => {
     setLoading(true);
-    const { data } = await supabase.from("programs").select("*").order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("programs").select("*").order("created_at", { ascending: false });
+    if (error) handleError(error, "Couldn't load programs");
     setPrograms(data || []);
     if (data?.length) {
       const ids = data.map((p) => p.id);
-      const { data: countRows } = await supabase
+      const { data: countRows, error: countErr } = await supabase
         .rpc("get_program_member_counts", { program_ids: ids });
+      if (countErr) handleError(countErr, "Couldn't load program member counts");
       const c: Record<string, { mentors: number; mentees: number }> = {};
       ids.forEach((id) => (c[id] = { mentors: 0, mentees: 0 }));
       (countRows as any[] || []).forEach((r: any) => {

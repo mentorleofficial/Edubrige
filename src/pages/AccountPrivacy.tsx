@@ -17,7 +17,7 @@ useCurrentPolicy,
   useAcceptPolicy,
   PolicyKind,
 } from "@/features/privacy/api";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeFn } from "@/lib/functionError";
 import { toast } from "@/hooks/use-toast";
 import { Download, FileEdit, Trash2, LogOut, Loader2 } from "lucide-react";
 
@@ -25,7 +25,7 @@ const KIND_META: Record<PolicyKind, { label: string; icon: typeof Download; desc
   export: { label: "Download my data", icon: Download, description: "Receive a JSON file with all your data." },
   correction: { label: "Request correction", icon: FileEdit, description: "Ask an admin to correct your information." },
   deletion: { label: "Request deletion", icon: Trash2, description: "Ask us to delete your account and data." },
-  withdrawal: { label: "Withdraw consent", icon: LogOut, description: "Withdraw consent and disable your account." },
+  withdrawal: { label: "Withdraw consent", icon: LogOut, description: "Withdraw your consent and ask an admin to close your account." },
 };
 
 const STATUS_VARIANT: Record<string, "secondary" | "default" | "outline" | "destructive"> = {
@@ -52,8 +52,7 @@ const AccountPrivacy = () => {
   const exportNow = async () => {
     setExporting(true);
     try {
-      const { data, error } = await supabase.functions.invoke("export-user-data", { body: {} });
-      if (error) throw error;
+      const data = await invokeFn("export-user-data", { body: {} });
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -61,9 +60,9 @@ const AccountPrivacy = () => {
       a.download = `my-data-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      // Also log the request
-      await createDsr.mutateAsync({ userId: user.id, kind: "export", message: "Self-service export" });
       toast({ title: "Export ready", description: "Your data was downloaded." });
+      // Logging the request must not turn a successful download into "Export failed".
+      createDsr.mutateAsync({ userId: user.id, kind: "export", message: "Self-service export" }).catch(() => {});
     } catch (e) {
       toast({ title: "Export failed", description: (e as Error).message, variant: "destructive" });
     } finally {

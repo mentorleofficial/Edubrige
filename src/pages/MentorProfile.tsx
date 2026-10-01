@@ -47,6 +47,7 @@ import ExpertiseInput from "@/features/mentor-profile/components/ExpertiseInput"
 import ExperienceList from "@/features/mentor-profile/components/ExperienceList";
 import QualificationsList from "@/features/mentor-profile/components/QualificationsList";
 import ResumeUploadCard from "@/components/profile/ResumeUploadCard";
+import { useStoredFileUrl } from "@/hooks/useStoredFileUrl";
 import { PhoneInput } from "@/components/ui/phone-input";
 import { getResumeSignedUrl } from "@/features/mentor-profile/api/mentorProfile";
 import AvatarUploader from "@/features/mentor-profile/components/AvatarUploader";
@@ -83,6 +84,7 @@ const MentorProfile = () => {
   const [pendingAvatar, setPendingAvatar] = useState<File | null>(null);
   const [pendingResume, setPendingResume] = useState<File | null>(null);
   const [resumePath, setResumePath] = useState<string>("");
+  const resumeHref = useStoredFileUrl("mentor-resumes", resumePath);
   const [activeSection, setActiveSection] = useState<string>("about");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [viewingResume, setViewingResume] = useState(false);
@@ -701,6 +703,7 @@ const MentorProfile = () => {
 
               <ResumeUploadCard
                 hasResume={!!resumePath}
+                viewHref={resumeHref}
                 onView={handleViewResume}
                 viewing={viewingResume}
                 pendingFileName={pendingResume?.name ?? null}

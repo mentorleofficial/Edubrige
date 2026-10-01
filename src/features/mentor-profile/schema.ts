@@ -1,9 +1,19 @@
 import { z } from "zod";
+import { COUNTRY_CODES } from "@/features/mentee-onboarding/profileOptions";
 
-const validPhone = (val: string) => {
+export const validPhone = (val: string) => {
   const match = val.match(/^\+(\d{1,4})\s(\d+)$/);
   if (!match) return false;
+  const dial = `+${match[1]}`;
   const digits = match[2];
+  // If the dial code is one we offer, the national number must fall within that
+  // country's valid length range, so a too-short number ("+91 1234") is rejected
+  // without refusing real variable-length numbers (e.g. Germany, Japan, Brazil).
+  // Otherwise fall back to a permissive international range.
+  const known = COUNTRY_CODES.filter((c) => c.dial === dial);
+  if (known.length > 0) {
+    return known.some((c) => digits.length >= c.minDigits && digits.length <= c.maxDigits);
+  }
   return digits.length >= 4 && digits.length <= 15;
 };
 
